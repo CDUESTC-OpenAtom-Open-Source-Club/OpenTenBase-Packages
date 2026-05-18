@@ -51,7 +51,9 @@ Depends:
  ${misc:Depends},
  opentenbase-client (= ${binary:Version}),
  adduser,
- lsb-base
+ lsb-base,
+ libossp-uuid16,
+ libpqxx-7.8t64 (>= 7.2)
 Description: OpenTenBase server binaries (postgres, gtm, pg_ctl)
  OpenTenBase is an enterprise-level distributed SQL database management
  system based on PostgreSQL.
