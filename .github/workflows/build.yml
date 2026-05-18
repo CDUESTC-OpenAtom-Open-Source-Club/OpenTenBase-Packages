@@ -16,12 +16,15 @@ jobs:
           - ubuntu: "20.04"
             codename: focal
             libpqxx: libpqxx-6.4
+            cli11_from_source: true
           - ubuntu: "22.04"
             codename: jammy
             libpqxx: libpqxx-7.6
+            cli11_from_source: false
           - ubuntu: "24.04"
             codename: noble
             libpqxx: libpqxx-7.8t64
+            cli11_from_source: false
 
     steps:
       - name: Clone OpenTenBase source
@@ -35,9 +38,7 @@ jobs:
 
       - name: Merge packaging into source
         run: |
-          # Packaging repo has debian files at root, move into source/debian/
           mkdir -p source/debian
-          # Copy all packaging files except .github, README, VERIFICATION
           for f in packaging/*; do
             name=$(basename "$f")
             case "$name" in
@@ -45,8 +46,13 @@ jobs:
             esac
             cp -a "$f" source/debian/
           done
-          # Copy install.sh to output later
-          cp packaging/install.sh source/ 2>/dev/null || true
+
+      - name: Install CLI11 from source (focal only)
+        if: matrix.cli11_from_source
+        run: |
+          git clone --depth=1 https://github.com/CLIUtils/CLI11.git /tmp/cli11
+          sudo cp -r /tmp/cli11/include/CLI /usr/include/
+          echo "CLI11 headers installed to /usr/include/CLI"
 
       - name: Install build dependencies
         run: |
@@ -56,7 +62,9 @@ jobs:
             libreadline-dev zlib1g-dev libssl-dev libpam0g-dev \
             libxml2-dev libldap2-dev libossp-uuid-dev uuid-dev \
             libcurl4-openssl-dev liblz4-dev libzstd-dev \
-            libcli11-dev libpqxx-dev quilt libtool pkg-config
+            libpqxx-dev quilt libtool pkg-config
+          # libcli11-dev may not exist on focal, skip if missing
+          sudo apt-get install -y -qq libcli11-dev 2>/dev/null || true
 
       - name: Patch control for ${{ matrix.codename }}
         working-directory: source
