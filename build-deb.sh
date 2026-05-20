@@ -68,28 +68,24 @@ install_dependencies() {
     ldconfig
 
     # OpenTenBase's configure hardcodes /usr/local/lib/libzstd.a and /usr/local/lib/liblz4.a
-    # Create symlinks from actual installed locations
     log_info "Setting up library symlinks for configure..."
     mkdir -p /usr/local/lib
 
-    # Find and symlink libzstd
-    for f in /usr/lib/x86_64-linux-gnu/libzstd.a /usr/lib/x86_64-linux-gnu/libzstd.so; do
+    for f in /usr/lib/x86_64-linux-gnu/libzstd.a /usr/lib/x86_64-linux-gnu/libzstd.so \
+             /usr/lib/x86_64-linux-gnu/liblz4.a /usr/lib/x86_64-linux-gnu/liblz4.so; do
         if [ -f "$f" ]; then
             ln -sf "$f" "/usr/local/lib/$(basename $f)"
-            log_info "Symlinked $(basename $f)"
         fi
     done
 
-    # Find and symlink liblz4
-    for f in /usr/lib/x86_64-linux-gnu/liblz4.a /usr/lib/x86_64-linux-gnu/liblz4.so; do
-        if [ -f "$f" ]; then
-            ln -sf "$f" "/usr/local/lib/$(basename $f)"
-            log_info "Symlinked $(basename $f)"
+    # Ensure -latomic is available for 128-bit atomics
+    if [ ! -f /usr/lib/x86_64-linux-gnu/libatomic.so ]; then
+        gcc_path=$(gcc -print-file-name=libatomic.so 2>/dev/null)
+        if [ -n "$gcc_path" ] && [ -f "$gcc_path" ]; then
+            ln -sf "$gcc_path" /usr/lib/x86_64-linux-gnu/libatomic.so
+            log_info "Symlinked libatomic.so"
         fi
-    done
-
-    # Verify symlinks
-    ls -la /usr/local/lib/libzstd* /usr/local/lib/liblz4* 2>/dev/null || log_warn "Some symlinks missing"
+    fi
 }
 
 # Apply patches
@@ -107,6 +103,21 @@ apply_patches() {
     if [ -f debian/patches/02-nolic-sharding.patch ]; then
         patch -p1 < debian/patches/02-nolic-sharding.patch || true
     fi
+
+    # Add PQconnectdbParallel to exports.txt if not present
+    if [ -f src/interfaces/libpq/exports.txt ]; then
+        if ! grep -q "PQconnectdbParallel" src/interfaces/libpq/exports.txt; then
+            next_num=$(tail -1 src/interfaces/libpq/exports.txt | awk '{print $2}')
+            next_num=$((next_num + 1))
+            echo "PQconnectdbParallel  $next_num" >> src/interfaces/libpq/exports.txt
+            log_info "Added PQconnectdbParallel to exports.txt (slot $next_num)"
+        fi
+    fi
+
+    # Remove merge conflict artifact files that might confuse the build
+    rm -f src/interfaces/libpq/fe-connect.c.BASE.c \
+          src/interfaces/libpq/fe-connect.c.LOCAL.c \
+          src/interfaces/libpq/fe-connect.c.REMOTE.c 2>/dev/null || true
 }
 
 # Build packages
