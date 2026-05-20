@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 
 # Copy build script
-COPY build-deb.sh /build/
+COPY packaging/build-deb.sh /build/
 RUN chmod +x /build/build-deb.sh
 
 # Default: run build
