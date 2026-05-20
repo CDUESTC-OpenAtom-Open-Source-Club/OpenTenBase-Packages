@@ -1,0 +1,3 @@
+# OpenTenBase is a PostgreSQL fork; package names reuse upstream PG conventions.
+opentenbase source: source-is-missing
+opentenbase source: very-long-line-length-in-source-file
