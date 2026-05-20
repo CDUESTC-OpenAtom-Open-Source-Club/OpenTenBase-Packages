@@ -64,6 +64,13 @@ install_dependencies() {
     apt-get install -y libpqxx-dev 2>/dev/null || log_warn "libpqxx-dev not available"
     apt-get install -y libcli11-dev 2>/dev/null || log_warn "libcli11-dev not available"
 
+    # IMPORTANT: Remove system libpq-dev to avoid linker picking up system libpq
+    # instead of OpenTenBase's private libpq with custom functions.
+    # The system libpq lacks PQconnectdbParallel, PQresultCommandId, etc.
+    apt-get remove -y libpq-dev 2>/dev/null || true
+    # Remove the system libpq.so symlink but keep libpq.so.5 (runtime)
+    rm -f /usr/lib/x86_64-linux-gnu/libpq.so 2>/dev/null || true
+
     # Update shared library cache
     ldconfig
 
@@ -104,17 +111,7 @@ apply_patches() {
         patch -p1 < debian/patches/02-nolic-sharding.patch || true
     fi
 
-    # Add PQconnectdbParallel to exports.txt if not present
-    if [ -f src/interfaces/libpq/exports.txt ]; then
-        if ! grep -q "PQconnectdbParallel" src/interfaces/libpq/exports.txt; then
-            next_num=$(tail -1 src/interfaces/libpq/exports.txt | awk '{print $2}')
-            next_num=$((next_num + 1))
-            echo "PQconnectdbParallel  $next_num" >> src/interfaces/libpq/exports.txt
-            log_info "Added PQconnectdbParallel to exports.txt (slot $next_num)"
-        fi
-    fi
-
-    # Remove merge conflict artifact files that might confuse the build
+    # Remove merge conflict artifact files
     rm -f src/interfaces/libpq/fe-connect.c.BASE.c \
           src/interfaces/libpq/fe-connect.c.LOCAL.c \
           src/interfaces/libpq/fe-connect.c.REMOTE.c 2>/dev/null || true
