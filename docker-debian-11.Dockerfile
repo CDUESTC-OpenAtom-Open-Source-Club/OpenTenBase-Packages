@@ -25,6 +25,8 @@ RUN apt-get update && apt-get install -y \
     liblz4-dev \
     libzstd-dev \
     libssh2-1-dev \
+    libatomic1 \
+    libatomic-ops-dev \
     pkg-config \
     libtool \
     && (apt-get install -y libpqxx-dev || true) \
