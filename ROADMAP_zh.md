@@ -120,16 +120,16 @@ opentenbase-repo/
 
 #### 任务清单
 
-- [ ] **创建 Docker 构建环境**
-  - [ ] Ubuntu 20.04 Dockerfile
-  - [ ] Ubuntu 22.04 Dockerfile
-  - [ ] Ubuntu 24.04 Dockerfile
-  - [ ] Debian 11 Dockerfile
-  - [ ] Debian 12 Dockerfile
+- [x] **创建 Docker 构建环境**
+  - [x] Ubuntu 20.04 Dockerfile
+  - [x] Ubuntu 22.04 Dockerfile（已有）
+  - [x] Ubuntu 24.04 Dockerfile（已有）
+  - [x] Debian 11 Dockerfile
+  - [x] Debian 12 Dockerfile
 
-- [ ] **更新 CI 工作流**
-  - [ ] 修改 `.github/workflows/build.yml`
-  - [ ] 添加 Docker 构建步骤
+- [x] **更新 CI 工作流**
+  - [x] 创建 `.github/workflows/build-multi.yml`
+  - [x] 创建 `.github/workflows/build-multi-optimized.yml`
   - [ ] 测试所有版本构建
 
 - [ ] **标准化打包规范**
@@ -180,10 +180,10 @@ opentenbase-repo/
   - [ ] 支持多版本并存
   - [ ] 版本切换机制
 
-- [ ] **文档完善**
-  - [ ] 安装指南（中英文）
-  - [ ] 配置指南
-  - [ ] 故障排查指南
+- [x] **文档完善**
+  - [x] 安装指南（中英文）
+  - [x] 配置指南
+  - [x] 故障排查指南
 
 #### 预期成果
 
@@ -559,6 +559,83 @@ main "$@"
 **推荐选择：自建 APT 仓库 + Docker 构建**
 
 这是**开源项目官方打包的标准路线**，也是你能给 OpenTenBase 留下的**最有价值的长期贡献**。
+
+---
+
+## 当前进度
+
+### 已完成 ✅
+
+- [x] **创建 Docker 构建环境**
+  - [x] Ubuntu 20.04 Dockerfile
+  - [x] Ubuntu 22.04 Dockerfile（已有）
+  - [x] Ubuntu 24.04 Dockerfile（已有）
+  - [x] Debian 11 Dockerfile
+  - [x] Debian 12 Dockerfile
+
+- [x] **更新 CI 工作流**
+  - [x] 创建 `.github/workflows/build-multi.yml`
+  - [x] 创建 `.github/workflows/build-multi-optimized.yml`
+
+- [x] **文档完善**
+  - [x] 安装指南（中英文）
+  - [x] 配置指南
+  - [x] 故障排查指南
+
+- [x] **工具链**
+  - [x] `test-build.sh` - 本地测试脚本
+  - [x] `release.sh` - 版本发布脚本
+  - [x] `build-deb.sh` - Docker 构建脚本
+
+### 进行中 🔄
+
+- [ ] **测试验证**
+  - [ ] Ubuntu 20.04 安装测试
+  - [ ] Ubuntu 22.04 安装测试
+  - [ ] Ubuntu 24.04 安装测试
+  - [ ] Debian 11 安装测试
+  - [ ] Debian 12 安装测试
+
+### 待开始 ⏳
+
+- [ ] **标准化打包规范**
+- [ ] **搭建 APT 仓库**
+- [ ] **RPM 包支持**
+- [ ] **自动 CI/CD 流水线**
+
+---
+
+## 所需资源
+
+### 立即需要
+
+1. **测试服务器**（可选）
+   - 用于在真实环境中测试安装
+   - 建议：Ubuntu 20.04/22.04/24.04 + Debian 11/12 各一台
+   - 可以使用云服务器（如 AWS、阿里云、腾讯云）
+
+2. **GitHub Actions 额度**
+   - 当前使用 GitHub 免费额度
+   - 每个月有 2000 分钟的免费构建时间
+   - 如果需要更多，可以考虑升级到 GitHub Pro
+
+### 中期需要
+
+3. **域名**（可选）
+   - 用于建立 APT 仓库
+   - 例如：`apt.opentenbase.org`
+   - 可以使用 GitHub Pages 作为临时方案
+
+4. **GPG 密钥**
+   - 用于签名软件包
+   - 提高用户信任度
+
+### 长期需要
+
+5. **云服务器**
+   - 用于托管 APT/RPM 仓库
+   - 建议：至少 2 核 4G 内存
+   - 带宽：至少 10Mbps
 
 ---
 
