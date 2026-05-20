@@ -67,22 +67,29 @@ install_dependencies() {
     # Update shared library cache
     ldconfig
 
-    # Verify critical libraries are findable
-    log_info "Verifying library paths..."
-    for lib in zstd lz4; do
-        if ldconfig -p | grep -q "lib${lib}.so"; then
-            log_info "lib${lib}: found"
-        else
-            log_warn "lib${lib}: not found in ldconfig cache"
-            # Try to find and symlink
-            found=$(find /usr/lib -name "lib${lib}.so*" -type f 2>/dev/null | head -1)
-            if [ -n "$found" ]; then
-                log_info "Found $found, updating ldconfig..."
-                echo "$(dirname "$found")" > /etc/ld.so.conf.d/${lib}.conf
-                ldconfig
-            fi
+    # OpenTenBase's configure hardcodes /usr/local/lib/libzstd.a and /usr/local/lib/liblz4.a
+    # Create symlinks from actual installed locations
+    log_info "Setting up library symlinks for configure..."
+    mkdir -p /usr/local/lib
+
+    # Find and symlink libzstd
+    for f in /usr/lib/x86_64-linux-gnu/libzstd.a /usr/lib/x86_64-linux-gnu/libzstd.so; do
+        if [ -f "$f" ]; then
+            ln -sf "$f" "/usr/local/lib/$(basename $f)"
+            log_info "Symlinked $(basename $f)"
         fi
     done
+
+    # Find and symlink liblz4
+    for f in /usr/lib/x86_64-linux-gnu/liblz4.a /usr/lib/x86_64-linux-gnu/liblz4.so; do
+        if [ -f "$f" ]; then
+            ln -sf "$f" "/usr/local/lib/$(basename $f)"
+            log_info "Symlinked $(basename $f)"
+        fi
+    done
+
+    # Verify symlinks
+    ls -la /usr/local/lib/libzstd* /usr/local/lib/liblz4* 2>/dev/null || log_warn "Some symlinks missing"
 }
 
 # Apply patches
