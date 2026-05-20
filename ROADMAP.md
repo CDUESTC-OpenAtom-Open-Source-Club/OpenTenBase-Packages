@@ -163,10 +163,10 @@ opentenbase-repo/
 
 #### Task List
 
-- [ ] **Build APT repository**
-  - [ ] Install and configure `reprepro`
-  - [ ] Create repository directory structure
-  - [ ] Configure GPG signing
+- [x] **Build APT repository**
+  - [x] Install and configure `reprepro`
+  - [x] Create repository directory structure
+  - [x] Configure GPG signing
   - [ ] Test repository functionality
 
 - [ ] **Create one-click installation script**
@@ -586,6 +586,8 @@ This is the **standard route for official packaging of open source projects**, a
   - [x] `test-build.sh` - Local test script
   - [x] `release.sh` - Version release script
   - [x] `build-deb.sh` - Docker build script
+  - [x] `setup-apt-repo.sh` - APT repository setup script
+  - [x] `sign-packages.sh` - GPG signing script
 
 ### In Progress 🔄
 
@@ -599,7 +601,7 @@ This is the **standard route for official packaging of open source projects**, a
 ### Pending ⏳
 
 - [ ] **Standardize packaging specifications**
-- [ ] **Build APT repository**
+- [ ] **Build APT repository** (requires domain and server)
 - [ ] **RPM package support**
 - [ ] **Automated CI/CD pipeline**
 
@@ -639,6 +641,6 @@ This is the **standard route for official packaging of open source projects**, a
 
 ---
 
-**Document Version**: 1.0  
+**Document Version**: 1.1  
 **Last Updated**: 2026-05-20  
 **Maintainer**: muzimu217
