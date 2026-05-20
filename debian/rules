@@ -7,7 +7,7 @@ JOBS    := $(shell nproc)
 WARN_FLAGS := -Wno-deprecated-declarations -Wno-error -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-function-declaration -Wno-implicit-int
 
 export DEB_CFLAGS_MAINT_APPEND := $(WARN_FLAGS)
-export DEB_LDFLAGS_MAINT_APPEND := -latomic -Wl,-rpath,/usr/lib/opentenbase/lib
+export DEB_LDFLAGS_MAINT_APPEND := -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/lib
 
 # Force system libraries (avoid conda paths)
 export PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -32,8 +32,7 @@ override_dh_auto_configure:
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC $(WARN_FLAGS) -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -latomic -Wl,-rpath,/usr/lib/opentenbase/lib" \
-	    LIBS="-latomic"
+	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/lib"
 
 override_dh_auto_build:
 	$(MAKE) -j$(JOBS) all
