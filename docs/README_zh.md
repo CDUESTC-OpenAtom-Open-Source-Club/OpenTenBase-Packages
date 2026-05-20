@@ -10,7 +10,7 @@ Ubuntu .deb 打包方案，用于 [OpenTenBase](https://github.com/OpenTenBase/O
 
 ```bash
 # 下载并运行安装脚本
-curl -sLO https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/install.sh
+curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/install.sh
 sudo bash install.sh
 ```
 
@@ -23,10 +23,10 @@ sudo bash install.sh
 
 ```bash
 # 对于 Ubuntu 24.04 (Noble)
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase_5.0-1ubuntu1.noble_all.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase_5.0-1ubuntu1.noble_all.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
 sudo apt install ./*.deb
 ```
 
@@ -210,7 +210,7 @@ sudo systemctl stop postgresql
 
 ### 报告问题
 
-1. 访问 [Issues](https://github.com/muzimu217/opentenbase-deb/issues)
+1. 访问 [Issues](https://github.com/muzimu217/OpenTenBase-deb/issues)
 2. 点击 "New Issue"
 3. 描述问题详情，包括：
    - Ubuntu 版本
@@ -231,7 +231,7 @@ sudo systemctl stop postgresql
 
 ## 相关链接
 
-- **GitHub 仓库**：https://github.com/muzimu217/opentenbase-deb
+- **GitHub 仓库**：https://github.com/muzimu217/OpenTenBase-deb
 - **上游仓库**：https://github.com/OpenTenBase/OpenTenBase
 - **OpenTenBase 文档**：https://github.com/OpenTenBase/OpenTenBase/wiki
 
@@ -251,7 +251,7 @@ sudo systemctl stop postgresql
 
 ```bash
 # 克隆仓库
-git clone https://github.com/muzimu217/opentenbase-deb.git
+git clone https://github.com/muzimu217/OpenTenBase-deb.git
 cd opentenbase-deb
 
 # 测试构建 Ubuntu 20.04

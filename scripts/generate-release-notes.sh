@@ -27,7 +27,7 @@ cat << EOF
 ### One-line Install (Recommended)
 
 \`\`\`bash
-curl -sLO https://github.com/muzimu217/opentenbase-deb/releases/download/${VERSION}/install.sh
+curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/download/${VERSION}/install.sh
 sudo bash install.sh
 \`\`\`
 
@@ -36,11 +36,11 @@ sudo bash install.sh
 \`\`\`bash
 # Download packages for your distro
 # Example for Ubuntu 22.04:
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/${VERSION}/opentenbase_5.0-1ubuntu1.jammy_all.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/${VERSION}/opentenbase-server_5.0-1ubuntu1.jammy_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/${VERSION}/opentenbase-client_5.0-1ubuntu1.jammy_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/${VERSION}/opentenbase-contrib_5.0-1ubuntu1.jammy_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/${VERSION}/libopentenbase-dev_5.0-1ubuntu1.jammy_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/${VERSION}/opentenbase_5.0-1ubuntu1.jammy_all.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/${VERSION}/opentenbase-server_5.0-1ubuntu1.jammy_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/${VERSION}/opentenbase-client_5.0-1ubuntu1.jammy_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/${VERSION}/opentenbase-contrib_5.0-1ubuntu1.jammy_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/${VERSION}/libopentenbase-dev_5.0-1ubuntu1.jammy_amd64.deb
 
 # Install
 sudo dpkg -i *.deb
@@ -50,7 +50,7 @@ sudo apt-get install -f
 ### Docker Compose
 
 \`\`\`bash
-git clone https://github.com/muzimu217/opentenbase-deb.git
+git clone https://github.com/muzimu217/OpenTenBase-deb.git
 cd opentenbase-deb/docker/compose
 docker compose up -d
 \`\`\`
@@ -114,5 +114,5 @@ Docker Compose files are available in \`docker/compose/\` for one-command cluste
 
 ---
 
-**Full Changelog**: https://github.com/muzimu217/opentenbase-deb/compare/$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo 'init')...${VERSION}
+**Full Changelog**: https://github.com/muzimu217/OpenTenBase-deb/compare/$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo 'init')...${VERSION}
 EOF

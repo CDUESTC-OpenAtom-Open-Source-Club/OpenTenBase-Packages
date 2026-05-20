@@ -123,7 +123,7 @@ create_release_notes() {
     echo "### One-click Install (Recommended)"
     echo ""
     echo '```bash'
-    echo "curl -sLO https://github.com/muzimu217/opentenbase-deb/releases/download/$version/install.sh"
+    echo "curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/download/$version/install.sh"
     echo "sudo bash install.sh"
     echo '```'
     echo ""
@@ -303,7 +303,7 @@ main() {
     echo "3. 测试安装脚本"
     echo ""
     echo "CI 构建状态:"
-    echo "https://github.com/muzimu217/opentenbase-deb/actions"
+    echo "https://github.com/muzimu217/OpenTenBase-deb/actions"
 }
 
 # 执行主函数

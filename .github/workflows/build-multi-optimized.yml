@@ -218,7 +218,7 @@ jobs:
             
             #### 一键安装（推荐）
             ```bash
-            curl -sLO https://github.com/muzimu217/opentenbase-deb/releases/download/${{ github.ref_name }}/install.sh
+            curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/download/${{ github.ref_name }}/install.sh
             sudo bash install.sh
             ```
             

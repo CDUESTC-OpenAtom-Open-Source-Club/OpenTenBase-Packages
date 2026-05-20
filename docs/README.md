@@ -10,7 +10,7 @@ Ubuntu .deb packaging for [OpenTenBase](https://github.com/OpenTenBase/OpenTenBa
 
 ```bash
 # Download and run installer
-curl -sLO https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/install.sh
+curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/install.sh
 sudo bash install.sh
 ```
 
@@ -23,10 +23,10 @@ The installer automatically:
 
 ```bash
 # For Ubuntu 24.04 (Noble)
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase_5.0-1ubuntu1.noble_all.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
-wget https://github.com/muzimu217/opentenbase-deb/releases/download/v5.0-multi8/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase_5.0-1ubuntu1.noble_all.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi8/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
 sudo apt install ./*.deb
 ```
 
@@ -210,7 +210,7 @@ Welcome to contribute code, report issues, or suggest improvements!
 
 ### Report Issues
 
-1. Visit [Issues](https://github.com/muzimu217/opentenbase-deb/issues)
+1. Visit [Issues](https://github.com/muzimu217/OpenTenBase-deb/issues)
 2. Click "New Issue"
 3. Describe the issue in detail, including:
    - Ubuntu version
@@ -231,7 +231,7 @@ Same as OpenTenBase (Apache 2.0).
 
 ## Related Links
 
-- **GitHub Repository**: https://github.com/muzimu217/opentenbase-deb
+- **GitHub Repository**: https://github.com/muzimu217/OpenTenBase-deb
 - **Upstream Repository**: https://github.com/OpenTenBase/OpenTenBase
 - **OpenTenBase Documentation**: https://github.com/OpenTenBase/OpenTenBase/wiki
 
@@ -251,7 +251,7 @@ Same as OpenTenBase (Apache 2.0).
 
 ```bash
 # Clone the repository
-git clone https://github.com/muzimu217/opentenbase-deb.git
+git clone https://github.com/muzimu217/OpenTenBase-deb.git
 cd opentenbase-deb
 
 # Test build for Ubuntu 20.04

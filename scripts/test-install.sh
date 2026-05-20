@@ -16,7 +16,7 @@ NC='\033[0m'
 
 # Config
 TAG="v5.0-multi9"
-REPO_URL="https://github.com/muzimu217/opentenbase-deb/releases/download/${TAG}"
+REPO_URL="https://github.com/muzimu217/OpenTenBase-deb/releases/download/${TAG}"
 LOG_FILE="/tmp/opentenbase-test-$(date +%Y%m%d-%H%M%S).log"
 
 # Logging

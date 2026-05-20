@@ -40,7 +40,7 @@ docker compose ps
 ```bash
 # Download packages first
 mkdir -p packages
-curl -sLO https://github.com/muzimu217/opentenbase-deb/releases/latest/download/opentenbase-server_*.deb
+curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/opentenbase-server_*.deb
 mv *.deb packages/
 
 # Build and start

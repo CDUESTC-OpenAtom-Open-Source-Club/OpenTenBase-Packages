@@ -1,6 +1,6 @@
 #!/bin/bash
 # OpenTenBase APT 仓库一键安装脚本
-# Usage: curl -sSL https://github.com/muzimu217/opentenbase-deb/releases/latest/download/setup-apt.sh | sudo bash
+# Usage: curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/setup-apt.sh | sudo bash
 
 set -e
 
@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # 配置
-REPO_URL="https://github.com/muzimu217/opentenbase-deb/releases/latest/download"
+REPO_URL="https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download"
 GPG_KEY_URL="${REPO_URL}/opentenbase-gpg-key.asc"
 KEYRING_PATH="/usr/share/keyrings/opentenbase-archive-keyring.gpg"
 SOURCES_LIST="/etc/apt/sources.list.d/opentenbase.list"
