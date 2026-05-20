@@ -83,6 +83,19 @@ jobs:
             echo
           done
 
+      - name: Rename packages with codename
+        run: |
+          cd output
+          for deb in *.deb; do
+            # Insert codename: pkg_5.0-1ubuntu1_arch.deb -> pkg_5.0-1ubuntu1~codename_arch.deb
+            newname=$(echo "$deb" | sed "s/_5.0-1ubuntu1_/_5.0-1ubuntu1~${{ matrix.codename }}_/")
+            if [ "$newname" != "$deb" ]; then
+              mv "$deb" "$newname"
+              echo "Renamed: $deb -> $newname"
+            fi
+          done
+          ls -la *.deb
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
