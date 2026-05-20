@@ -33,6 +33,8 @@ override_dh_auto_configure:
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC $(WARN_FLAGS) -I/usr/include/libxml2" \
 	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/lib"
+	# Ensure -latomic is in LIBS for final link (configure resets LIBS)
+	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -latomic/' src/Makefile.global
 
 override_dh_auto_build:
 	$(MAKE) -j$(JOBS) all
