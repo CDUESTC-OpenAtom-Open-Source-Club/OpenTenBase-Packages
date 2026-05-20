@@ -9,17 +9,16 @@ Last-Update: 2026-05-20
 
 --- a/src/include/port/atomics.h
 +++ b/src/include/port/atomics.h
-@@ -572,10 +572,11 @@ static inline uint128_u
- pg_atomic_compare_and_swap_u128(volatile uint128_u *ptr, uint128_u oldval, uint128_u newval)
- {
+@@ -575,8 +575,9 @@ pg_atomic_compare_and_swap_u128(volatile uint128_u *ptr, uint128_u oldval, uint
  #ifdef __aarch64__
  	return arm_compare_and_swap_u128(ptr, oldval, newval);
  #else
- 	uint128_u ret;
+-	uint128_u ret;
 -    ret.u128 = __sync_val_compare_and_swap(&ptr->u128, oldval.u128, newval.u128);
 -    return ret;
 +	uint128_u expected = oldval;
-+	__atomic_compare_exchange_n(&ptr->u128, &expected.u128, newval.u128, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
++	__atomic_compare_exchange_n(&ptr->u128, &expected.u128, newval.u128,
++							   0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 +	return expected;
  #endif
  }
