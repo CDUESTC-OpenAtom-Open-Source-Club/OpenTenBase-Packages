@@ -32,7 +32,7 @@ override_dh_auto_configure:
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC $(WARN_FLAGS) -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,-rpath,/usr/lib/opentenbase/lib"
+	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -latomic -Wl,-rpath,/usr/lib/opentenbase/lib"
 
 override_dh_auto_build:
 	$(MAKE) -j$(JOBS) all
