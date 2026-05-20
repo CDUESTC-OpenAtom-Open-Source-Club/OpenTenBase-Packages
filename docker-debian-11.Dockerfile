@@ -1,9 +1,9 @@
 FROM debian:11
 
-# 设置非交互模式
+# Non-interactive mode
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装构建依赖
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     debhelper \
@@ -31,12 +31,12 @@ RUN apt-get update && apt-get install -y \
     libtool \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置工作目录
+# Work directory
 WORKDIR /build
 
-# 复制构建脚本
-COPY scripts/build-deb.sh /build/
+# Copy build script
+COPY build-deb.sh /build/
 RUN chmod +x /build/build-deb.sh
 
-# 默认执行构建
+# Default: run build
 CMD ["/build/build-deb.sh"]
