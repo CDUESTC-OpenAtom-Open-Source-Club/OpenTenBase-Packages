@@ -20,11 +20,11 @@ jobs:
           - distro: ubuntu
             version: "22.04"
             codename: jammy
-            dockerfile: docker/build/docker-ubuntu-20.04.Dockerfile
+            dockerfile: docker/build/docker-ubuntu-22.04.Dockerfile
           - distro: ubuntu
             version: "24.04"
             codename: noble
-            dockerfile: docker/build/docker-ubuntu-20.04.Dockerfile
+            dockerfile: docker/build/docker-ubuntu-24.04.Dockerfile
           - distro: debian
             version: "11"
             codename: bullseye

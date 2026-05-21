@@ -27,7 +27,7 @@ override_dh_auto_configure:
 	    --with-pam \
 	    --with-libxml \
 	    --with-readline \
-	    --with-uuid=ossp \
+	    --with-uuid=e2fs \
 	    --enable-license=no \
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
