@@ -1,6 +1,6 @@
 #!/bin/bash
-# OpenTenBase v5.0 installer — supports Ubuntu 20.04, 22.04, 24.04
-# OpenTenBase v5.0 安装程序 — 支持 Ubuntu 20.04, 22.04, 24.04
+# OpenTenBase v5.0 installer — supports Ubuntu 20.04/22.04/24.04, Debian 11/12
+# OpenTenBase v5.0 安装程序 — 支持 Ubuntu 20.04/22.04/24.04, Debian 11/12
 # Usage: bash install.sh [directory]
 #   directory: path to .deb files (default: download from GitHub)
 
@@ -31,13 +31,15 @@ fi
 CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
 
 case "$CODENAME" in
-    noble)  SUFFIX=".noble" ;;      # 24.04: opentenbase_5.0-1ubuntu1.noble_amd64.deb
-    jammy)  SUFFIX=".jammy" ;;      # 22.04: opentenbase_5.0-1ubuntu1.jammy_amd64.deb
-    focal)  SUFFIX=".focal" ;;      # 20.04: opentenbase_5.0-1ubuntu1.focal_amd64.deb
+    noble)    SUFFIX=".noble" ;;      # Ubuntu 24.04
+    jammy)    SUFFIX=".jammy" ;;      # Ubuntu 22.04
+    focal)    SUFFIX=".focal" ;;      # Ubuntu 20.04
+    bookworm) SUFFIX=".bookworm" ;;   # Debian 12
+    bullseye) SUFFIX=".bullseye" ;;   # Debian 11
     *)
-        echo "ERROR: unsupported Ubuntu version: $CODENAME" >&2
-        echo "错误：不支持的 Ubuntu 版本: $CODENAME" >&2
-        echo "Supported / 支持: focal (20.04), jammy (22.04), noble (24.04)" >&2
+        echo "ERROR: unsupported version: $CODENAME" >&2
+        echo "错误：不支持的版本: $CODENAME" >&2
+        echo "Supported / 支持: focal (20.04), jammy (22.04), noble (24.04), bullseye (11), bookworm (12)" >&2
         exit 1
         ;;
 esac
@@ -57,13 +59,15 @@ DEBS=(
 # Check if .deb files exist, if not download from GitHub
 cd "$DIR"
 if [ ! -f "${DEBS[0]}" ]; then
+    DLDIR=$(mktemp -d)
     echo ">> Downloading packages from GitHub..."
     echo ">> 正在从 GitHub 下载软件包..."
     for deb in "${DEBS[@]}"; do
         echo "  $deb"
-        curl -sLO "https://github.com/${REPO}/releases/download/${TAG}/${deb}"
+        curl -sL -o "${DLDIR}/${deb}" "https://github.com/${REPO}/releases/download/${TAG}/${deb}"
     done
     echo ""
+    cd "$DLDIR"
 fi
 
 # Verify files exist
