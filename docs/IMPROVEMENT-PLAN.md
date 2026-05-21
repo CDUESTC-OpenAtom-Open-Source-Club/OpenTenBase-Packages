@@ -9,7 +9,7 @@
 
 | 任务 | 优先级 | 工作量 | 状态 | 说明 |
 |------|--------|--------|------|------|
-| 1.1 仓库结构重构 | P0 | 4h | 进行中 | 整理根目录遗留文件 |
+| 1.1 仓库结构重构 | P0 | 4h | ✅ 已完成 | 整理根目录遗留文件 |
 | 1.2 Docker Compose | P0 | 8h | 已完成 | 一键集群部署 |
 | 1.3 测试脚本 | P0 | 4h | 已完成 | smoke-test + integration-test |
 | 1.4 CI 测试 | P1 | 2h | 已完成 | test.yml 工作流 |
@@ -112,5 +112,5 @@ OpenTenBase-deb/
 ## 参考链接
 
 - 仓库地址：https://github.com/muzimu217/OpenTenBase-deb
-- 最新 Release：https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi9
+- 最新 Release：https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi10
 - 上游仓库：https://github.com/OpenTenBase/OpenTenBase

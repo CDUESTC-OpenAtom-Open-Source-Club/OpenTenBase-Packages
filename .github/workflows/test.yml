@@ -32,8 +32,8 @@ jobs:
           # Install runtime dependencies
           RUN apt-get update && apt-get install -y \
               libreadline8 libssl3 libxml2 libcurl4 \
-              libldap-2.5-0 libpam0g liblz4-1 libzstd1 \
-              libssh2-1 libossp-uuid16 sudo \
+              libpam0g liblz4-1 libzstd1 \
+              libssh2-1 sudo \
               && rm -rf /var/lib/apt/lists/*
 
           # Copy and install packages
