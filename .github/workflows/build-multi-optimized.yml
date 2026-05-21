@@ -109,13 +109,12 @@ jobs:
       - name: Merge packaging into source
         run: |
           mkdir -p source/debian
-          for f in packaging/*; do
-            name=$(basename "$f")
-            case "$name" in
-              .github|docker|scripts|docs|test|systemd|*.md) continue ;;
-            esac
-            cp -a "$f" source/debian/
-          done
+          # Copy debian/ contents directly
+          cp -a packaging/debian/* source/debian/
+          # Copy config/ directory
+          cp -a packaging/config source/debian/
+          # Copy patches/
+          cp -a packaging/patches source/debian/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
