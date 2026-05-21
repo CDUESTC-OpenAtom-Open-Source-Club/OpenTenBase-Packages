@@ -38,6 +38,9 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	$(MAKE) -j$(JOBS) all
+	# Remove uuid-ossp from contrib (needs md5.h removed in OpenSSL 3.0)
+	# We use --with-uuid=e2fs so uuid-ossp is not needed
+	rm -rf contrib/uuid-ossp
 	$(MAKE) -j$(JOBS) -C contrib all
 
 override_dh_auto_install:
