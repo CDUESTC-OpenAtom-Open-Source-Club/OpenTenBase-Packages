@@ -4,13 +4,12 @@
 
 ## 部署模式总览
 
-| 模式 | 组件 | 适用场景 | 状态 |
-|------|------|---------|------|
-| 单节点 | GTM only | 开发/测试 | 已验证 |
-| 单节点 | GTM + CN | 功能验证 | 已验证 |
-| 单节点 | GTM + CN + DN | 不支持（端口冲突） | 已知限制 |
-| Docker 多节点 | GTM + CN + N*DN | 生产/测试 | 已验证 |
-| 多机多节点 | GTM + CN + N*DN | 生产环境 | 理论可行 |
+| 模式 | 组件 | 适用场景 | 安装方式 | 状态 |
+|------|------|---------|---------|------|
+| 单节点 | GTM + CN | 开发测试 | DEB / RPM | 已验证 |
+| Docker 多节点 | GTM + CN + N*DN | 测试/生产 | Docker | 已验证 |
+| 多机多节点 | GTM + CN + N*DN | 生产环境 | DEB / RPM | 理论可行 |
+| 单机多节点 | GTM + CN + DN | 不支持 | — | 端口冲突 |
 
 ### 为什么单机多节点不支持？
 
@@ -148,7 +147,86 @@ max_connections = 100
 
 ---
 
-## 方式二：RPM 单节点部署
+## 方式二：DEB 安装部署（Ubuntu / Debian）
+
+适用于：Ubuntu 20.04/22.04/24.04、Debian 11/12 环境。
+
+### 支持的系统
+
+| 发行版 | 版本 | 代号 | 架构 |
+|--------|------|------|------|
+| Ubuntu | 20.04 | focal | amd64 |
+| Ubuntu | 22.04 | jammy | amd64 |
+| Ubuntu | 24.04 | noble | amd64 |
+| Debian | 11 | bullseye | amd64 |
+| Debian | 12 | bookworm | amd64 |
+
+### 一键安装
+
+```bash
+curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi10/install.sh
+sudo bash install.sh
+```
+
+### 手动安装
+
+```bash
+# 下载（以 Ubuntu 24.04 为例）
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi10/opentenbase_5.0-1ubuntu1.noble_all.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi10/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi10/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/muzimu217/OpenTenBase-deb/releases/download/v5.0-multi10/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
+
+# 安装
+sudo dpkg -i ./*.deb || sudo apt-get install -f -y
+```
+
+> **注意**：如果 `dpkg` 报告缺少依赖（如 `libossp-uuid16`），使用 `sudo dpkg --force-depends -i ./*.deb` 强制安装。
+
+### 安装路径
+
+| 路径 | 说明 |
+|------|------|
+| `/usr/lib/opentenbase/` | 主目录（与系统 PostgreSQL 隔离） |
+| `/etc/opentenbase/` | 配置目录 |
+| `/var/lib/opentenbase/` | 数据目录 |
+| `/var/log/opentenbase/` | 日志目录 |
+| `/usr/bin/opentenbase-ctl` | 管理脚本 |
+
+### 集群管理
+
+```bash
+# 初始化集群（GTM + CN + DN）
+opentenbase-ctl init
+
+# 启动所有节点
+opentenbase-ctl start
+
+# 查看集群状态
+opentenbase-ctl status
+
+# 停止所有节点
+opentenbase-ctl stop
+
+# 重启集群
+opentenbase-ctl restart
+```
+
+### 连接数据库
+
+```bash
+psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
+```
+
+### 卸载
+
+```bash
+sudo apt-get remove opentenbase
+```
+
+---
+
+## 方式三：RPM 单节点部署
 
 适用于：EulerOS / CentOS / aarch64 环境，单节点开发测试。
 
@@ -229,7 +307,7 @@ sudo rpm -e opentenbase
 
 ---
 
-## 方式三：RPM 多机多节点部署
+## 方式四：RPM 多机多节点部署
 
 适用于：生产环境，多台 EulerOS/CentOS 服务器。
 
