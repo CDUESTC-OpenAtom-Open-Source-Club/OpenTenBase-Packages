@@ -46,8 +46,6 @@ jobs:
             codename: bookworm
             dockerfile: docker/build/docker-debian-12.Dockerfile
 
-    # Skip if workflow_dispatch with specific distro that doesn't match
-    # Empty input = build all; specific input = only build matching
     steps:
       - name: Check if should build
         id: check
@@ -59,7 +57,6 @@ jobs:
           else
             echo "should_build=false" >> $GITHUB_OUTPUT
           fi
-          echo "Building: $MATRIX_KEY (input: $INPUT_DISTRO)"
 
       - name: Checkout packaging repo
         if: steps.check.outputs.should_build == 'true'
@@ -134,8 +131,78 @@ jobs:
           path: output/*.deb
           retention-days: 30
 
-  release:
+  # Test each distro after build
+  test:
     needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu
+            version: "20.04"
+            codename: focal
+          - distro: ubuntu
+            version: "22.04"
+            codename: jammy
+          - distro: ubuntu
+            version: "24.04"
+            codename: noble
+          - distro: debian
+            version: "11"
+            codename: bullseye
+          - distro: debian
+            version: "12"
+            codename: bookworm
+
+    steps:
+      - name: Check if should test
+        id: check
+        run: |
+          INPUT_DISTRO="${{ github.event.inputs.distro }}"
+          MATRIX_KEY="${{ matrix.distro }}-${{ matrix.version }}"
+          if [ -z "$INPUT_DISTRO" ] || [ "$INPUT_DISTRO" = "$MATRIX_KEY" ]; then
+            echo "should_test=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_test=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repo
+        if: steps.check.outputs.should_test == 'true'
+        uses: actions/checkout@v4
+
+      - name: Download packages
+        if: steps.check.outputs.should_test == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: debs-${{ matrix.distro }}-${{ matrix.codename }}
+          path: packages/
+
+      - name: Run smoke test in Docker
+        if: steps.check.outputs.should_test == 'true'
+        run: |
+          cat > Dockerfile.test << EOF
+          FROM ${{ matrix.distro }}:${{ matrix.version }}
+          ENV DEBIAN_FRONTEND=noninteractive
+
+          RUN apt-get update && apt-get install -y \
+              sudo procps \
+              && rm -rf /var/lib/apt/lists/*
+
+          COPY packages/*.deb /tmp/debs/
+          RUN dpkg -i /tmp/debs/*.deb 2>/dev/null || apt-get install -f -y
+
+          COPY test/smoke-test.sh /test/
+          RUN chmod +x /test/smoke-test.sh
+
+          CMD ["/test/smoke-test.sh"]
+          EOF
+
+          docker build -f Dockerfile.test -t opentenbase-test:${{ matrix.codename }} .
+          docker run --rm --cap-add SYS_PTRACE opentenbase-test:${{ matrix.codename }}
+
+  release:
+    needs: [build, test]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
