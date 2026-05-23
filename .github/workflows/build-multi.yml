@@ -213,7 +213,17 @@ jobs:
           EOF
 
           docker build -f Dockerfile.test -t opentenbase-test:${{ matrix.codename }} .
-          docker run --rm --cap-add SYS_PTRACE opentenbase-test:${{ matrix.codename }}
+          docker run --rm --cap-add SYS_PTRACE opentenbase-test:${{ matrix.codename }} || {
+            echo "=== Smoke test failed, checking GTM log ==="
+            docker run --rm --cap-add SYS_PTRACE opentenbase-test:${{ matrix.codename }} bash -c "
+              /test/smoke-test.sh 2>&1 || true
+              echo '=== GTM Log ==='
+              cat /var/log/opentenbase/gtm.log 2>/dev/null || echo 'No GTM log found'
+              echo '=== GTM Config ==='
+              cat /var/lib/opentenbase/gtm/gtm.conf 2>/dev/null || echo 'No GTM config found'
+            "
+            exit 1
+          }
 
   release:
     needs: [build, test]
