@@ -71,14 +71,13 @@ jobs:
 
           # Install runtime dependencies
           RUN apt-get update && apt-get install -y \
-              libreadline8 libssl3 libxml2 libcurl4 \
+              libreadline8 libxml2 libcurl4 \
               libpam0g liblz4-1 libzstd1 \
-              libssh2-1 sudo procps \
+              libssh2-1 sudo procps libatomic1 adduser \
+              && (apt-get install -y libssl1.1 2>/dev/null || apt-get install -y libssl3 2>/dev/null || true) \
+              && (apt-get install -y libldap-2.4-2 2>/dev/null || apt-get install -y libldap-2.5-0 2>/dev/null || apt-get install -y libldap-common 2>/dev/null || true) \
+              && (apt-get install -y libsasl2-2 2>/dev/null || true) \
               && rm -rf /var/lib/apt/lists/*
-
-          # Fix for older distros
-          RUN apt-get update && apt-get install -y \
-              libreadline7 libssl1.1 2>/dev/null || true
 
           # Copy packages
           COPY packages/*.deb /tmp/debs/

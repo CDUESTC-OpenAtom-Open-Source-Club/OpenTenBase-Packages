@@ -187,14 +187,11 @@ jobs:
 
           RUN apt-get update && apt-get install -y \
               sudo procps libatomic1 adduser \
-              libxml2 libssl1.1 libreadline8 \
+              libxml2 libreadline8 \
               libpam0g liblz4-1 libzstd1 libcurl4 \
-              libldap-2.4-2 libsasl2-2 \
-              2>/dev/null || apt-get install -y \
-              sudo procps libatomic1 adduser \
-              libxml2 libssl3 libreadline8 \
-              libpam0g liblz4-1 libzstd1 libcurl4 \
-              libldap-2.5-0 libsasl2-2 \
+              libsasl2-2 \
+              && (apt-get install -y libssl1.1 2>/dev/null || apt-get install -y libssl3 2>/dev/null || true) \
+              && (apt-get install -y libldap-2.4-2 2>/dev/null || apt-get install -y libldap-2.5-0 2>/dev/null || apt-get install -y libldap-common 2>/dev/null || true) \
               && rm -rf /var/lib/apt/lists/*
 
           COPY packages/*.deb /tmp/debs/
