@@ -288,7 +288,7 @@ unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 
 # Suppress all warnings (OpenTenBase code is not warning-clean on modern GCC)
 # Use -DNOLIC to bypass license check, -msse4.2 -mcrc32 for x86_64
-CFLAGS="-O2 -g -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -DNOLIC"
+CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -DNOLIC"
 %ifarch x86_64
 CFLAGS="$CFLAGS -msse4.2 -mcrc32"
 %endif
