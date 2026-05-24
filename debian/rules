@@ -48,7 +48,7 @@ override_dh_auto_configure:
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -msse4.2 -mcrc32 -DNOLIC -I/usr/include/libxml2" \
 	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib" \
-	    LIBS="-lzstd -llz4"
+	    LIBS="-lzstd -llz4 -latomic"
 	# Ensure -latomic is in LIBS for final link (configure resets LIBS)
 	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -latomic/' src/Makefile.global
 
