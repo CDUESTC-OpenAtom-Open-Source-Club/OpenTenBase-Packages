@@ -59,6 +59,213 @@ fi
 sed -i 's|/usr/local/lib/liblz4.a|-llz4|g' configure
 sed -i 's|/usr/local/lib/libzstd.a|-lzstd|g' configure
 
+# Check for real zstd-devel and provide comprehensive stub if missing
+# OpenTenBase unconditionally compiles zstd_compress.c and gtm_store.c
+# which include zstd.h, so we must provide types even without the real library
+ZSTD_FOUND=0
+if [ -f /usr/include/zstd.h ] && { [ -f /usr/lib64/libzstd.so ] || [ -f /usr/lib/libzstd.so ]; }; then
+    ZSTD_FOUND=1
+fi
+
+if [ "$ZSTD_FOUND" = "0" ]; then
+    echo "NOTE: zstd-devel not found, installing comprehensive stub zstd.h"
+    mkdir -p /usr/include
+    cat > /usr/include/zstd.h << 'ZSTD_STUB'
+/* Comprehensive stub zstd.h for builds without zstd-devel */
+#ifndef ZSTD_H_STUB
+#define ZSTD_H_STUB
+#include <stddef.h>
+
+/* Version */
+#define ZSTD_VERSION_MAJOR 1
+#define ZSTD_VERSION_MINOR 5
+#define ZSTD_VERSION_RELEASE 0
+
+/* Compression levels */
+#define ZSTD_CLEVEL_DEFAULT 3
+
+/* Strategy */
+typedef enum {
+    ZSTD_fast=1, ZSTD_dfast=2, ZSTD_greedy=3, ZSTD_lazy=4,
+    ZSTD_lazy2=5, ZSTD_btlazy2=6, ZSTD_btopt=7, ZSTD_btultra=8,
+    ZSTD_btultra2=9
+} ZSTD_strategy;
+
+/* Reset directive */
+typedef enum {
+    ZSTD_reset_session_only=1,
+    ZSTD_reset_parameters=2,
+    ZSTD_reset_session_and_parameters=3
+} ZSTD_ResetDirective;
+
+/* End directive */
+typedef enum { ZSTD_e_continue=0, ZSTD_e_end=1, ZSTD_e_flush=2 } ZSTD_EndDirective;
+
+/* Buffer types */
+typedef struct {
+    const void* src;
+    size_t size;
+    size_t pos;
+} ZSTD_inBuffer;
+
+typedef struct {
+    void* dst;
+    size_t size;
+    size_t pos;
+} ZSTD_outBuffer;
+
+/* Opaque context types */
+typedef struct ZSTD_CCtx_s ZSTD_CCtx;
+typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+typedef struct ZSTD_CDict_s ZSTD_CDict;
+typedef struct ZSTD_DDict_s ZSTD_DDict;
+
+/* CStream/DStream aliases */
+typedef ZSTD_CCtx ZSTD_CStream;
+typedef ZSTD_DCtx ZSTD_DStream;
+
+/* Compression parameter */
+typedef enum {
+    ZSTD_c_compressionLevel=100,
+    ZSTD_c_windowLog=101,
+    ZSTD_c_hashLog=102,
+    ZSTD_c_chainLog=103,
+    ZSTD_c_searchLog=104,
+    ZSTD_c_minMatch=105,
+    ZSTD_c_targetLength=106,
+    ZSTD_c_strategy=107,
+    ZSTD_c_enableLongDistanceMatching=160,
+    ZSTD_c_ldmHashLog=161,
+    ZSTD_c_ldmMinMatch=162,
+    ZSTD_c_ldmBucketSizeLog=163,
+    ZSTD_c_ldmHashRateLog=164,
+    ZSTD_c_contentSizeFlag=200,
+    ZSTD_c_checksumFlag=201,
+    ZSTD_c_dictIDFlag=202,
+    ZSTD_c_nbWorkers=400,
+    ZSTD_c_jobSize=401,
+    ZSTD_c_overlapLog=402
+} ZSTD_cParameter;
+
+/* Decompression parameter */
+typedef enum {
+    ZSTD_d_windowLogMax=100
+} ZSTD_dParameter;
+
+/* Error code type */
+typedef size_t ZSTD_ErrorCode;
+
+/* Macros */
+#define ZSTD_BLOCKSIZE_MAX (128 * 1024)
+
+/* Simple API */
+static inline size_t ZSTD_compress(void* dst, size_t dstCapacity,
+    const void* src, size_t srcSize, int compressionLevel) {
+    (void)dst; (void)dstCapacity; (void)src; (void)srcSize; (void)compressionLevel;
+    return (size_t)-1;
+}
+static inline size_t ZSTD_decompress(void* dst, size_t dstCapacity,
+    const void* src, size_t compressedSize) {
+    (void)dst; (void)dstCapacity; (void)src; (void)compressedSize;
+    return (size_t)-1;
+}
+static inline unsigned long long ZSTD_getFrameContentSize(const void* src, size_t srcSize) {
+    (void)src; (void)srcSize; return 0;
+}
+static inline size_t ZSTD_compressBound(size_t srcSize) { (void)srcSize; return srcSize + (srcSize >> 8) + 64; }
+static inline unsigned ZSTD_isError(size_t code) { return code > (size_t)-128; }
+static inline const char* ZSTD_getErrorName(size_t code) { (void)code; return "zstd stub: not available"; }
+static inline int ZSTD_maxCLevel(void) { return 19; }
+static inline unsigned ZSTD_versionNumber(void) { return 10500; }
+
+/* CCtx API */
+static inline ZSTD_CCtx* ZSTD_createCCtx(void) { return (ZSTD_CCtx*)0; }
+static inline size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx) { (void)cctx; return 0; }
+static inline size_t ZSTD_compressCCtx(ZSTD_CCtx* cctx, void* dst, size_t dstCap,
+    const void* src, size_t srcSize, int level) {
+    (void)cctx; (void)dst; (void)dstCap; (void)src; (void)srcSize; (void)level;
+    return (size_t)-1;
+}
+static inline size_t ZSTD_compress2(ZSTD_CCtx* cctx, void* dst, size_t dstCap,
+    const void* src, size_t srcSize) {
+    (void)cctx; (void)dst; (void)dstCap; (void)src; (void)srcSize;
+    return (size_t)-1;
+}
+
+/* DCtx API */
+static inline ZSTD_DCtx* ZSTD_createDCtx(void) { return (ZSTD_DCtx*)0; }
+static inline size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx) { (void)dctx; return 0; }
+static inline size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCap,
+    const void* src, size_t srcSize) {
+    (void)dctx; (void)dst; (void)dstCap; (void)src; (void)srcSize;
+    return (size_t)-1;
+}
+
+/* CCtx advanced API */
+static inline size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value) {
+    (void)cctx; (void)param; (void)value; return 0;
+}
+static inline size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize) {
+    (void)cctx; (void)pledgedSrcSize; return 0;
+}
+static inline size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize) {
+    (void)cctx; (void)dict; (void)dictSize; return 0;
+}
+
+/* DCtx advanced API */
+static inline size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int value) {
+    (void)dctx; (void)param; (void)value; return 0;
+}
+static inline size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize) {
+    (void)dctx; (void)dict; (void)dictSize; return 0;
+}
+static inline size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset) {
+    (void)dctx; (void)reset; return 0;
+}
+
+/* Streaming compression API */
+static inline ZSTD_CStream* ZSTD_createCStream(void) { return (ZSTD_CStream*)0; }
+static inline size_t ZSTD_freeCStream(ZSTD_CStream* zcs) { (void)zcs; return 0; }
+static inline size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel) {
+    (void)zcs; (void)compressionLevel; return 0;
+}
+static inline size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input) {
+    (void)zcs; (void)output; (void)input; return (size_t)-1;
+}
+static inline size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output) {
+    (void)zcs; (void)output; return (size_t)-1;
+}
+static inline size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output) {
+    (void)zcs; (void)output; return (size_t)-1;
+}
+static inline size_t ZSTD_CStreamInSize(void) { return ZSTD_BLOCKSIZE_MAX; }
+static inline size_t ZSTD_CStreamOutSize(void) { return ZSTD_compressBound(ZSTD_BLOCKSIZE_MAX); }
+
+/* Streaming decompression API */
+static inline ZSTD_DStream* ZSTD_createDStream(void) { return (ZSTD_DStream*)0; }
+static inline size_t ZSTD_freeDStream(ZSTD_DStream* zds) { (void)zds; return 0; }
+static inline size_t ZSTD_initDStream(ZSTD_DStream* zds) { (void)zds; return 0; }
+static inline size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input) {
+    (void)zds; (void)output; (void)input; return (size_t)-1;
+}
+static inline size_t ZSTD_DStreamInSize(void) { return ZSTD_BLOCKSIZE_MAX + 4; }
+static inline size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
+
+/* CDict API */
+static inline ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize, int compressionLevel) {
+    (void)dictBuffer; (void)dictSize; (void)compressionLevel; return (ZSTD_CDict*)0;
+}
+static inline size_t ZSTD_freeCDict(ZSTD_CDict* cdict) { (void)cdict; return 0; }
+
+/* DDict API */
+static inline ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize) {
+    (void)dictBuffer; (void)dictSize; return (ZSTD_DDict*)0;
+}
+static inline size_t ZSTD_freeDDict(ZSTD_DDict* ddict) { (void)ddict; return 0; }
+
+#endif /* ZSTD_H_STUB */
+ZSTD_STUB
+fi
 
 # Architecture flags
 CFLAGS="-O2 -g -DNOLIC -Wno-error=incompatible-pointer-types -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-incompatible-pointer-types"
@@ -84,30 +291,16 @@ CONFIGURE_OPTS="--prefix=%{otb_prefix} \
     --with-libxml \
     --with-lz4"
 
-# Optional: zstd support (zstd-devel may not be available in all repos)
-# Check for real zstd-devel: both header and development library must exist
-ZSTD_FOUND=0
-if [ -f /usr/include/zstd.h ] && { [ -f /usr/lib64/libzstd.so ] || [ -f /usr/lib/libzstd.so ]; }; then
-    ZSTD_FOUND=1
-fi
-
+# Only enable zstd if real zstd-devel is installed (not stub)
 if [ "$ZSTD_FOUND" = "1" ]; then
     CONFIGURE_OPTS="$CONFIGURE_OPTS --with-zstd"
     echo "NOTE: zstd-devel found, building with zstd support"
 else
     CONFIGURE_OPTS="$CONFIGURE_OPTS --without-zstd"
-    echo "NOTE: zstd-devel not found, building without zstd support"
+    echo "NOTE: zstd-devel not found, building without zstd support (stub header installed)"
 fi
 
 ./configure $CONFIGURE_OPTS
-
-# If zstd-devel is not available, remove zstd_compress from the build
-# OpenTenBase always compiles zstd_compress.c even with --without-zstd
-if [ "$ZSTD_FOUND" = "0" ]; then
-    find . -name 'Makefile' -exec sed -i '/zstd_compress\.o/d' {} +
-    # Also remove from OBJS lines that have it inline
-    find . -name 'Makefile' -exec sed -i 's/ zstd_compress\.o//g' {} +
-fi
 
 make -j$(nproc)
 
