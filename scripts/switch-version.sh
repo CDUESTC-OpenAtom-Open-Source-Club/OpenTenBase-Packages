@@ -115,9 +115,10 @@ cmd_switch() {
         return 0
     fi
 
-    # Check if any OpenTenBase processes are running
-    if pgrep -f "opentenbase" >/dev/null 2>&1; then
-        log_warn "OpenTenBase processes are running. Stop them first:"
+    # Check if any OpenTenBase server processes are running (postgres, gtm)
+    # Use a pattern that won't match the pgrep command itself
+    if pgrep -x postgres >/dev/null 2>&1 || pgrep -x gtm >/dev/null 2>&1; then
+        log_warn "OpenTenBase server processes are running."
         echo "  opentenbase-ctl stop"
         echo ""
         read -p "Continue anyway? [y/N] " -n 1 -r
@@ -127,8 +128,8 @@ cmd_switch() {
         fi
     fi
 
-    # Switch symlink
-    ln -sf "$CONF_DIR/$target" "$CURRENT_LINK"
+    # Switch symlink (use -n to avoid following existing directory symlink)
+    ln -sfn "$CONF_DIR/$target" "$CURRENT_LINK"
     log_info "Switched to OpenTenBase $target"
 
     # Show new config location
