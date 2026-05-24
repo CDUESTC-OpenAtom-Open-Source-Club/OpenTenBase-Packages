@@ -24,12 +24,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Ubuntu 18.04 LTS (Bionic)
-          - name: ubuntu-18.04-amd64
-            os: ubuntu-latest
-            arch: amd64
-            container: ubuntu:18.04
-            codename: bionic
           # Ubuntu 20.04 LTS (Focal)
           - name: ubuntu-20.04-amd64
             os: ubuntu-latest
@@ -54,12 +48,6 @@ jobs:
             arch: amd64
             container: ubuntu:25.04
             codename: plucky
-          # Debian 10 (Buster)
-          - name: debian-10-amd64
-            os: ubuntu-latest
-            arch: amd64
-            container: debian:buster
-            codename: buster
           # Debian 11 (Bullseye)
           - name: debian-11-amd64
             os: ubuntu-latest
