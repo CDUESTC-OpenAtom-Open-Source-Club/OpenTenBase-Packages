@@ -17,10 +17,13 @@ Source2:        pg_hba.conf.template
 BuildRequires:  gcc gcc-c++ make bison flex perl
 BuildRequires:  readline-devel zlib-devel openssl-devel pam-devel
 BuildRequires:  libxml2-devel openldap-devel libuuid-devel
-BuildRequires:  libcurl-devel lz4-devel zstd-devel libssh2-devel
+BuildRequires:  libcurl-devel lz4-devel
 BuildRequires:  pkg-config libtool
 
-Requires:       openssl-libs readline zlib libxml2 openldap libuuid libcurl lz4-libs zstd
+# Optional: may not be available in all repos (CRB/PowerTools)
+# BuildRequires:  zstd-devel libssh2-devel
+
+Requires:       openssl-libs readline zlib libxml2 openldap libuuid libcurl lz4-libs
 
 %description
 OpenTenBase is an advanced enterprise-level database management system
@@ -68,8 +71,7 @@ CFLAGS="$CFLAGS -march=armv8-a"
 export CFLAGS
 export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib"
 
-./configure \
-    --prefix=%{otb_prefix} \
+CONFIGURE_OPTS="--prefix=%{otb_prefix} \
     --sysconfdir=/etc/opentenbase/%{otb_ver} \
     --datadir=%{otb_prefix}/share \
     --libdir=%{otb_prefix}/lib \
@@ -80,8 +82,14 @@ export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib"
     --with-pam \
     --with-ldap \
     --with-libxml \
-    --with-lz4 \
-    --with-zstd
+    --with-lz4"
+
+# Optional features (may not be available on all distros)
+if pkg-config --exists libzstd 2>/dev/null || [ -f /usr/include/zstd.h ]; then
+    CONFIGURE_OPTS="$CONFIGURE_OPTS --with-zstd"
+fi
+
+./configure $CONFIGURE_OPTS
 
 make -j$(nproc)
 

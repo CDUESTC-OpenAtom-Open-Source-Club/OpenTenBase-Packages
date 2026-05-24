@@ -98,12 +98,12 @@ jobs:
       - name: Enable additional repos
         run: |
           # Enable CRB/PowerTools for zstd-devel, libssh2-devel, etc.
-          if dnf repolist --all 2>/dev/null | grep -q crb; then
-            dnf config-manager --set-enabled crb 2>/dev/null || true
-          fi
-          if dnf repolist --all 2>/dev/null | grep -q powertools; then
-            dnf config-manager --set-enabled powertools 2>/dev/null || true
-          fi
+          for repo in crb powertools; do
+            if dnf repolist --all 2>/dev/null | grep -qi "$repo"; then
+              dnf config-manager --set-enabled "$repo" 2>/dev/null || \
+              dnf config-manager --set-enabled "$(dnf repolist --all 2>/dev/null | grep -i "$repo" | awk '{print $1}' | head -1)" 2>/dev/null || true
+            fi
+          done
           # CentOS Stream 8 EOL fix: use vault mirrors
           if grep -q 'CentOS Stream release 8' /etc/redhat-release 2>/dev/null; then
             sed -i 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-Stream-*.repo
@@ -112,12 +112,16 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          # Core deps (always available)
           dnf install -y \
             gcc gcc-c++ make bison flex perl \
             readline-devel zlib-devel openssl-devel pam-devel \
             libxml2-devel openldap-devel libuuid-devel \
-            libcurl-devel lz4-devel zstd-devel libssh2-devel \
+            libcurl-devel lz4-devel \
             pkg-config libtool rpm-build rpmlint git
+          # Optional deps (may be in CRB/PowerTools or unavailable)
+          dnf install -y --enablerepo='*' zstd-devel 2>/dev/null || true
+          dnf install -y --enablerepo='*' libssh2-devel 2>/dev/null || true
 
       - name: Checkout source
         uses: actions/checkout@v4
