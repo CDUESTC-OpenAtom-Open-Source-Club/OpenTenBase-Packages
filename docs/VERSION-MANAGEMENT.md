@@ -10,11 +10,15 @@ OpenTenBase supports installing multiple versions side-by-side, similar to how P
 
 ```
 /usr/lib/opentenbase/
-├── 5.0/                    # v5.0 binaries and libraries
+├── 5.0/                    # v5.0 binaries and libraries (latest)
 │   ├── bin/
 │   ├── lib/
 │   └── share/
-└── 6.0/                    # v6.0 binaries and libraries (future)
+├── 2.6.0/                  # v2.6.0 binaries and libraries
+│   ├── bin/
+│   ├── lib/
+│   └── share/
+└── 2.5.0/                  # v2.5.0 binaries and libraries
     ├── bin/
     ├── lib/
     └── share/
@@ -24,7 +28,7 @@ OpenTenBase supports installing multiple versions side-by-side, similar to how P
 │   ├── opentenbase.conf
 │   ├── gtm.conf.template
 │   └── ...
-├── 6.0/                    # v6.0 configuration (future)
+├── 2.6.0/                  # v2.6.0 configuration
 └── current -> 5.0/         # Active version symlink
 
 /var/lib/opentenbase/
@@ -32,14 +36,14 @@ OpenTenBase supports installing multiple versions side-by-side, similar to how P
 │   ├── gtm/
 │   ├── coord/
 │   └── dn1/
-└── 6.0/                    # v6.0 data (future)
+└── 2.6.0/                  # v2.6.0 data
 
 /var/log/opentenbase/
 ├── 5.0/                    # v5.0 logs
 │   ├── gtm.log
 │   ├── coord.log
 │   └── dn1.log
-└── 6.0/                    # v6.0 logs (future)
+└── 2.6.0/                  # v2.6.0 logs
 ```
 
 ## Quick Start
@@ -47,11 +51,12 @@ OpenTenBase supports installing multiple versions side-by-side, similar to how P
 ### Install a Specific Version
 
 ```bash
-# Install v5.0 (default)
+# Install v5.0 (default, latest)
 curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/install.sh | sudo bash
 
 # Install a specific version
 curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/install.sh | sudo bash -s -- --version 5.0
+curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/install.sh | sudo bash -s -- --version 2.6.0
 ```
 
 ### List Installed Versions
@@ -74,11 +79,11 @@ Installed OpenTenBase versions:
 ### Switch Versions
 
 ```bash
-# Switch to v5.0
+# Switch to v5.0 (latest)
 sudo opentenbase-switch-version 5.0
 
-# Switch to v6.0 (when available)
-sudo opentenbase-switch-version 6.0
+# Switch to v2.6.0
+sudo opentenbase-switch-version 2.6.0
 ```
 
 ### Verify Current Version
@@ -102,7 +107,7 @@ By default, each version uses the same ports (5432 for coordinator, 6666 for GTM
 opentenbase-ctl stop
 
 # Edit the config for the second version
-sudo vi /etc/opentenbase/6.0/opentenbase.conf
+sudo vi /etc/opentenbase/2.6.0/opentenbase.conf
 
 # Change ports:
 #   GTM_PORT=6667
@@ -114,7 +119,7 @@ sudo vi /etc/opentenbase/6.0/opentenbase.conf
 #   DN1_POOLER_PORT=6670
 
 # Initialize and start second version
-sudo opentenbase-switch-version 6.0
+sudo opentenbase-switch-version 2.6.0
 opentenbase-ctl init
 opentenbase-ctl start
 
@@ -128,7 +133,7 @@ opentenbase-ctl start
 ```bash
 # Use OTB_CONFIG to point to specific version config
 OTB_CONFIG=/etc/opentenbase/5.0/opentenbase.conf opentenbase-ctl start
-OTB_CONFIG=/etc/opentenbase/6.0/opentenbase.conf opentenbase-ctl start
+OTB_CONFIG=/etc/opentenbase/2.6.0/opentenbase.conf opentenbase-ctl start
 ```
 
 ## Version Management Commands
@@ -137,7 +142,7 @@ OTB_CONFIG=/etc/opentenbase/6.0/opentenbase.conf opentenbase-ctl start
 |---------|-------------|
 | `opentenbase-switch-version` | List installed versions |
 | `opentenbase-switch-version 5.0` | Switch to v5.0 |
-| `opentenbase-switch-version 6.0` | Switch to v6.0 |
+| `opentenbase-switch-version 2.6.0` | Switch to v2.6.0 |
 | `opentenbase-ctl init` | Initialize cluster (current version) |
 | `opentenbase-ctl start` | Start cluster (current version) |
 | `opentenbase-ctl stop` | Stop cluster (current version) |
@@ -162,10 +167,10 @@ opentenbase-ctl start
 
 ```bash
 # Install new version alongside existing
-sudo bash install.sh --version 6.0
+sudo bash install.sh --version 2.6.0
 
 # Switch to new version
-sudo opentenbase-switch-version 6.0
+sudo opentenbase-switch-version 2.6.0
 
 # Initialize new version's data
 opentenbase-ctl init

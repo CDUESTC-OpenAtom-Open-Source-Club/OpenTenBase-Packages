@@ -10,11 +10,15 @@ OpenTenBase 支持多个版本并行安装，类似于 PostgreSQL 管理 `postgr
 
 ```
 /usr/lib/opentenbase/
-├── 5.0/                    # v5.0 二进制文件和库
+├── 5.0/                    # v5.0 二进制文件和库（最新）
 │   ├── bin/
 │   ├── lib/
 │   └── share/
-└── 6.0/                    # v6.0 二进制文件和库（未来）
+├── 2.6.0/                  # v2.6.0 二进制文件和库
+│   ├── bin/
+│   ├── lib/
+│   └── share/
+└── 2.5.0/                  # v2.5.0 二进制文件和库
     ├── bin/
     ├── lib/
     └── share/
@@ -24,7 +28,7 @@ OpenTenBase 支持多个版本并行安装，类似于 PostgreSQL 管理 `postgr
 │   ├── opentenbase.conf
 │   ├── gtm.conf.template
 │   └── ...
-├── 6.0/                    # v6.0 配置（未来）
+├── 2.6.0/                  # v2.6.0 配置
 └── current -> 5.0/         # 当前活跃版本符号链接
 
 /var/lib/opentenbase/
@@ -32,14 +36,14 @@ OpenTenBase 支持多个版本并行安装，类似于 PostgreSQL 管理 `postgr
 │   ├── gtm/
 │   ├── coord/
 │   └── dn1/
-└── 6.0/                    # v6.0 数据（未来）
+└── 2.6.0/                  # v2.6.0 数据
 
 /var/log/opentenbase/
 ├── 5.0/                    # v5.0 日志
 │   ├── gtm.log
 │   ├── coord.log
 │   └── dn1.log
-└── 6.0/                    # v6.0 日志（未来）
+└── 2.6.0/                  # v2.6.0 日志
 ```
 
 ## 快速开始
@@ -47,11 +51,12 @@ OpenTenBase 支持多个版本并行安装，类似于 PostgreSQL 管理 `postgr
 ### 安装指定版本
 
 ```bash
-# 安装 v5.0（默认）
+# 安装 v5.0（默认，最新）
 curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/install.sh | sudo bash
 
 # 安装指定版本
 curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/install.sh | sudo bash -s -- --version 5.0
+curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/install.sh | sudo bash -s -- --version 2.6.0
 ```
 
 ### 列出已安装版本
@@ -74,11 +79,11 @@ opentenbase-switch-version
 ### 切换版本
 
 ```bash
-# 切换到 v5.0
+# 切换到 v5.0（最新）
 sudo opentenbase-switch-version 5.0
 
-# 切换到 v6.0（可用时）
-sudo opentenbase-switch-version 6.0
+# 切换到 v2.6.0
+sudo opentenbase-switch-version 2.6.0
 ```
 
 ### 验证当前版本
@@ -102,7 +107,7 @@ readlink /etc/opentenbase/current
 opentenbase-ctl stop
 
 # 编辑第二个版本的配置
-sudo vi /etc/opentenbase/6.0/opentenbase.conf
+sudo vi /etc/opentenbase/2.6.0/opentenbase.conf
 
 # 更改端口：
 #   GTM_PORT=6667
@@ -114,7 +119,7 @@ sudo vi /etc/opentenbase/6.0/opentenbase.conf
 #   DN1_POOLER_PORT=6670
 
 # 初始化并启动第二个版本
-sudo opentenbase-switch-version 6.0
+sudo opentenbase-switch-version 2.6.0
 opentenbase-ctl init
 opentenbase-ctl start
 
@@ -128,7 +133,7 @@ opentenbase-ctl start
 ```bash
 # 使用 OTB_CONFIG 指向特定版本配置
 OTB_CONFIG=/etc/opentenbase/5.0/opentenbase.conf opentenbase-ctl start
-OTB_CONFIG=/etc/opentenbase/6.0/opentenbase.conf opentenbase-ctl start
+OTB_CONFIG=/etc/opentenbase/2.6.0/opentenbase.conf opentenbase-ctl start
 ```
 
 ## 版本管理命令
@@ -137,7 +142,7 @@ OTB_CONFIG=/etc/opentenbase/6.0/opentenbase.conf opentenbase-ctl start
 |------|------|
 | `opentenbase-switch-version` | 列出已安装版本 |
 | `opentenbase-switch-version 5.0` | 切换到 v5.0 |
-| `opentenbase-switch-version 6.0` | 切换到 v6.0 |
+| `opentenbase-switch-version 2.6.0` | 切换到 v2.6.0 |
 | `opentenbase-ctl init` | 初始化集群（当前版本） |
 | `opentenbase-ctl start` | 启动集群（当前版本） |
 | `opentenbase-ctl stop` | 停止集群（当前版本） |
@@ -162,10 +167,10 @@ opentenbase-ctl start
 
 ```bash
 # 在现有版本旁安装新版本
-sudo bash install.sh --version 6.0
+sudo bash install.sh --version 2.6.0
 
 # 切换到新版本
-sudo opentenbase-switch-version 6.0
+sudo opentenbase-switch-version 2.6.0
 
 # 初始化新版本数据
 opentenbase-ctl init

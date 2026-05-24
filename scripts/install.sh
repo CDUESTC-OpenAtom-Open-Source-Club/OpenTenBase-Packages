@@ -30,8 +30,8 @@ while [ $# -gt 0 ]; do
             echo ""
             echo "Examples:"
             echo "  bash install.sh                    # Install default version ($DEFAULT_VERSION)"
-            echo "  bash install.sh --version 5.0      # Install v5.0"
-            echo "  bash install.sh --version 6.0      # Install v6.0"
+            echo "  bash install.sh --version 5.0      # Install v5.0 (latest)"
+            echo "  bash install.sh --version 2.6.0    # Install v2.6.0"
             echo "  bash install.sh /path/to/debs      # Install from local directory"
             exit 0
             ;;
@@ -45,10 +45,12 @@ done
 VERSION="${VERSION:-$DEFAULT_VERSION}"
 
 # Map version to release tag
+# Supported OpenTenBase versions: 5.0 (latest), 2.6.0, 2.5.0
 case "$VERSION" in
-    5.0) TAG="v5.0-multi10" ;;
-    6.0) TAG="v6.0-multi1" ;;
-    *)   TAG="v${VERSION}-multi1" ;;
+    5.0)    TAG="v5.0-multi10" ;;
+    2.6.0)  TAG="v2.6.0-multi1" ;;
+    2.5.0)  TAG="v2.5.0-multi1" ;;
+    *)      TAG="v${VERSION}-multi1" ;;
 esac
 
 echo "OpenTenBase v${VERSION} Installer"

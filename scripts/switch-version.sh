@@ -158,8 +158,8 @@ With version arg: switch to that version.
 
 Examples:
   opentenbase-switch-version          # List versions
-  opentenbase-switch-version 5.0      # Switch to v5.0
-  opentenbase-switch-version 6.0      # Switch to v6.0
+  opentenbase-switch-version 5.0      # Switch to v5.0 (latest)
+  opentenbase-switch-version 2.6.0    # Switch to v2.6.0
 
 Version-specific paths:
   Binaries:  /usr/lib/opentenbase/<version>/
