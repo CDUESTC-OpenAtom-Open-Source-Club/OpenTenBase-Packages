@@ -164,19 +164,30 @@ jobs:
           if [ -n "$OTB_VERSION" ] && [ "$OTB_VERSION" != "5.0" ]; then
             sed -i "s/^OTB_VERSION := .*/OTB_VERSION := $OTB_VERSION/" debian/rules
           fi
+          set -o pipefail
           fakeroot debian/rules binary 2>&1 | tail -50
+
+      - name: Collect DEB packages
+        if: always()
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/debs"
+          cp /tmp/source/*.deb "$GITHUB_WORKSPACE/debs/" 2>/dev/null || true
 
       - name: Run lintian
         if: always()
         run: |
           apt-get install -y lintian 2>/dev/null || true
-          lintian ../*.deb 2>&1 || true
+          if ls "$GITHUB_WORKSPACE/debs/"*.deb 1>/dev/null 2>&1; then
+            lintian "$GITHUB_WORKSPACE/debs/"*.deb 2>&1 || true
+          else
+            echo "No .deb packages found to lint"
+          fi
 
       - name: Upload DEB packages
         uses: actions/upload-artifact@v4
         with:
           name: debs-${{ matrix.name }}
-          path: ../*.deb
+          path: ${{ github.workspace }}/debs/*.deb
           retention-days: 30
 
       - name: Cleanup
