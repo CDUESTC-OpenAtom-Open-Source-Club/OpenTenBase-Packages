@@ -46,7 +46,7 @@ override_dh_auto_configure:
 	    --enable-license=no \
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
-	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -msse4.2 -mcrc32 -DNOLIC -I/usr/include/libxml2" \
+	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -msse4.2 -mcrc32 -mcx16 -DNOLIC -I/usr/include/libxml2" \
 	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib" \
 	    LIBS="-lzstd -llz4 -Wl,--no-as-needed -latomic -Wl,--as-needed"
 	# Ensure -latomic is in LIBS for final link (configure resets LIBS)
@@ -54,9 +54,8 @@ override_dh_auto_configure:
 	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -Wl,--no-as-needed -latomic -Wl,--as-needed/' src/Makefile.global
 
 override_dh_auto_build:
-	# Fix flex lex.backup error on newer flex (Ubuntu 25.04+)
-	# Parallel flex invocations with -b flag race on lex.backup; pre-create
-	for d in src/interfaces/ecpg/preproc src/fe_utils; do touch "$$d/lex.backup" 2>/dev/null; done || true
+	# Fix flex lex.backup race: use rm -f so missing file doesn't fail
+	sed -i 's/\trm lex\.backup/\trm -f lex.backup/' src/Makefile.global
 	# Pre-build libpq and generate objfiles.txt (race condition fix)
 	# libpq's Makefile has 'all: all-lib' but doesn't generate objfiles.txt.
 	# The postgres binary needs src/interfaces/libpq/objfiles.txt to link against libpq.
