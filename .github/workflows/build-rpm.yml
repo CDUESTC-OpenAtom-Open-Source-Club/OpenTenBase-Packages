@@ -118,26 +118,25 @@ jobs:
       - name: Build RPM packages
         run: |
           cd opentenbase-pkg/rpm
-          bash build-rpm.sh --source-dir /tmp/source/OpenTenBase
+          bash build-rpm.sh --source-dir /tmp/source/OpenTenBase --version 5.0
 
       - name: Run rpmlint
         if: always()
         run: |
-          cd opentenbase-pkg/rpm
-          rpmlint RPMS/*/*.rpm SRPMS/*.rpm 2>&1 || true
+          rpmlint ~/rpmbuild/RPMS/*/*.rpm ~/rpmbuild/SRPMS/*.rpm 2>&1 || true
 
       - name: Upload RPM packages
         uses: actions/upload-artifact@v4
         with:
           name: rpms-${{ matrix.name }}
-          path: opentenbase-pkg/rpm/RPMS/**/*.rpm
+          path: ~/rpmbuild/RPMS/**/*.rpm
           retention-days: 30
 
       - name: Upload source RPM
         uses: actions/upload-artifact@v4
         with:
           name: srpm-${{ matrix.name }}
-          path: opentenbase-pkg/rpm/SRPMS/*.rpm
+          path: ~/rpmbuild/SRPMS/*.rpm
           retention-days: 30
 
       - name: Cleanup

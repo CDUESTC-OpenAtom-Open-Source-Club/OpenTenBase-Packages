@@ -1,7 +1,10 @@
 #!/bin/bash
-# OpenTenBase RPM 构建脚本
-# 用法: bash build-rpm.sh <tarball_path>
-# 示例: bash build-rpm.sh /path/to/opentenbase-5.0-aarch64.tar.gz
+# OpenTenBase RPM build script
+# Usage:
+#   bash build-rpm.sh <tarball_path>
+#   bash build-rpm.sh --source-dir /path/to/source [--version 5.0]
+#
+# Builds RPM packages for the current architecture.
 
 set -e
 
@@ -13,41 +16,76 @@ log() { echo -e "${GREEN}[INFO]${NC} $1"; }
 err() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TARBALL="$1"
+TARBALL=""
+SOURCE_DIR=""
+OTB_VERSION="${OTB_VERSION:-5.0}"
 
-if [ -z "$TARBALL" ]; then
-    echo "用法: bash build-rpm.sh <tarball_path>"
-    echo "示例: bash build-rpm.sh /path/to/opentenbase-5.0-aarch64.tar.gz"
-    exit 1
-fi
+# Parse arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --source-dir)
+            SOURCE_DIR="$2"
+            shift 2
+            ;;
+        --version)
+            OTB_VERSION="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage:"
+            echo "  bash build-rpm.sh <tarball_path>"
+            echo "  bash build-rpm.sh --source-dir /path/to/source [--version 5.0]"
+            exit 0
+            ;;
+        *)
+            TARBALL="$1"
+            shift
+            ;;
+    esac
+done
 
-if [ ! -f "$TARBALL" ]; then
-    err "找不到文件: $TARBALL"
-fi
-
-# 检查 rpmbuild
+# Check rpmbuild
 if ! command -v rpmbuild &>/dev/null; then
-    err "rpmbuild 未安装，请先安装 rpm-build 包"
+    err "rpmbuild not installed. Install rpm-build package first."
 fi
 
-log "使用 tarball: $TARBALL"
-
-# 创建 rpmbuild 目录结构
+ARCH=$(uname -m)
 RPMBUILD_DIR="$HOME/rpmbuild"
+
+# If --source-dir is given, create a tarball from it
+if [ -n "$SOURCE_DIR" ]; then
+    if [ ! -d "$SOURCE_DIR" ]; then
+        err "Source directory not found: $SOURCE_DIR"
+    fi
+    TARBALL="/tmp/opentenbase-${OTB_VERSION}-${ARCH}.tar.gz"
+    log "Creating tarball from $SOURCE_DIR ..."
+    tar czf "$TARBALL" -C "$(dirname "$SOURCE_DIR")" "$(basename "$SOURCE_DIR")"
+fi
+
+if [ -z "$TARBALL" ] || [ ! -f "$TARBALL" ]; then
+    err "No tarball provided or file not found."
+fi
+
+log "Architecture: $ARCH"
+log "Version: $OTB_VERSION"
+log "Tarball: $TARBALL"
+
+# Create rpmbuild directory structure
 mkdir -p "$RPMBUILD_DIR"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-# 复制源文件和 spec
-cp "$TARBALL" "$RPMBUILD_DIR/SOURCES/"
+# Copy tarball with expected name
+TARBALL_NAME="opentenbase-${OTB_VERSION}-${ARCH}.tar.gz"
+cp "$TARBALL" "$RPMBUILD_DIR/SOURCES/${TARBALL_NAME}"
+
+# Copy spec file and set version
 cp "$SCRIPT_DIR/opentenbase.spec" "$RPMBUILD_DIR/SPECS/"
 
-log "开始构建 RPM..."
-rpmbuild -ba "$RPMBUILD_DIR/SPECS/opentenbase.spec"
+log "Building RPM (this may take a while)..."
+rpmbuild -ba --define "otb_version ${OTB_VERSION}" "$RPMBUILD_DIR/SPECS/opentenbase.spec"
 
 log "=========================================="
-log "RPM 构建完成！"
+log "RPM build complete!"
 log "=========================================="
-log "RPM 包位置: $RPMBUILD_DIR/RPMS/aarch64/"
-ls -lh "$RPMBUILD_DIR/RPMS/aarch64/"*.rpm 2>/dev/null
-log "=========================================="
-log "安装命令: sudo rpm -ivh $RPMBUILD_DIR/RPMS/aarch64/opentenbase-*.rpm"
+log "RPM location: $RPMBUILD_DIR/RPMS/${ARCH}/"
+ls -lh "$RPMBUILD_DIR/RPMS/${ARCH}/"*.rpm 2>/dev/null || true
 log "=========================================="
