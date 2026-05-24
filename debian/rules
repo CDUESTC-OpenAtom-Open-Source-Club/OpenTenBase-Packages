@@ -44,8 +44,9 @@ override_dh_auto_configure:
 	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -latomic/' src/Makefile.global
 
 override_dh_auto_build:
-	# Build libpq first to avoid race condition with objfiles.txt
-	$(MAKE) -j$(JOBS) -C src/interfaces/libpq all
+	# First pass: single-threaded to build libpq (objfiles.txt dependency)
+	$(MAKE) -j1 -C src/interfaces/libpq all
+	# Second pass: parallel build (libpq objfiles.txt now exists)
 	$(MAKE) -j$(JOBS) all
 	# Exclude uuid-ossp from contrib build (needs md5.h removed in OpenSSL 3.0)
 	# We use --with-uuid=e2fs so uuid-ossp is not needed
