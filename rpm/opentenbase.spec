@@ -300,6 +300,18 @@ if [ -f /etc/fedora-release ]; then
     echo "NOTE: Fedora detected, adding -latomic to LIBS"
 fi
 
+# Debug: test compiler before configure
+echo "=== Compiler test ==="
+echo 'int main() { return 0; }' > /tmp/otb_test.c
+if gcc -o /tmp/otb_test /tmp/otb_test.c $CFLAGS $LDFLAGS 2>&1; then
+    echo "NOTE: compiler test PASSED"
+else
+    echo "NOTE: compiler test FAILED with CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
+    # Try without our flags
+    gcc -o /tmp/otb_test /tmp/otb_test.c 2>&1 && echo "NOTE: compiler works without custom flags"
+fi
+rm -f /tmp/otb_test /tmp/otb_test.c
+
 CONFIGURE_OPTS="--prefix=%{otb_prefix} \
     --sysconfdir=/etc/opentenbase/%{otb_ver} \
     --datadir=%{otb_prefix}/share \
@@ -324,7 +336,17 @@ else
     echo "NOTE: zstd-devel not found, building without zstd support (stub header installed)"
 fi
 
-./configure $CONFIGURE_OPTS
+./configure $CONFIGURE_OPTS || {
+    echo "=== CONFIGURE FAILED ==="
+    echo "CFLAGS=$CFLAGS"
+    echo "LDFLAGS=$LDFLAGS"
+    echo "LIBS=$LIBS"
+    if [ -f config.log ]; then
+        echo "=== Last 30 lines of config.log ==="
+        tail -30 config.log
+    fi
+    exit 1
+}
 
 # If zstd-devel is not available, remove -lzstd from linker flags
 # (configure may still add it even with --without-zstd due to stub header)
