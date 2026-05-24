@@ -286,7 +286,7 @@ CFLAGS="$CFLAGS -msse4.2 -mcrc32"
 CFLAGS="$CFLAGS -march=armv8-a"
 %endif
 export CFLAGS
-export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib"
+export LDFLAGS="$LDFLAGS -Wl,-rpath,%{otb_prefix}/lib"
 
 # Add -latomic on Fedora (needed for 128-bit atomics: __sync_val_compare_and_swap_16)
 if [ -f /etc/fedora-release ]; then
