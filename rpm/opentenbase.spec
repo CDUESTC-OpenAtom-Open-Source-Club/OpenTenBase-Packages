@@ -59,13 +59,9 @@ fi
 sed -i 's|/usr/local/lib/liblz4.a|-llz4|g' configure
 
 # Fix ldap_r deprecation: newer OpenLDAP merged ldap_r into ldap
-# If ldap_r is not available but ldap is, patch configure to use ldap
-if ! ldconfig -p 2>/dev/null | grep -q 'libldap_r\.so'; then
-    if ldconfig -p 2>/dev/null | grep -q 'libldap\.so'; then
-        sed -i 's/-lldap_r/-lldap/g' configure
-        echo "NOTE: ldap_r not found, patched configure to use ldap"
-    fi
-fi
+# Always patch - ldap is backwards compatible with ldap_r
+sed -i 's/-lldap_r/-lldap/g' configure
+echo "NOTE: patched configure to use -lldap instead of -lldap_r"
 
 # Check for real zstd-devel and provide comprehensive stub if missing
 # OpenTenBase unconditionally compiles zstd_compress.c and gtm_store.c
@@ -325,10 +321,11 @@ if [ "$ZSTD_FOUND" = "0" ]; then
     echo "NOTE: removed -lzstd from linker flags (using stub zstd.h)"
 fi
 
-# If libssh2-devel is not available, remove -lssh2 from linker flags
-if ! pkg-config --exists libssh2 2>/dev/null && [ ! -f /usr/include/libssh2.h ]; then
-    grep -rl -- '-lssh2' . 2>/dev/null | xargs sed -i 's/-lssh2//g' 2>/dev/null || true
-    echo "NOTE: libssh2-devel not found, removed -lssh2 from linker flags"
+# If libssh2-devel is not available, skip opentenbase_ctl (uses libssh2 functions)
+# Check for actual shared library, not just headers
+LIBSSH2_FOUND=0
+if { [ -f /usr/lib64/libssh2.so ] || [ -f /usr/lib/libssh2.so ]; }; then
+    LIBSSH2_FOUND=1
 fi
 
 make -j$(nproc)
@@ -336,6 +333,14 @@ make -j$(nproc)
 # Build contrib, but skip uuid-ossp (requires OSSP UUID not available on RPM distros)
 sed -i 's/^SUBDIRS += uuid-ossp/# SUBDIRS += uuid-ossp/' contrib/Makefile
 sed -i 's/^ALWAYS_SUBDIRS += uuid-ossp/# ALWAYS_SUBDIRS += uuid-ossp/' contrib/Makefile
+
+# Skip opentenbase_ctl if libssh2 is not available (it requires libssh2 for SSH functionality)
+if [ "$LIBSSH2_FOUND" = "0" ]; then
+    sed -i 's/^SUBDIRS += opentenbase_ctl/# SUBDIRS += opentenbase_ctl/' contrib/Makefile
+    sed -i 's/^ALWAYS_SUBDIRS += opentenbase_ctl/# ALWAYS_SUBDIRS += opentenbase_ctl/' contrib/Makefile
+    echo "NOTE: libssh2-devel not found, skipping opentenbase_ctl"
+fi
+
 make -C contrib -j$(nproc)
 
 %install
