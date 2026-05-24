@@ -286,7 +286,7 @@ CFLAGS="$CFLAGS -msse4.2 -mcrc32"
 CFLAGS="$CFLAGS -march=armv8-a"
 %endif
 export CFLAGS
-export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib"
+export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib -latomic"
 
 CONFIGURE_OPTS="--prefix=%{otb_prefix} \
     --sysconfdir=/etc/opentenbase/%{otb_ver} \
