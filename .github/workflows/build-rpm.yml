@@ -34,11 +34,6 @@ jobs:
             os: ubuntu-latest
             arch: x86_64
             container: quay.io/centos/centos:stream9
-          - name: centos-stream-9-aarch64
-            os: ubuntu-latest
-            arch: aarch64
-            container: quay.io/centos/centos:stream9
-            qemu: true
           # Rocky Linux 8
           - name: rockylinux-8-x86_64
             os: ubuntu-latest
@@ -49,11 +44,6 @@ jobs:
             os: ubuntu-latest
             arch: x86_64
             container: rockylinux:9
-          - name: rockylinux-9-aarch64
-            os: ubuntu-latest
-            arch: aarch64
-            container: rockylinux:9
-            qemu: true
           # AlmaLinux 8
           - name: almalinux-8-x86_64
             os: ubuntu-latest
@@ -64,31 +54,16 @@ jobs:
             os: ubuntu-latest
             arch: x86_64
             container: almalinux:9
-          - name: almalinux-9-aarch64
-            os: ubuntu-latest
-            arch: aarch64
-            container: almalinux:9
-            qemu: true
           # Fedora 40
           - name: fedora-40-x86_64
             os: ubuntu-latest
             arch: x86_64
             container: quay.io/fedora/fedora:40
-          - name: fedora-40-aarch64
-            os: ubuntu-latest
-            arch: aarch64
-            container: quay.io/fedora/fedora:40
-            qemu: true
           # OpenEuler
           - name: openeuler-22.03-x86_64
             os: ubuntu-latest
             arch: x86_64
             container: openeuler/openeuler:22.03
-          - name: openeuler-22.03-aarch64
-            os: ubuntu-latest
-            arch: aarch64
-            container: openeuler/openeuler:22.03
-            qemu: true
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -96,12 +71,6 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - name: Install QEMU for cross-arch builds
-        if: matrix.qemu
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/${{ matrix.arch }}
-
       - name: Enable additional repos and install deps
         run: |
           # CentOS Stream 8 EOL fix: use vault mirrors

@@ -58,6 +58,15 @@ fi
 # Patch configure to use dynamic linking instead of hardcoded /usr/local/lib paths
 sed -i 's|/usr/local/lib/liblz4.a|-llz4|g' configure
 
+# Fix ldap_r deprecation: newer OpenLDAP merged ldap_r into ldap
+# If ldap_r is not available but ldap is, patch configure to use ldap
+if ! ldconfig -p 2>/dev/null | grep -q 'libldap_r\.so'; then
+    if ldconfig -p 2>/dev/null | grep -q 'libldap\.so'; then
+        sed -i 's/-lldap_r/-lldap/g' configure
+        echo "NOTE: ldap_r not found, patched configure to use ldap"
+    fi
+fi
+
 # Check for real zstd-devel and provide comprehensive stub if missing
 # OpenTenBase unconditionally compiles zstd_compress.c and gtm_store.c
 # which include zstd.h, so we must provide types even without the real library
@@ -312,14 +321,14 @@ fi
 # If zstd-devel is not available, remove -lzstd from linker flags
 # (configure may still add it even with --without-zstd due to stub header)
 if [ "$ZSTD_FOUND" = "0" ]; then
-    find . \( -name 'Makefile*' -o -name '*.mak' \) -exec sed -i 's/-lzstd//g' {} +
-    [ -f config.status ] && sed -i 's/-lzstd//g' config.status
+    grep -rl -- '-lzstd' . 2>/dev/null | xargs sed -i 's/-lzstd//g' 2>/dev/null || true
+    echo "NOTE: removed -lzstd from linker flags (using stub zstd.h)"
 fi
 
 # If libssh2-devel is not available, remove -lssh2 from linker flags
 if ! pkg-config --exists libssh2 2>/dev/null && [ ! -f /usr/include/libssh2.h ]; then
-    find . \( -name 'Makefile*' -o -name '*.mak' \) -exec sed -i 's/-lssh2//g' {} +
-    [ -f config.status ] && sed -i 's/-lssh2//g' config.status
+    grep -rl -- '-lssh2' . 2>/dev/null | xargs sed -i 's/-lssh2//g' 2>/dev/null || true
+    echo "NOTE: libssh2-devel not found, removed -lssh2 from linker flags"
 fi
 
 make -j$(nproc)
