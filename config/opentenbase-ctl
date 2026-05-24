@@ -4,13 +4,13 @@
 
 set -e
 
-CONFIG="${OTB_CONFIG:-/etc/opentenbase/opentenbase.conf}"
+CONFIG="${OTB_CONFIG:-/etc/opentenbase/current/opentenbase.conf}"
 [ -r "$CONFIG" ] || { echo "ERROR: cannot read $CONFIG" >&2; exit 1; }
 # shellcheck disable=SC1090
 . "$CONFIG"
 
 OTB_BIN="${OTB_HOME}/bin"
-TPL_DIR="/etc/opentenbase"
+TPL_DIR="$(dirname "$CONFIG")"
 
 run_as_otb() {
     if [ "$(id -un)" = "$OTB_USER" ]; then

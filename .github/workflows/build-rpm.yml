@@ -4,6 +4,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'OpenTenBase version (e.g., 5.0, 6.0)'
+        required: true
+        default: '5.0'
+        type: string
 
 jobs:
   build-rpm:

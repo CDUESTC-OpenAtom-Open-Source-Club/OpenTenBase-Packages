@@ -4,6 +4,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'OpenTenBase version (e.g., 5.0, 6.0)'
+        required: true
+        default: '5.0'
+        type: string
 
 jobs:
   build-deb:
@@ -149,9 +155,15 @@ jobs:
             /tmp/source/OpenTenBase
 
       - name: Build DEB packages
+        env:
+          OTB_VERSION: ${{ github.event.inputs.version || '5.0' }}
         run: |
           cd /tmp/source/OpenTenBase
           cp -r /opentenbase-pkg/debian/ ./debian/
+          # Override OTB_VERSION in debian/rules if workflow_dispatch provides a version
+          if [ -n "$OTB_VERSION" ] && [ "$OTB_VERSION" != "5.0" ]; then
+            sed -i "s/^OTB_VERSION := .*/OTB_VERSION := $OTB_VERSION/" debian/rules
+          fi
           fakeroot debian/rules binary 2>&1 | tail -50
 
       - name: Run lintian

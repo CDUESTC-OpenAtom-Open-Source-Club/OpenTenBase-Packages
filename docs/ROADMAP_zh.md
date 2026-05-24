@@ -182,10 +182,10 @@ opentenbase-repo/
   - [x] 配置仓库源
   - [ ] 安装软件包
 
-- [ ] **多版本管理**
-  - [ ] 设计版本命名规范
-  - [ ] 支持多版本并存
-  - [ ] 版本切换机制
+- [x] **多版本管理**
+  - [x] 设计版本命名规范（版本化前缀 + 符号链接切换）
+  - [x] 支持多版本并存（/usr/lib/opentenbase/5.0/ 等版本化路径）
+  - [x] 版本切换机制（opentenbase-switch-version 命令）
 
 - [x] **文档完善**
   - [x] 安装指南（中英文）
@@ -649,7 +649,12 @@ main "$@"
   - [x] `scripts/generate-release-notes.sh` — 自动生成标准化发布说明
   - [x] `.github/workflows/release.yml` — 自动发布工作流
 - [ ] **自动签名和发布** — GPG 签名集成到 CI 流水线
-- [ ] **多版本管理** — 支持 v5.0/v6.0/dev 版本并存
+- [x] **多版本管理** — 支持 v5.0/v6.0/dev 版本并存
+  - [x] 版本化安装前缀 `/usr/lib/opentenbase/5.0/`
+  - [x] 版本化配置 `/etc/opentenbase/5.0/`
+  - [x] 符号链接切换机制 `/etc/opentenbase/current`
+  - [x] `opentenbase-switch-version` 版本切换命令
+  - [x] `docs/VERSION-MANAGEMENT.md` 多版本管理文档
 
 ---
 
@@ -687,9 +692,9 @@ main "$@"
 
 ---
 
-**文档版本**: 1.5
+**文档版本**: 1.6
 **最后更新**: 2026-05-23
-**最新变更**: RPM 全系列支持完成，源码编译 Docker Compose 验证通过
+**最新变更**: 多版本管理支持完成，版本化路径 + 符号链接切换机制
 **维护者**: muzimu217
 
 ---

@@ -1,11 +1,16 @@
 opentenbase (5.0-1ubuntu1) noble; urgency=medium
 
+  * Multi-version management support.
+  * Versioned install prefix: /usr/lib/opentenbase/5.0/
+  * Versioned config: /etc/opentenbase/5.0/
+  * Versioned data dirs: /var/lib/opentenbase/5.0/
+  * Symlink-based version switching via /etc/opentenbase/current
+  * New opentenbase-switch-version command for version management
+  * Side-by-side installation support for v5.0/v6.0/dev
   * Initial Debian/Ubuntu packaging of OpenTenBase v5.0.
   * 6-package split: opentenbase (metapackage), opentenbase-server,
     opentenbase-client, opentenbase-contrib, libopentenbase-dev,
     opentenbase-doc.
-  * Private install prefix /usr/lib/opentenbase to coexist with
-    PostgreSQL system packages.
   * systemd unit + opentenbase-ctl smart control script.
 
- -- OpenTenBase Packaging <packaging@opentenbase.org>  Sun, 17 May 2026 00:00:00 +0000
+ -- OpenTenBase Packaging <packaging@opentenbase.org>  Fri, 23 May 2026 00:00:00 +0000

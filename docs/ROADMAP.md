@@ -182,10 +182,10 @@ opentenbase-repo/
   - [x] Configure repository source
   - [ ] Install packages
 
-- [ ] **Multi-version management**
-  - [ ] Design version naming convention
-  - [ ] Support multi-version coexistence
-  - [ ] Version switching mechanism
+- [x] **Multi-version management**
+  - [x] Design version naming convention (versioned prefix + symlink switching)
+  - [x] Support multi-version coexistence (/usr/lib/opentenbase/5.0/ versioned paths)
+  - [x] Version switching mechanism (opentenbase-switch-version command)
 
 - [x] **Documentation completion**
   - [x] Installation guide (bilingual)
@@ -647,7 +647,12 @@ This is the **standard route for official packaging of open source projects**, a
   - [x] `scripts/generate-release-notes.sh` — Auto-generate standardized release notes
   - [x] `.github/workflows/release.yml` — Auto-release workflow
 - [ ] **Auto-sign and publish** — GPG signing integration into CI pipeline
-- [ ] **Multi-version management** — Support v5.0/v6.0/dev version coexistence
+- [x] **Multi-version management** — Support v5.0/v6.0/dev version coexistence
+  - [x] Versioned install prefix `/usr/lib/opentenbase/5.0/`
+  - [x] Versioned config `/etc/opentenbase/5.0/`
+  - [x] Symlink-based version switching `/etc/opentenbase/current`
+  - [x] `opentenbase-switch-version` version switching command
+  - [x] `docs/VERSION-MANAGEMENT.md` multi-version management docs
 
 ---
 
@@ -685,8 +690,9 @@ This is the **standard route for official packaging of open source projects**, a
 
 ---
 
-**Document Version**: 1.4
+**Document Version**: 1.5
 **Last Updated**: 2026-05-23
+**Latest Changes**: Multi-version management support completed, versioned paths + symlink switching
 **Maintainer**: muzimu217
 
 ---

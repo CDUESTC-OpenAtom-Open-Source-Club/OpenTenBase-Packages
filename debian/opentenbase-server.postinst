@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+OTB_VERSION="5.0"
+
 case "$1" in
     configure)
         # Create system user/group
@@ -12,14 +14,21 @@ case "$1" in
                 --home /var/lib/opentenbase --shell /bin/bash \
                 --gecos "OpenTenBase administrator" opentenbase
         fi
-        # Ownership of state dirs
-        for d in /var/lib/opentenbase /var/log/opentenbase /var/run/opentenbase; do
+        # Create versioned state directories
+        for d in /var/lib/opentenbase/${OTB_VERSION} \
+                 /var/log/opentenbase/${OTB_VERSION} \
+                 /var/run/opentenbase; do
             [ -d "$d" ] || mkdir -p "$d"
             chown opentenbase:opentenbase "$d"
         done
-        chmod 0700 /var/lib/opentenbase
-        chmod 0750 /var/log/opentenbase
+        chmod 0700 /var/lib/opentenbase/${OTB_VERSION}
+        chmod 0750 /var/log/opentenbase/${OTB_VERSION}
         chmod 0755 /var/run/opentenbase
+
+        # Set up /etc/opentenbase/current symlink for version switching
+        if [ ! -L /etc/opentenbase/current ]; then
+            ln -sf /etc/opentenbase/${OTB_VERSION} /etc/opentenbase/current
+        fi
         ;;
     abort-upgrade|abort-remove|abort-deconfigure)
         ;;

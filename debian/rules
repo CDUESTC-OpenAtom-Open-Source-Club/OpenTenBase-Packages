@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
-PREFIX  := /usr/lib/opentenbase
+OTB_VERSION := 5.0
+PREFIX  := /usr/lib/opentenbase/$(OTB_VERSION)
 DESTDIR := $(CURDIR)/debian/tmp
 JOBS    := $(shell nproc)
 
@@ -7,7 +8,7 @@ JOBS    := $(shell nproc)
 WARN_FLAGS := -Wno-deprecated-declarations -Wno-error -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-implicit-function-declaration -Wno-implicit-int
 
 export DEB_CFLAGS_MAINT_APPEND := $(WARN_FLAGS)
-export DEB_LDFLAGS_MAINT_APPEND := -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/lib
+export DEB_LDFLAGS_MAINT_APPEND := -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib
 
 # Force system libraries (avoid conda paths)
 export PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -19,9 +20,9 @@ export PKG_CONFIG_PATH := /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconf
 override_dh_auto_configure:
 	./configure \
 	    --prefix=$(PREFIX) \
-	    --sysconfdir=/etc/opentenbase \
+	    --sysconfdir=/etc/opentenbase/$(OTB_VERSION) \
 	    --datarootdir=$(PREFIX)/share \
-	    --includedir=/usr/include/opentenbase \
+	    --includedir=/usr/include/opentenbase/$(OTB_VERSION) \
 	    --with-openssl \
 	    --with-ldap \
 	    --with-pam \
@@ -32,7 +33,7 @@ override_dh_auto_configure:
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC $(WARN_FLAGS) -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/lib"
+	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib"
 	# Ensure -latomic is in LIBS for final link (configure resets LIBS)
 	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -latomic/' src/Makefile.global
 
@@ -47,11 +48,12 @@ override_dh_auto_install:
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) install
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) -C contrib install
 	install -D -m 0755 config/opentenbase-ctl $(DESTDIR)/usr/bin/opentenbase-ctl
-	install -D -m 0644 config/opentenbase.conf $(DESTDIR)/etc/opentenbase/opentenbase.conf
-	install -D -m 0644 config/gtm.conf.template $(DESTDIR)/etc/opentenbase/gtm.conf.template
-	install -D -m 0644 config/postgresql.conf.coord.template $(DESTDIR)/etc/opentenbase/postgresql.conf.coord.template
-	install -D -m 0644 config/postgresql.conf.dn.template $(DESTDIR)/etc/opentenbase/postgresql.conf.dn.template
-	install -D -m 0644 config/pg_hba.conf.template $(DESTDIR)/etc/opentenbase/pg_hba.conf.template
+	install -D -m 0755 scripts/switch-version.sh $(DESTDIR)/usr/bin/opentenbase-switch-version
+	install -D -m 0644 config/opentenbase.conf $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/opentenbase.conf
+	install -D -m 0644 config/gtm.conf.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/gtm.conf.template
+	install -D -m 0644 config/postgresql.conf.coord.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/postgresql.conf.coord.template
+	install -D -m 0644 config/postgresql.conf.dn.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/postgresql.conf.dn.template
+	install -D -m 0644 config/pg_hba.conf.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/pg_hba.conf.template
 	# Install raw SGML doc sources into doc package staging area
 	mkdir -p $(DESTDIR)/usr/share/doc/opentenbase/sgml
 	if [ -d doc/src/sgml ]; then \
@@ -61,6 +63,8 @@ override_dh_auto_install:
 	if [ -e $(DESTDIR)$(PREFIX)/bin/pg_config ]; then \
 	    install -D -m 0755 $(DESTDIR)$(PREFIX)/bin/pg_config $(DESTDIR)/usr/bin/opentenbase_config; \
 	fi
+	# Create version marker file
+	echo "$(OTB_VERSION)" > $(DESTDIR)$(PREFIX)/VERSION
 
 override_dh_auto_test:
 	true
