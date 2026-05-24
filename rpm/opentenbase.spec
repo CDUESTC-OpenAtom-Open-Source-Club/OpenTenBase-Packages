@@ -288,21 +288,11 @@ CFLAGS="$CFLAGS -march=armv8-a"
 export CFLAGS
 export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib"
 
-# Add -latomic if needed for 128-bit atomics (check by trying a test compile)
-# Some distros (Fedora 40+) need -latomic for __sync_val_compare_and_swap_16
-cat > /tmp/test_atomic.c << 'EOFAT'
-#include <stdint.h>
-volatile __int128 x = 0;
-void set_x(void) { __sync_val_compare_and_swap(&x, 0, 1); }
-int main() { set_x(); return 0; }
-EOFAT
-if ! gcc -o /tmp/test_atomic /tmp/test_atomic.c 2>/dev/null; then
-    if gcc -o /tmp/test_atomic /tmp/test_atomic.c -latomic 2>/dev/null; then
-        export LDFLAGS="$LDFLAGS -latomic"
-        echo "NOTE: 128-bit atomics need -latomic, adding to LDFLAGS"
-    fi
+# Add -latomic on Fedora (needed for 128-bit atomics: __sync_val_compare_and_swap_16)
+if [ -f /etc/fedora-release ]; then
+    export LDFLAGS="$LDFLAGS -latomic"
+    echo "NOTE: Fedora detected, adding -latomic to LDFLAGS"
 fi
-rm -f /tmp/test_atomic /tmp/test_atomic.c
 
 CONFIGURE_OPTS="--prefix=%{otb_prefix} \
     --sysconfdir=/etc/opentenbase/%{otb_ver} \
