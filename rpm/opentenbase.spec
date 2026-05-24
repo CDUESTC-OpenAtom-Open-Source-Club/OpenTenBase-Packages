@@ -313,8 +313,13 @@ fi
 # (configure may still add it even with --without-zstd due to stub header)
 if [ "$ZSTD_FOUND" = "0" ]; then
     find . \( -name 'Makefile*' -o -name '*.mak' \) -exec sed -i 's/-lzstd//g' {} +
-    # Also patch configure output that may be cached
     [ -f config.status ] && sed -i 's/-lzstd//g' config.status
+fi
+
+# If libssh2-devel is not available, remove -lssh2 from linker flags
+if ! pkg-config --exists libssh2 2>/dev/null && [ ! -f /usr/include/libssh2.h ]; then
+    find . \( -name 'Makefile*' -o -name '*.mak' \) -exec sed -i 's/-lssh2//g' {} +
+    [ -f config.status ] && sed -i 's/-lssh2//g' config.status
 fi
 
 make -j$(nproc)
