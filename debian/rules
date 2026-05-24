@@ -58,7 +58,7 @@ override_dh_auto_build:
 	# The postgres binary needs src/interfaces/libpq/objfiles.txt to link against libpq.
 	$(MAKE) -j$(JOBS) -C src/interfaces/libpq all
 	# Generate objfiles.txt listing libpq's compiled object files
-	( cd src/interfaces/libpq && for f in *.o; do echo "src/interfaces/libpq/$f"; done ) > src/interfaces/libpq/objfiles.txt
+	( cd src/interfaces/libpq && for f in *.o; do echo "src/interfaces/libpq/$$f"; done ) > src/interfaces/libpq/objfiles.txt
 	# Now build everything in parallel
 	$(MAKE) -j$(JOBS) all
 	# Exclude uuid-ossp from contrib build (needs md5.h removed in OpenSSL 3.0)
