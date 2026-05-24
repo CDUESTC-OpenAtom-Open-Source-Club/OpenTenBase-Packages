@@ -290,8 +290,8 @@ export LDFLAGS="-Wl,-rpath,%{otb_prefix}/lib"
 
 # Add -latomic on Fedora (needed for 128-bit atomics: __sync_val_compare_and_swap_16)
 if [ -f /etc/fedora-release ]; then
-    export LDFLAGS="$LDFLAGS -latomic"
-    echo "NOTE: Fedora detected, adding -latomic to LDFLAGS"
+    export LIBS="$LIBS -latomic"
+    echo "NOTE: Fedora detected, adding -latomic to LIBS"
 fi
 
 CONFIGURE_OPTS="--prefix=%{otb_prefix} \
