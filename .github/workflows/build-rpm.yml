@@ -111,6 +111,15 @@ jobs:
           dnf install -y zstd-devel 2>/dev/null || true
           dnf install -y libssh2-devel 2>/dev/null || true
 
+          # Ensure libatomic is available for 128-bit atomics
+          dnf install -y libatomic 2>/dev/null || true
+          # Create libatomic.so symlink if missing (only .so.1 provided by runtime pkg)
+          for dir in /usr/lib64 /usr/lib; do
+            if [ -f "$dir/libatomic.so.1" ] && [ ! -f "$dir/libatomic.so" ]; then
+              ln -s libatomic.so.1 "$dir/libatomic.so"
+            fi
+          done
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:

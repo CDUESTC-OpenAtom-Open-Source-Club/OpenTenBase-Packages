@@ -299,11 +299,17 @@ export CFLAGS
 # Set LDFLAGS cleanly (RPM macros are sanitized by %undefine above)
 export LDFLAGS="-Wl,--allow-multiple-definition -Wl,-rpath,%{otb_prefix}/lib"
 
-# Add -latomic on Fedora (needed for 128-bit atomics: __sync_val_compare_and_swap_16)
-if [ -f /etc/fedora-release ]; then
-    export LIBS="$LIBS -latomic"
-    echo "NOTE: Fedora detected, adding -latomic to LIBS"
-fi
+# Add -latomic (needed for 128-bit atomics: __sync_val_compare_and_swap_16)
+# Ensure libatomic.so symlink exists (runtime package may only provide .so.1)
+for dir in /usr/lib64 /usr/lib; do
+    if [ -f "$dir/libatomic.so.1" ] && [ ! -f "$dir/libatomic.so" ]; then
+        ln -s libatomic.so.1 "$dir/libatomic.so"
+        echo "NOTE: created $dir/libatomic.so symlink"
+    fi
+done
+# Use --no-as-needed to force link libatomic even with --as-needed in LDFLAGS
+export LIBS="$LIBS -Wl,--no-as-needed -latomic -Wl,--as-needed"
+echo "NOTE: added -latomic to LIBS"
 
 # Debug: test compiler before configure
 echo "=== Compiler test ==="
