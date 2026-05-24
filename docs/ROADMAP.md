@@ -630,8 +630,17 @@ This is the **standard route for official packaging of open source projects**, a
   - [x] GCC 12 compatibility fix (`typedef _Bool bool;` replacing `typedef char bool;`)
   - [x] `gtm_opt.c` struct initialization fix
   - [x] lz4/zstd library path auto-fix
+  - [x] Flex `lex.backup` race condition fix (parallel build on Ubuntu 25.04/Debian 13/Fedora 40)
+  - [x] `libatomic` linkage fix for 128-bit atomics (`-Wl,--no-as-needed -latomic`)
+  - [x] `-mcx16` x86_64-only flag conditional (aarch64 compatibility)
   - [x] Build verified: `postgres (PostgreSQL) 10.0 @ OpenTenBase_v5.0`
   - [x] 38 binaries + all contrib extensions installed successfully
+- [x] **ARM64 server deployment verification** — Full cluster test on Huawei Cloud EulerOS 2.0 aarch64
+  - [x] GTM + Coordinator + Datanode all running
+  - [x] Node group creation and sharding map initialization
+  - [x] Distributed tables (SHARD + REPLICATION) working
+  - [x] INSERT/SELECT/UPDATE/DELETE/JOIN/INDEX all verified
+  - [x] All 15 CI targets passing (7 DEB + 8 RPM)
 
 ### In Progress 🔄
 
