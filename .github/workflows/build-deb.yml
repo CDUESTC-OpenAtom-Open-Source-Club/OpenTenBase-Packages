@@ -109,6 +109,8 @@ jobs:
         run: |
           cd /tmp/source/OpenTenBase
           cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/debian/" ./debian/
+          cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/config/" ./config/ 2>/dev/null || true
+          cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/scripts/" ./scripts/ 2>/dev/null || true
           # Override OTB_VERSION in debian/rules if workflow_dispatch provides a version
           if [ -n "$OTB_VERSION" ] && [ "$OTB_VERSION" != "5.0" ]; then
             sed -i "s/^OTB_VERSION := .*/OTB_VERSION := $OTB_VERSION/" debian/rules
