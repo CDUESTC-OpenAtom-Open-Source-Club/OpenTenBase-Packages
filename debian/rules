@@ -6,7 +6,7 @@ JOBS    := $(shell nproc)
 
 # Suppress all warnings (OpenTenBase code is not warning-clean on modern GCC)
 export DEB_CFLAGS_MAINT_APPEND := -w
-export DEB_LDFLAGS_MAINT_APPEND := -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib
+export DEB_LDFLAGS_MAINT_APPEND := -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib
 
 # Force system libraries (avoid conda paths)
 export PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -47,7 +47,7 @@ override_dh_auto_configure:
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -msse4.2 -mcrc32 -DNOLIC -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib" \
+	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib" \
 	    LIBS="-lzstd -llz4 -latomic"
 	# Ensure -latomic is in LIBS for final link (configure resets LIBS)
 	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -latomic/' src/Makefile.global
