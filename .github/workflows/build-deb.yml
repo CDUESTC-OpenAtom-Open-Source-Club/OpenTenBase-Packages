@@ -159,7 +159,7 @@ jobs:
           OTB_VERSION: ${{ github.event.inputs.version || '5.0' }}
         run: |
           cd /tmp/source/OpenTenBase
-          cp -r /opentenbase-pkg/debian/ ./debian/
+          cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/debian/" ./debian/
           # Override OTB_VERSION in debian/rules if workflow_dispatch provides a version
           if [ -n "$OTB_VERSION" ] && [ "$OTB_VERSION" != "5.0" ]; then
             sed -i "s/^OTB_VERSION := .*/OTB_VERSION := $OTB_VERSION/" debian/rules

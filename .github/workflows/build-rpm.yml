@@ -95,6 +95,21 @@ jobs:
         with:
           platforms: linux/${{ matrix.arch }}
 
+      - name: Enable additional repos
+        run: |
+          # Enable CRB/PowerTools for zstd-devel, libssh2-devel, etc.
+          if dnf repolist --all 2>/dev/null | grep -q crb; then
+            dnf config-manager --set-enabled crb 2>/dev/null || true
+          fi
+          if dnf repolist --all 2>/dev/null | grep -q powertools; then
+            dnf config-manager --set-enabled powertools 2>/dev/null || true
+          fi
+          # CentOS Stream 8 EOL fix: use vault mirrors
+          if grep -q 'CentOS Stream release 8' /etc/redhat-release 2>/dev/null; then
+            sed -i 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-Stream-*.repo
+            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Stream-*.repo
+          fi
+
       - name: Install build dependencies
         run: |
           dnf install -y \
