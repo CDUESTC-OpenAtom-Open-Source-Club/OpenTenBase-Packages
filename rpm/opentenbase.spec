@@ -336,6 +336,9 @@ sed -i 's/^ALWAYS_SUBDIRS += uuid-ossp/# ALWAYS_SUBDIRS += uuid-ossp/' contrib/M
 
 # Skip opentenbase_ctl if libssh2 is not available (it requires libssh2 for SSH functionality)
 if [ "$LIBSSH2_FOUND" = "0" ]; then
+    # Remove from main Makefile and contrib/Makefile
+    sed -i 's/^SUBDIRS += opentenbase_ctl/# SUBDIRS += opentenbase_ctl/' Makefile
+    sed -i 's/^WANT_SUBDIRS += opentenbase_ctl/# WANT_SUBDIRS += opentenbase_ctl/' Makefile
     sed -i 's/^SUBDIRS += opentenbase_ctl/# SUBDIRS += opentenbase_ctl/' contrib/Makefile
     sed -i 's/^ALWAYS_SUBDIRS += opentenbase_ctl/# ALWAYS_SUBDIRS += opentenbase_ctl/' contrib/Makefile
     echo "NOTE: libssh2-devel not found, skipping opentenbase_ctl"
