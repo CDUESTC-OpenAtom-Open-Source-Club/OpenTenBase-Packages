@@ -11,10 +11,11 @@ Source2:        pg_hba.conf.template
 %define otb_ver %{version}
 %define otb_prefix /usr/lib/opentenbase/%{otb_ver}
 
-# Disable Fedora's annotated/hardened build macros
-# These inject -specs=...annobin-cc1 into LDFLAGS which breaks configure
+# Disable Fedora's annotated/hardened/LTO build macros
+# These inject -specs=...annobin-cc1, -flto=auto, etc. into CFLAGS/LDFLAGS
 %undefine _annotated_build
 %undefine _hardened_build
+%undefine _lto_cflags
 
 # Filter out GLIBC_PRIVATE dependency (false positive from RPM auto-detection)
 %global __requires_exclude ^libc\\.so\\.6\\(GLIBC_PRIVATE\\)
@@ -317,6 +318,7 @@ CONFIGURE_OPTS="--prefix=%{otb_prefix} \
     --datadir=%{otb_prefix}/share \
     --libdir=%{otb_prefix}/lib \
     --includedir=%{otb_prefix}/include \
+    --enable-license=no \
     --enable-user-switch \
     --with-openssl \
     --with-uuid=e2fs \
@@ -336,14 +338,18 @@ else
     echo "NOTE: zstd-devel not found, building without zstd support (stub header installed)"
 fi
 
-./configure $CONFIGURE_OPTS || {
+# Clear CPPFLAGS to avoid RPM-injected preprocessor flags
+export CPPFLAGS=""
+# Pass CFLAGS/LDFLAGS/LIBS as configure arguments (highest priority in autoconf)
+./configure $CONFIGURE_OPTS CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" LIBS="$LIBS" || {
     echo "=== CONFIGURE FAILED ==="
     echo "CFLAGS=$CFLAGS"
     echo "LDFLAGS=$LDFLAGS"
     echo "LIBS=$LIBS"
+    echo "CPPFLAGS=$CPPFLAGS"
     if [ -f config.log ]; then
-        echo "=== Last 30 lines of config.log ==="
-        tail -30 config.log
+        echo "=== Last 50 lines of config.log ==="
+        tail -50 config.log
     fi
     exit 1
 }
@@ -361,6 +367,12 @@ LIBSSH2_FOUND=0
 if { [ -f /usr/lib64/libssh2.so ] || [ -f /usr/lib/libssh2.so ]; }; then
     LIBSSH2_FOUND=1
 fi
+
+# Pre-build libpq and generate objfiles.txt (race condition fix)
+# libpq's Makefile has 'all: all-lib' but doesn't generate objfiles.txt
+# which the postgres binary needs to link against libpq objects
+make -j$(nproc) -C src/interfaces/libpq
+( cd src/interfaces/libpq && for f in *.o; do echo "src/interfaces/libpq/$f"; done ) > src/interfaces/libpq/objfiles.txt
 
 make -j$(nproc)
 
