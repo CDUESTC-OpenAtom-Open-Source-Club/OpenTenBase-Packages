@@ -36,48 +36,24 @@ jobs:
             arch: amd64
             container: ubuntu:20.04
             codename: focal
-          - name: ubuntu-20.04-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: ubuntu:20.04
-            codename: focal
-            qemu: true
           # Ubuntu 22.04 LTS (Jammy)
           - name: ubuntu-22.04-amd64
             os: ubuntu-latest
             arch: amd64
             container: ubuntu:22.04
             codename: jammy
-          - name: ubuntu-22.04-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: ubuntu:22.04
-            codename: jammy
-            qemu: true
           # Ubuntu 24.04 LTS (Noble)
           - name: ubuntu-24.04-amd64
             os: ubuntu-latest
             arch: amd64
             container: ubuntu:24.04
             codename: noble
-          - name: ubuntu-24.04-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: ubuntu:24.04
-            codename: noble
-            qemu: true
           # Ubuntu 25.04 (Plucky)
           - name: ubuntu-25.04-amd64
             os: ubuntu-latest
             arch: amd64
             container: ubuntu:25.04
             codename: plucky
-          - name: ubuntu-25.04-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: ubuntu:25.04
-            codename: plucky
-            qemu: true
           # Debian 10 (Buster)
           - name: debian-10-amd64
             os: ubuntu-latest
@@ -90,36 +66,18 @@ jobs:
             arch: amd64
             container: debian:bullseye
             codename: bullseye
-          - name: debian-11-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: debian:bullseye
-            codename: bullseye
-            qemu: true
           # Debian 12 (Bookworm)
           - name: debian-12-amd64
             os: ubuntu-latest
             arch: amd64
             container: debian:bookworm
             codename: bookworm
-          - name: debian-12-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: debian:bookworm
-            codename: bookworm
-            qemu: true
           # Debian 13 (Trixie)
           - name: debian-13-amd64
             os: ubuntu-latest
             arch: amd64
             container: debian:trixie
             codename: trixie
-          - name: debian-13-arm64
-            os: ubuntu-latest
-            arch: arm64
-            container: debian:trixie
-            codename: trixie
-            qemu: true
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -127,12 +85,6 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - name: Install QEMU for cross-arch builds
-        if: matrix.qemu
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/${{ matrix.arch }}
-
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive

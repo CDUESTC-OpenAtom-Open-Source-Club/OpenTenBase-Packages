@@ -18,6 +18,9 @@ export PKG_CONFIG_PATH := /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconf
 	dh $@
 
 override_dh_auto_configure:
+	# Fix hardcoded static library paths in configure
+	sed -i 's|/usr/local/lib/liblz4.a|-llz4|g' configure
+	sed -i 's|/usr/local/lib/libzstd.a|-lzstd|g' configure
 	./configure \
 	    --prefix=$(PREFIX) \
 	    --sysconfdir=/etc/opentenbase/$(OTB_VERSION) \
@@ -29,11 +32,14 @@ override_dh_auto_configure:
 	    --with-libxml \
 	    --with-readline \
 	    --with-uuid=e2fs \
+	    --with-lz4 \
+	    --with-zstd \
 	    --enable-license=no \
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC $(WARN_FLAGS) -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib"
+	    LDFLAGS="-L/usr/lib/x86_64-linux-gnu -Wl,--no-as-needed -latomic -Wl,--as-needed -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib" \
+	    LIBS="-lzstd -llz4"
 	# Ensure -latomic is in LIBS for final link (configure resets LIBS)
 	sed -i 's/^LIBS = \(.*\)/LIBS = \1 -latomic/' src/Makefile.global
 
