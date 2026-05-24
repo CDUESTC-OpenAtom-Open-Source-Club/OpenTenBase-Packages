@@ -101,6 +101,14 @@ fi
 
 ./configure $CONFIGURE_OPTS
 
+# If zstd-devel is not available, remove zstd_compress from the build
+# OpenTenBase always compiles zstd_compress.c even with --without-zstd
+if [ "$ZSTD_FOUND" = "0" ]; then
+    find . -name 'Makefile' -exec sed -i '/zstd_compress\.o/d' {} +
+    # Also remove from OBJS lines that have it inline
+    find . -name 'Makefile' -exec sed -i 's/ zstd_compress\.o//g' {} +
+fi
+
 make -j$(nproc)
 
 # Build contrib, but skip uuid-ossp (requires OSSP UUID not available on RPM distros)
