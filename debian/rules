@@ -50,8 +50,13 @@ override_dh_auto_configure:
 	    LDFLAGS="-L/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu) -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib -Wl,--no-as-needed -latomic -Wl,--as-needed" \
 	    LIBS="-lzstd -llz4 -Wl,--no-as-needed -latomic -Wl,--as-needed"
 	# Find libatomic.so and patch Makefile.global - all in one shell invocation
-	# to preserve ATOMIC_LIB variable across sed commands
-	ATOMIC_LIB=$$(find /usr/lib -name 'libatomic.so' -type f -o -name 'libatomic.so' -type l 2>/dev/null | head -1); \
+	# Prefer GCC's own libatomic.so (from libgcc-dev) over system libatomic.so.1
+	# because the system runtime lib may not export 128-bit atomics on older distros
+	GCC_VER=$$(gcc -dumpversion | cut -d. -f1); \
+	ATOMIC_LIB=$$(find /usr/lib/gcc -path "*/$$GCC_VER/libatomic.so" 2>/dev/null | head -1); \
+	if [ -z "$$ATOMIC_LIB" ]; then \
+	    ATOMIC_LIB=$$(find /usr/lib -name 'libatomic.so' -not -path '*/gcc/*' 2>/dev/null | head -1); \
+	fi; \
 	if [ -z "$$ATOMIC_LIB" ]; then \
 	    ATOMIC_SO1=$$(find /usr/lib -name 'libatomic.so.1' 2>/dev/null | head -1); \
 	    if [ -n "$$ATOMIC_SO1" ]; then \
@@ -61,14 +66,12 @@ override_dh_auto_configure:
 	    fi; \
 	fi; \
 	echo "Using libatomic: $$ATOMIC_LIB"; \
-	echo "LIBS before: $$(grep '^LIBS =' src/Makefile.global)"; \
 	if [ -n "$$ATOMIC_LIB" ]; then \
 	    sed -i "s|^LIBS = \(.*\)|LIBS = \1 $$ATOMIC_LIB|" src/Makefile.global; \
 	else \
 	    sed -i 's|^LIBS = \(.*\)|LIBS = \1 -Wl,--no-as-needed -latomic|' src/Makefile.global; \
 	fi; \
-	sed -i 's/-Wl,--as-needed//g' src/Makefile.global; \
-	echo "LIBS after: $$(grep '^LIBS =' src/Makefile.global)"
+	sed -i 's/-Wl,--as-needed//g' src/Makefile.global
 
 override_dh_auto_build:
 	# Fix flex lex.backup race: replace the wc -l check + rm with simple rm -f
