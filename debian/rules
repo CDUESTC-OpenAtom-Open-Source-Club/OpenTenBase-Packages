@@ -49,14 +49,10 @@ override_dh_auto_configure:
 	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -DNOLIC -I/usr/include/libxml2" \
 	    LDFLAGS="-L/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu) -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib -Wl,--no-as-needed -latomic -Wl,--as-needed" \
 	    LIBS="-lzstd -llz4 -Wl,--no-as-needed -latomic -Wl,--as-needed"
-	# Debug: show LIBS line from Makefile.global before patching
-	echo "=== LIBS before patching ==="
-	grep '^LIBS' src/Makefile.global || echo "LIBS not found with ^LIBS pattern"
-	grep 'LIBS' src/Makefile.global | head -5 || true
-	# Find libatomic.so for 128-bit atomics (critical for GTM/coord/dn)
+	# Find libatomic.so and patch Makefile.global - all in one shell invocation
+	# to preserve ATOMIC_LIB variable across sed commands
 	ATOMIC_LIB=$$(find /usr/lib -name 'libatomic.so' -type f -o -name 'libatomic.so' -type l 2>/dev/null | head -1); \
 	if [ -z "$$ATOMIC_LIB" ]; then \
-	    echo "WARNING: libatomic.so not found, creating symlink"; \
 	    ATOMIC_SO1=$$(find /usr/lib -name 'libatomic.so.1' 2>/dev/null | head -1); \
 	    if [ -n "$$ATOMIC_SO1" ]; then \
 	        ATOMIC_DIR=$$(dirname "$$ATOMIC_SO1"); \
@@ -64,17 +60,15 @@ override_dh_auto_configure:
 	        ATOMIC_LIB="$$ATOMIC_DIR/libatomic.so"; \
 	    fi; \
 	fi; \
-	echo "Using libatomic: $$ATOMIC_LIB"
-	# Patch LIBS in Makefile.global: append libatomic full path
-	# Use sed with flexible pattern to match LIBS line
-	sed -i "/^LIBS/s|-latomic|$$ATOMIC_LIB|g" src/Makefile.global || true
-	# Also add -latomic at the very end of LIBS as backup
-	sed -i "s|^LIBS = \(.*\)|LIBS = \1 $$ATOMIC_LIB|" src/Makefile.global || true
-	# Strip --as-needed from LDFLAGS to prevent linker from skipping -latomic
-	# (debhelper appends --as-needed after our flags, causing 128-bit atomics to fail)
-	sed -i 's/-Wl,--as-needed//g' src/Makefile.global
-	echo "=== LIBS after patching ==="
-	grep '^LIBS' src/Makefile.global || echo "LIBS not found"
+	echo "Using libatomic: $$ATOMIC_LIB"; \
+	echo "LIBS before: $$(grep '^LIBS =' src/Makefile.global)"; \
+	if [ -n "$$ATOMIC_LIB" ]; then \
+	    sed -i "s|^LIBS = \(.*\)|LIBS = \1 $$ATOMIC_LIB|" src/Makefile.global; \
+	else \
+	    sed -i 's|^LIBS = \(.*\)|LIBS = \1 -Wl,--no-as-needed -latomic|' src/Makefile.global; \
+	fi; \
+	sed -i 's/-Wl,--as-needed//g' src/Makefile.global; \
+	echo "LIBS after: $$(grep '^LIBS =' src/Makefile.global)"
 
 override_dh_auto_build:
 	# Fix flex lex.backup race: replace the wc -l check + rm with simple rm -f
