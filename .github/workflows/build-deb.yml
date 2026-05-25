@@ -85,12 +85,8 @@ jobs:
             libxml2-dev libldap2-dev uuid-dev \
             libcurl4-openssl-dev liblz4-dev libzstd-dev \
             libssh2-1-dev \
-            libatomic1 \
+            libatomic1 libatomic-dev \
             pkg-config libtool git ca-certificates
-          # Ensure libatomic.so symlink exists (libatomic1 only provides .so.1)
-          if [ ! -f /usr/lib/x86_64-linux-gnu/libatomic.so ] && [ -f /usr/lib/x86_64-linux-gnu/libatomic.so.1 ]; then
-            ln -s libatomic.so.1 /usr/lib/x86_64-linux-gnu/libatomic.so
-          fi
 
           # Install optional deps (may not exist on older distros)
           apt-get install -y libossp-uuid-dev 2>/dev/null || true
