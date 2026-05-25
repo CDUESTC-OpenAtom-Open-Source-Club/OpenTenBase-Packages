@@ -47,31 +47,18 @@ override_dh_auto_configure:
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
 	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -DNOLIC -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu) -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib -Wl,--no-as-needed -latomic -Wl,--as-needed" \
-	    LIBS="-lzstd -llz4 -Wl,--no-as-needed -latomic -Wl,--as-needed"
-	# Find libatomic.so and patch Makefile.global - all in one shell invocation
-	# Prefer GCC's own libatomic.so (from libgcc-dev) over system libatomic.so.1
-	# because the system runtime lib may not export 128-bit atomics on older distros
-	GCC_VER=$$(gcc -dumpversion | cut -d. -f1); \
-	ATOMIC_LIB=$$(find /usr/lib/gcc -path "*/$$GCC_VER/libatomic.so" 2>/dev/null | head -1); \
-	if [ -z "$$ATOMIC_LIB" ]; then \
-	    ATOMIC_LIB=$$(find /usr/lib -name 'libatomic.so' -not -path '*/gcc/*' 2>/dev/null | head -1); \
-	fi; \
-	if [ -z "$$ATOMIC_LIB" ]; then \
-	    ATOMIC_SO1=$$(find /usr/lib -name 'libatomic.so.1' 2>/dev/null | head -1); \
-	    if [ -n "$$ATOMIC_SO1" ]; then \
-	        ATOMIC_DIR=$$(dirname "$$ATOMIC_SO1"); \
-	        ln -sf libatomic.so.1 "$$ATOMIC_DIR/libatomic.so"; \
-	        ATOMIC_LIB="$$ATOMIC_DIR/libatomic.so"; \
+	    LDFLAGS="-L/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu) -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib -Wl,--whole-archive -latomic -Wl,--no-whole-archive" \
+	    LIBS="-lzstd -llz4 -Wl,--whole-archive -latomic -Wl,--no-whole-archive"
+	# Ensure libatomic.so symlink exists for -l search
+	for dir in /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu; do \
+	    if [ -f "$$dir/libatomic.so.1" ] && [ ! -f "$$dir/libatomic.so" ]; then \
+	        ln -sf libatomic.so.1 "$$dir/libatomic.so"; \
 	    fi; \
-	fi; \
-	echo "Using libatomic: $$ATOMIC_LIB"; \
-	if [ -n "$$ATOMIC_LIB" ]; then \
-	    sed -i "s|^LIBS = \(.*\)|LIBS = \1 $$ATOMIC_LIB|" src/Makefile.global; \
-	else \
-	    sed -i 's|^LIBS = \(.*\)|LIBS = \1 -Wl,--no-as-needed -latomic|' src/Makefile.global; \
-	fi; \
+	done
+	# Patch LIBS: use --whole-archive to force all libatomic symbols in
+	sed -i 's|^LIBS = \(.*\)|LIBS = \1 -Wl,--whole-archive -latomic -Wl,--no-whole-archive|' src/Makefile.global
 	sed -i 's/-Wl,--as-needed//g' src/Makefile.global
+	echo "LIBS after: $$(grep '^LIBS =' src/Makefile.global)"
 
 override_dh_auto_build:
 	# Fix flex lex.backup race: replace the wc -l check + rm with simple rm -f
