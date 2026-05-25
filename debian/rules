@@ -46,19 +46,18 @@ override_dh_auto_configure:
 	    --enable-license=no \
 	    --enable-thread-safety \
 	    XML2_CONFIG=/usr/bin/xml2-config \
-	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -DNOLIC -I/usr/include/libxml2" \
-	    LDFLAGS="-L/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu) -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib -Wl,--whole-archive -latomic -Wl,--no-whole-archive" \
-	    LIBS="-lzstd -llz4 -Wl,--whole-archive -latomic -Wl,--no-whole-archive"
+	    CFLAGS="-O2 -g -fPIC -w -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-function-declaration -Wno-error=implicit-int -DNOLIC -I/usr/include/libxml2 $(if $(filter amd64,$(shell dpkg-architecture -qDEB_HOST_ARCH 2>/dev/null)),-mcx16)" \
+	    LDFLAGS="-L/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu) -Wl,--allow-multiple-definition -Wl,-rpath,/usr/lib/opentenbase/$(OTB_VERSION)/lib -Wl,--no-as-needed -latomic" \
+	    LIBS="-lzstd -llz4 -Wl,--no-as-needed -latomic"
 	# Ensure libatomic.so symlink exists for -l search
 	for dir in /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu; do \
 	    if [ -f "$$dir/libatomic.so.1" ] && [ ! -f "$$dir/libatomic.so" ]; then \
 	        ln -sf libatomic.so.1 "$$dir/libatomic.so"; \
 	    fi; \
 	done
-	# Patch LIBS: use --whole-archive to force all libatomic symbols in
-	sed -i 's|^LIBS = \(.*\)|LIBS = \1 -Wl,--whole-archive -latomic -Wl,--no-whole-archive|' src/Makefile.global
+	# Patch LIBS and strip --as-needed
+	sed -i 's|^LIBS = \(.*\)|LIBS = \1 -Wl,--no-as-needed -latomic|' src/Makefile.global
 	sed -i 's/-Wl,--as-needed//g' src/Makefile.global
-	echo "LIBS after: $$(grep '^LIBS =' src/Makefile.global)"
 
 override_dh_auto_build:
 	# Fix flex lex.backup race: replace the wc -l check + rm with simple rm -f
