@@ -72,8 +72,15 @@ jobs:
               && (apt-get install -y libldap-2.4-2 2>/dev/null || apt-get install -y libldap-2.5-0 2>/dev/null || apt-get install -y libldap-common 2>/dev/null || true) \
               && rm -rf /var/lib/apt/lists/*
 
-          COPY debs/*.deb /tmp/debs/
-          RUN dpkg --force-depends -i /tmp/debs/*.deb
+          COPY debs/ /tmp/all-debs/
+          RUN mkdir -p /tmp/debs && \
+              for f in /tmp/all-debs/*.deb; do \
+                case "\$(basename \$f)" in \
+                  *${{ matrix.distro }}*) cp "\$f" /tmp/debs/ ;; \
+                esac; \
+              done && \
+              ls -la /tmp/debs/ && \
+              dpkg --force-depends -i /tmp/debs/*.deb
           RUN mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
           RUN ldconfig || true
           # Ensure opentenbase user exists

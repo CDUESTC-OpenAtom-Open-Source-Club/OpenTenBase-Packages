@@ -2,9 +2,9 @@
 set -e
 case "$1" in
     remove|deconfigure)
-        update-alternatives --remove opentenbase-psql /usr/lib/opentenbase/bin/psql || true
-        update-alternatives --remove opentenbase-pg_dump /usr/lib/opentenbase/bin/pg_dump || true
-        update-alternatives --remove opentenbase-pg_restore /usr/lib/opentenbase/bin/pg_restore || true
+        update-alternatives --remove opentenbase-psql /usr/lib/opentenbase/5.0/bin/psql || true
+        update-alternatives --remove opentenbase-pg_dump /usr/lib/opentenbase/5.0/bin/pg_dump || true
+        update-alternatives --remove opentenbase-pg_restore /usr/lib/opentenbase/5.0/bin/pg_restore || true
         ;;
 esac
 

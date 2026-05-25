@@ -2,9 +2,9 @@
 set -e
 case "$1" in
     configure)
-        update-alternatives --install /usr/bin/opentenbase-psql opentenbase-psql /usr/lib/opentenbase/bin/psql 50
-        update-alternatives --install /usr/bin/opentenbase-pg_dump opentenbase-pg_dump /usr/lib/opentenbase/bin/pg_dump 50
-        update-alternatives --install /usr/bin/opentenbase-pg_restore opentenbase-pg_restore /usr/lib/opentenbase/bin/pg_restore 50
+        update-alternatives --install /usr/bin/opentenbase-psql opentenbase-psql /usr/lib/opentenbase/5.0/bin/psql 50
+        update-alternatives --install /usr/bin/opentenbase-pg_dump opentenbase-pg_dump /usr/lib/opentenbase/5.0/bin/pg_dump 50
+        update-alternatives --install /usr/bin/opentenbase-pg_restore opentenbase-pg_restore /usr/lib/opentenbase/5.0/bin/pg_restore 50
         ;;
 esac
 
