@@ -152,6 +152,19 @@ jobs:
         run: |
           rpmlint ~/rpmbuild/RPMS/*/*.rpm ~/rpmbuild/SRPMS/*.rpm 2>&1 || true
 
+      - name: Rename RPM packages with distro name
+        if: always()
+        run: |
+          cd ~/rpmbuild/RPMS/x86_64 2>/dev/null || cd ~/rpmbuild/RPMS/noarch 2>/dev/null || true
+          for rpm in *.rpm; do
+            [ -f "$rpm" ] || continue
+            newname=$(echo "$rpm" | sed "s/-5\.0-1\./-5.0-1.${{ matrix.name }}./")
+            if [ "$newname" != "$rpm" ]; then
+              mv "$rpm" "$newname"
+            fi
+          done
+          ls -la *.rpm 2>/dev/null || true
+
       - name: Upload RPM packages
         uses: actions/upload-artifact@v4
         with:

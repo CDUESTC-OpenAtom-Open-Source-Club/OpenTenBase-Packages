@@ -138,6 +138,16 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/debs"
           cp /tmp/source/*.deb "$GITHUB_WORKSPACE/debs/" 2>/dev/null || true
+          # Rename packages with distro name to avoid overwrites in release
+          cd "$GITHUB_WORKSPACE/debs"
+          for deb in *.deb; do
+            [ -f "$deb" ] || continue
+            newname=$(echo "$deb" | sed "s/_5.0-1ubuntu1_/_5.0-1ubuntu1~${{ matrix.codename }}_/")
+            if [ "$newname" != "$deb" ]; then
+              mv "$deb" "$newname"
+            fi
+          done
+          ls -la *.deb
 
       - name: Run lintian
         if: always()
