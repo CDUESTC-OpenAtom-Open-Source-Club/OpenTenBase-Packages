@@ -91,7 +91,7 @@ categorize_changes() {
             docs:*|doc:*|文档*)
                 docs="${docs}- ${msg}\n"
                 ;;
-            ci:*|ci(*|build:*|构建*)
+            ci:*|ci\(*|build:*|构建*)
                 ci="${ci}- ${msg}\n"
                 ;;
             *)
