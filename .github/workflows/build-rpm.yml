@@ -68,22 +68,22 @@ jobs:
           # ===== aarch64 Builds =====
           # OpenEuler aarch64
           - name: openeuler-22.03-aarch64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
             arch: aarch64
             container: openeuler/openeuler:22.03
           # Rocky Linux 9 aarch64
           - name: rockylinux-9-aarch64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
             arch: aarch64
             container: rockylinux:9
           # AlmaLinux 9 aarch64
           - name: almalinux-9-aarch64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
             arch: aarch64
             container: almalinux:9
           # CentOS Stream 9 aarch64
           - name: centos-stream-9-aarch64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
             arch: aarch64
             container: quay.io/centos/centos:stream9
 

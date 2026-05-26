@@ -70,19 +70,19 @@ jobs:
           # ===== ARM64 Builds =====
           # Ubuntu 22.04 LTS (Jammy) - ARM64
           - name: ubuntu-22.04-arm64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
             arch: arm64
             container: ubuntu:22.04
             codename: jammy
           # Ubuntu 24.04 LTS (Noble) - ARM64
-          - name: ubuntu-24.04-arm64
-            os: ubuntu-24.04-arm64
+          - name: ubuntu-24.04-arm
+            os: ubuntu-24.04-arm
             arch: arm64
             container: ubuntu:24.04
             codename: noble
           # Debian 12 (Bookworm) - ARM64
           - name: debian-12-arm64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
             arch: arm64
             container: debian:bookworm
             codename: bookworm
