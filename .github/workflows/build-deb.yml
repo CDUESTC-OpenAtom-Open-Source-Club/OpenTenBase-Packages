@@ -171,9 +171,10 @@ jobs:
 
     steps:
       - name: Set up QEMU for arm64
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - name: Checkout packaging repo
         uses: actions/checkout@v4
