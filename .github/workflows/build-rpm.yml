@@ -23,6 +23,7 @@ jobs:
     if: ${{ !inputs.arch_only || inputs.arch_only == 'x86_64' }}
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
         include:
           - name: centos-stream-8-x86_64
@@ -152,6 +153,7 @@ jobs:
   build-rpm-aarch64:
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - name: openeuler-22.03-aarch64
