@@ -1,0 +1,37 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y \
+    libreadline8 \
+    libssl3 \
+    libxml2 \
+    libcurl4 \
+    libpam0g \
+    liblz4-1 \
+    libzstd1 \
+    libssh2-1 \
+    libuuid1 \
+    libatomic1 \
+    adduser \
+    sudo \
+    iputils-ping \
+    net-tools \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create opentenbase user
+RUN useradd -m -s /bin/bash opentenbase
+
+# Create data directories
+RUN mkdir -p /var/lib/opentenbase/data/{gtm,coordinator,datanode1,datanode2} \
+    && chown -R opentenbase:opentenbase /var/lib/opentenbase
+
+# Entrypoint
+COPY scripts/entrypoint-dev.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+
+USER opentenbase
+WORKDIR /home/opentenbase
+ENTRYPOINT ["/entrypoint.sh"]

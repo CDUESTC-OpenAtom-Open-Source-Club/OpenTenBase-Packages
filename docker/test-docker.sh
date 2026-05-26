@@ -59,6 +59,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     iputils-ping \
     net-tools \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
 # Install OpenTenBase packages
@@ -95,12 +96,20 @@ log() {
     echo "[${NODE_NAME}] $(date '+%H:%M:%S') $1"
 }
 
+resolve_ip() {
+    getent hosts "$1" 2>/dev/null | awk '{print $1}' || echo "$1"
+}
+
 wait_for_port() {
     local host=$1 port=$2 timeout=${3:-60}
     log "Waiting for ${host}:${port}..."
     for i in $(seq 1 "$timeout"); do
         if bash -c "echo > /dev/tcp/${host}/${port}" 2>/dev/null; then
             log "${host}:${port} is ready"
+            return 0
+        fi
+        if command -v nc &>/dev/null && nc -z -w1 "$host" "$port" 2>/dev/null; then
+            log "${host}:${port} is ready (via nc)"
             return 0
         fi
         sleep 1
@@ -114,14 +123,14 @@ init_gtm() {
         log "Initializing GTM..."
         mkdir -p "$DATA_DIR"
         chown opentenbase:opentenbase "$DATA_DIR"
-        sudo -u opentenbase /usr/lib/opentenbase/bin/initgtm -Z gtm -D "$DATA_DIR"
+        sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/initgtm -Z gtm -D "$DATA_DIR"
         cat >> "$DATA_DIR/gtm.conf" <<EOF
 port = $GTM_PORT
 listen_addresses = '*'
 EOF
     fi
     log "Starting GTM on port $GTM_PORT..."
-    exec sudo -u opentenbase /usr/lib/opentenbase/bin/gtm -D "$DATA_DIR"
+    exec sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/gtm -D "$DATA_DIR"
 }
 
 init_coordinator() {
@@ -129,7 +138,7 @@ init_coordinator() {
         log "Initializing Coordinator..."
         mkdir -p "$DATA_DIR"
         chown opentenbase:opentenbase "$DATA_DIR"
-        sudo -u opentenbase /usr/lib/opentenbase/bin/initdb -D "$DATA_DIR" --nodename=coordinator --nodetype=coordinator
+        sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/initdb -D "$DATA_DIR" --nodename=coordinator --nodetype=coordinator
         cat >> "$DATA_DIR/postgresql.conf" <<EOF
 port = $COORD_PORT
 listen_addresses = '*'
@@ -140,24 +149,30 @@ EOF
         echo "host all all 0.0.0.0/0 trust" >> "$DATA_DIR/pg_hba.conf"
     fi
 
-    wait_for_port "$GTM_HOST" "$GTM_PORT"
+    GTM_IP=$(resolve_ip "$GTM_HOST")
+    wait_for_port "$GTM_IP" "$GTM_PORT"
 
     log "Starting Coordinator on port $COORD_PORT..."
-    sudo -u opentenbase /usr/lib/opentenbase/bin/postgres --coordinator -D "$DATA_DIR" &
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/postgres --coordinator -D "$DATA_DIR" &
     COORD_PID=$!
 
     wait_for_port "127.0.0.1" "$COORD_PORT" 30
 
+    COORD_IP=$(resolve_ip "$COORD_HOST")
+    DN1_IP=$(resolve_ip "datanode1")
+    DN2_IP=$(resolve_ip "datanode2")
+    log "Resolved IPs: gtm=$GTM_IP, coord=$COORD_IP, dn1=$DN1_IP, dn2=$DN2_IP"
+
     log "Registering nodes..."
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE gtm_master WITH (TYPE='gtm', HOST='$GTM_HOST', PORT=$GTM_PORT);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE coord1 WITH (TYPE='coordinator', HOST='$COORD_HOST', PORT=$COORD_PORT, PREFERRED);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE dn001 WITH (TYPE='datanode', HOST='datanode1', PORT=15432, PREFERRED);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE dn002 WITH (TYPE='datanode', HOST='datanode2', PORT=15433);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE gtm_master WITH (TYPE='gtm', HOST='$GTM_IP', PORT=$GTM_PORT);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE coord1 WITH (TYPE='coordinator', HOST='$COORD_IP', PORT=$COORD_PORT, PREFERRED);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE dn001 WITH (TYPE='datanode', HOST='$DN1_IP', PORT=15432, PREFERRED);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE dn002 WITH (TYPE='datanode', HOST='$DN2_IP', PORT=15433);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c \
         "SELECT pgxc_pool_reload();" 2>/dev/null || true
 
     log "Coordinator ready"
@@ -169,7 +184,7 @@ init_datanode() {
         log "Initializing Datanode..."
         mkdir -p "$DATA_DIR"
         chown opentenbase:opentenbase "$DATA_DIR"
-        sudo -u opentenbase /usr/lib/opentenbase/bin/initdb -D "$DATA_DIR" --nodename="$NODE_NAME" --nodetype=datanode
+        sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/initdb -D "$DATA_DIR" --nodename="$NODE_NAME" --nodetype=datanode
         cat >> "$DATA_DIR/postgresql.conf" <<EOF
 port = $DN_PORT
 listen_addresses = '*'
@@ -180,22 +195,25 @@ EOF
         echo "host all all 0.0.0.0/0 trust" >> "$DATA_DIR/pg_hba.conf"
     fi
 
-    wait_for_port "$GTM_HOST" "$GTM_PORT"
+    GTM_IP=$(resolve_ip "$GTM_HOST")
+    COORD_IP=$(resolve_ip "$COORD_HOST")
+    MY_IP=$(resolve_ip "$(hostname)")
+    wait_for_port "$GTM_IP" "$GTM_PORT"
 
     log "Starting Datanode on port $DN_PORT..."
-    sudo -u opentenbase /usr/lib/opentenbase/bin/postgres --datanode -D "$DATA_DIR" &
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/postgres --datanode -D "$DATA_DIR" &
     DN_PID=$!
 
     wait_for_port "127.0.0.1" "$DN_PORT" 30
 
     log "Registering nodes on datanode..."
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE gtm_master WITH (TYPE='gtm', HOST='$GTM_HOST', PORT=$GTM_PORT);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE coord1 WITH (TYPE='coordinator', HOST='$COORD_HOST', PORT=$COORD_PORT);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
-        "CREATE NODE $NODE_NAME WITH (TYPE='datanode', HOST='$NODE_NAME', PORT=$DN_PORT, PREFERRED);" 2>/dev/null || true
-    sudo -u opentenbase /usr/lib/opentenbase/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE gtm_master WITH (TYPE='gtm', HOST='$GTM_IP', PORT=$GTM_PORT);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE coord1 WITH (TYPE='coordinator', HOST='$COORD_IP', PORT=$COORD_PORT);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
+        "CREATE NODE $NODE_NAME WITH (TYPE='datanode', HOST='$MY_IP', PORT=$DN_PORT, PREFERRED);" 2>/dev/null || true
+    sudo -u opentenbase /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p "$DN_PORT" -U opentenbase -d postgres -c \
         "SELECT pgxc_pool_reload();" 2>/dev/null || true
 
     log "Datanode ready"

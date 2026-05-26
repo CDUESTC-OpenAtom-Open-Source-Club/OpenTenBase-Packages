@@ -48,7 +48,7 @@ COPY scripts/runas /usr/local/bin/runas
 RUN chmod +x /usr/local/bin/runas
 
 # Environment
-ENV OTB_PREFIX=/usr/lib/opentenbase
+ENV OTB_PREFIX=/usr/lib/opentenbase/5.0
 ENV CCACHE_DIR=/ccache
 
 # Default working directory for source

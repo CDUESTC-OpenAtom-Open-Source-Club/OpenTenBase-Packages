@@ -3,7 +3,7 @@
 # Runs configure + make + install + contrib
 set -e
 
-OTB_PREFIX="${OTB_PREFIX:-/usr/lib/opentenbase}"
+OTB_PREFIX="${OTB_PREFIX:-/usr/lib/opentenbase/5.0}"
 SRC_DIR="${SRC_DIR:-/src/OpenTenBase}"
 
 cd "$SRC_DIR"

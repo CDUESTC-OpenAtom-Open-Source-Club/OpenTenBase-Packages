@@ -12,11 +12,11 @@ services:
     container_name: opentenbase-builder
     volumes:
       - ${OTB_SRC_DIR:-../../source/OpenTenBase}:/src/OpenTenBase
-      - otb_install:/usr/lib/opentenbase
+      - otb_install:/usr/lib/opentenbase/5.0
       - otb_ccache:/ccache
       - ./scripts:/scripts:ro
     environment:
-      - OTB_PREFIX=/usr/lib/opentenbase
+      - OTB_PREFIX=/usr/lib/opentenbase/5.0
       - SRC_DIR=/src/OpenTenBase
       - CCACHE_DIR=/ccache
     command: ["/scripts/build.sh"]
@@ -41,7 +41,7 @@ services:
     ports:
       - "6666:6666"
     volumes:
-      - otb_install:/usr/lib/opentenbase:ro
+      - otb_install:/usr/lib/opentenbase/5.0:ro
       - gtm_data:/var/lib/opentenbase/data/gtm
     networks:
       - opentenbase
@@ -76,7 +76,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - otb_install:/usr/lib/opentenbase:ro
+      - otb_install:/usr/lib/opentenbase/5.0:ro
       - coord_data:/var/lib/opentenbase/data/coordinator
     networks:
       - opentenbase
@@ -112,7 +112,7 @@ services:
     ports:
       - "15432:15432"
     volumes:
-      - otb_install:/usr/lib/opentenbase:ro
+      - otb_install:/usr/lib/opentenbase/5.0:ro
       - dn1_data:/var/lib/opentenbase/data/datanode1
     networks:
       - opentenbase
@@ -148,7 +148,7 @@ services:
     ports:
       - "15433:15433"
     volumes:
-      - otb_install:/usr/lib/opentenbase:ro
+      - otb_install:/usr/lib/opentenbase/5.0:ro
       - dn2_data:/var/lib/opentenbase/data/datanode2
     networks:
       - opentenbase

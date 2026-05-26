@@ -8,6 +8,7 @@ RUN dnf install -y \
     sudo \
     iputils \
     net-tools \
+    nmap-ncat \
     && dnf clean all
 
 # Install OpenTenBase from extracted files

@@ -42,7 +42,7 @@ RUN mkdir -p /data/opentenbase/data && \
 COPY --from=opentenbase-euleros:latest /usr/lib/opentenbase /usr/lib/opentenbase
 
 # 创建符号链接
-RUN ln -sf /usr/lib/opentenbase/bin/* /usr/local/bin/ 2>/dev/null || true
+RUN ln -sf /usr/lib/opentenbase/5.0/bin/* /usr/local/bin/ 2>/dev/null || true
 
 # 复制 opentenbase_ctl
 COPY opentenbase_ctl /data/opentenbase/opentenbase_ctl
