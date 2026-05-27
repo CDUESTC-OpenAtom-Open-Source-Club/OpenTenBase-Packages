@@ -185,7 +185,7 @@ if command -v opentenbase-ctl >/dev/null 2>&1; then
     fi
 
     # SQL test
-    SQL_RESULT=$(run_as_otb $OTB_BIN/psql -h 127.0.0.1 -p 5432 -U $OTB_USER -d postgres -t -A -c "SELECT 1;" 2>&1 || echo "FAIL")
+    SQL_RESULT=$(run_as_otb $OTB_BIN/psql -h 127.0.0.1 -p 5432 -U $OTB_USER -d postgres -t -A -c "SELECT 1;" --connect-timeout=10 2>&1 || echo "FAIL")
     if [ "$SQL_RESULT" = "1" ]; then
         pass "SQL connection on v5.0"
     else
