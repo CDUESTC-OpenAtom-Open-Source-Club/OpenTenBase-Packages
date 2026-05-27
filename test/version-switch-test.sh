@@ -29,8 +29,12 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 run_as_otb() {
     if [ "$(id -un)" = "$OTB_USER" ]; then
         PATH="$OTB_BIN:$PATH" LD_LIBRARY_PATH="$OTB_HOME/lib:${LD_LIBRARY_PATH:-}" "$@"
-    else
+    elif command -v sudo >/dev/null 2>&1; then
         cd / && sudo -u "$OTB_USER" env PATH="$OTB_BIN:/usr/bin:/bin" LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
+    elif command -v runuser >/dev/null 2>&1; then
+        cd / && runuser -u "$OTB_USER" -- env PATH="$OTB_BIN:/usr/bin:/bin" LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
+    else
+        cd / && su -s /bin/bash "$OTB_USER" -c "PATH=$OTB_BIN:/usr/bin:/bin LD_LIBRARY_PATH=$OTB_HOME/lib $*"
     fi
 }
 
