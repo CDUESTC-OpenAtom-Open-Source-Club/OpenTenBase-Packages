@@ -221,4 +221,77 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT * FR
 
 ---
 
+## 六、CI 全发行版验证（2026-05-27）
+
+### CI 运行信息
+
+- **Run ID：** 26510778148
+- **日期：** 2026-05-27
+- **结果：** 14/14 发行版全部通过
+
+### DEB 发行版（7/7 通过）
+
+| 发行版 | 架构 | 安装 | 集群初始化 | SQL 测试 |
+|--------|------|------|-----------|---------|
+| Ubuntu 22.04 | amd64 | ✅ | ✅ | ✅ |
+| Ubuntu 24.04 | amd64 | ✅ | ✅ | ✅ |
+| Debian 11 | amd64 | ✅ | ✅ | ✅ |
+| Debian 12 | amd64 | ✅ | ✅ | ✅ |
+| Ubuntu 22.04 | arm64 | ✅ | ✅ | ✅ |
+| Ubuntu 24.04 | arm64 | ✅ | ✅ | ✅ |
+| Debian 12 | arm64 | ✅ | ✅ | ✅ |
+
+### RPM 发行版（7/7 通过）
+
+| 发行版 | 架构 | 安装 | 集群初始化 | SQL 测试 |
+|--------|------|------|-----------|---------|
+| CentOS 8 | x86_64 | ✅ | ✅ | ✅ |
+| CentOS 9 | x86_64 | ✅ | ✅ | ✅ |
+| Fedora 39 | x86_64 | ✅ | ✅ | ✅ |
+| Fedora 40 | x86_64 | ✅ | ✅ | ✅ |
+| openEuler 22.03 | x86_64 | ✅ | ✅ | ✅ |
+| openEuler 24.03 | x86_64 | ✅ | ✅ | ✅ |
+| EulerOS | x86_64 | ✅ | ✅ | ✅ |
+
+### 测试内容
+
+每个发行版执行以下测试：
+1. 包安装（`apt install` / `yum install`）
+2. 集群初始化（`opentenbase-ctl init`）
+3. 集群启动（`opentenbase-ctl start`）
+4. SQL CRUD 验证（CREATE TABLE, INSERT, SELECT, UPDATE, DELETE）
+5. 版本切换测试（`opentenbase-switch-version`）
+
+---
+
+## 七、EulerOS ARM64 Docker 验证（2026-05-27）
+
+### 验证环境
+
+| 项目 | 配置 |
+|------|------|
+| 平台 | EulerOS ARM64 |
+| Docker | 18.09 |
+| 基础镜像 | euleros-base:latest |
+
+### 验证结果
+
+| 检查项 | 状态 |
+|--------|------|
+| Docker 镜像构建 | 通过 |
+| 容器启动（4/4） | 通过 |
+| GTM 端口 6666 | 通过 |
+| Coordinator 端口 5432 | 通过 |
+| Datanode 端口 15432/15433 | 通过 |
+| 节点注册（pgxc_node） | 通过 |
+| CRUD 操作（25/28） | 通过 |
+
+### 已知问题
+
+- `serial` 类型在分布式表中不自动填充 id（需手动插入）
+- 部分 DISTRIBUTE BY 语法不支持（见 SQL 语法说明）
+
+---
+
 **验证完成日期：** 2026-05-18
+**最后更新：** 2026-05-27

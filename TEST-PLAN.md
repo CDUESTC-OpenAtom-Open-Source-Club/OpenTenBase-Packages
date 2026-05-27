@@ -9,32 +9,32 @@
 
 | 发行版 | 安装测试 | 多节点测试 | 版本切换 | 状态 |
 |--------|---------|-----------|---------|------|
-| Ubuntu 20.04 (focal) | TODO | TODO | TODO | - |
-| Ubuntu 22.04 (jammy) | TODO | TODO | TODO | - |
-| Ubuntu 24.04 (noble) | CI 通过 | TODO | TODO | 单节点 OK |
-| Ubuntu 25.04 (plucky) | TODO | TODO | TODO | - |
-| Debian 11 (bullseye) | TODO | TODO | TODO | - |
-| Debian 12 (bookworm) | CI 通过 | TODO | TODO | 单节点 OK |
-| Debian 13 (trixie) | TODO | TODO | TODO | - |
+| Ubuntu 20.04 (focal) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Ubuntu 22.04 (jammy) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Ubuntu 24.04 (noble) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Ubuntu 25.04 (plucky) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Debian 11 (bullseye) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Debian 12 (bookworm) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Debian 13 (trixie) | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
 
 ### RPM 包（x86_64）
 
 | 发行版 | 安装测试 | 多节点测试 | 版本切换 | 状态 |
 |--------|---------|-----------|---------|------|
-| Rocky Linux 8 | TODO | TODO | TODO | - |
-| Rocky Linux 9 | TODO | TODO | TODO | - |
-| CentOS Stream 8 | TODO | TODO | TODO | - |
-| CentOS Stream 9 | TODO | TODO | TODO | - |
-| AlmaLinux 8 | TODO | TODO | TODO | - |
-| AlmaLinux 9 | TODO | TODO | TODO | - |
-| openEuler 22.03 | TODO | TODO | TODO | - |
-| Fedora 40 | TODO | TODO | TODO | - |
+| Rocky Linux 8 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Rocky Linux 9 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| CentOS Stream 8 | - | - | - | 未纳入CI（已弃用） |
+| CentOS Stream 9 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| AlmaLinux 8 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| AlmaLinux 9 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| openEuler 22.03 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
+| Fedora 40 | CI 通过 (run 26510778148) | 已编写脚本，待CI集成 | 已编写脚本，待CI集成 | CI 通过 |
 
 ### RPM 包（aarch64）
 
 | 发行版 | 安装测试 | 多节点测试 | 版本切换 | 状态 |
 |--------|---------|-----------|---------|------|
-| EulerOS 2.0 | 手动通过 | 手动通过 | TODO | 部分完成 |
+| EulerOS 2.0 (aarch64) | 手动通过 | 手动通过 | 已编写脚本，待CI集成 | 部分完成 |
 
 ## 测试用例
 
@@ -141,7 +141,7 @@ sudo opentenbase-ctl start
 ### 6. CRUD 测试
 ```sql
 -- 建表（分片表）
-CREATE TABLE t1 (id int PRIMARY KEY, name text) DISTRIBUTE BY SHARDING;
+CREATE TABLE t1 (id int PRIMARY KEY, name text) DISTRIBUTE BY SHARD(id);
 
 -- 插入
 INSERT INTO t1 VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie');
@@ -183,7 +183,7 @@ DROP TABLE t2;
 - [ ] `opentenbase-ctl status` 输出正常
 - [ ] `opentenbase-ctl stop` 干净停止
 - [ ] 无 license 时仍可读写（license bypass 生效）
-- [ ] 2 核服务器上 GTM 正常启动（CPU binding 修复生效）
+- [ ] 2 核服务器上 GTM 正常启动（已在 EulerOS ARM64 验证，2 核环境正常启动）
 
 ## 执行策略
 

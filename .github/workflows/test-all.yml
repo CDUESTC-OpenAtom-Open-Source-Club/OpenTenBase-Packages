@@ -93,6 +93,11 @@ jobs:
           chmod +x test/multi-node-test.sh
           bash test/multi-node-test.sh
 
+      - name: Run version switch test
+        run: |
+          chmod +x test/version-switch-test.sh
+          bash test/version-switch-test.sh
+
   test-rpm:
     strategy:
       fail-fast: false
@@ -205,3 +210,8 @@ jobs:
         run: |
           chmod +x test/multi-node-test.sh
           bash test/multi-node-test.sh
+
+      - name: Run version switch test
+        run: |
+          chmod +x test/version-switch-test.sh
+          bash test/version-switch-test.sh

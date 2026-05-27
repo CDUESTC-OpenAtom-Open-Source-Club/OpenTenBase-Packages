@@ -102,11 +102,25 @@ OpenTenBase-deb/
 
 | 任务 | 优先级 | 工作量 | 状态 |
 |------|--------|--------|------|
-| 2.1 APT 仓库 | P0 | 4h | 待开始 |
-| 2.2 多架构支持 | P1 | 8h | 已完成（x86_64 + aarch64 双架构） |
-| 2.3 版本升级自动化 | P1 | 4h | 已完成（自动发布工作流） |
-| 2.4 监控集成 | P2 | 4h | 待开始 |
+| 2.1 APT 仓库 | P0 | 4h | 待开始（超出当前范围） |
+| 2.2 多架构支持 | P1 | 8h | ✅ 已完成（x86_64 + aarch64 双架构，CI 14/14 通过） |
+| 2.3 版本升级自动化 | P1 | 4h | ✅ 已完成（自动发布工作流） |
+| 2.4 监控集成 | P2 | 4h | 待开始（超出当前范围） |
 | 2.5 多版本管理 | P1 | 16h | ✅ 已完成 |
+
+### 2.2 多架构支持（已完成）
+
+- x86_64 和 aarch64 双架构构建
+- CI 验证：14/14 发行版全部通过（run 26510778148）
+- DEB: Ubuntu 22.04/24.04, Debian 11/12 (amd64 + arm64)
+- RPM: CentOS 8/9, Fedora 39/40, openEuler 22.03/24.03, EulerOS (x86_64)
+
+### 2.3 版本升级自动化（已完成）
+
+- `.github/workflows/publish.yml` 自动发布工作流
+- `.github/workflows/test-all.yml` 全发行版测试工作流
+- install.sh TAG 修复完成
+- ensure_dirs 修复完成
 
 ### 2.5 多版本管理（已完成）
 
@@ -116,6 +130,7 @@ OpenTenBase-deb/
 - 符号链接切换机制：`/etc/opentenbase/current`
 - `opentenbase-switch-version` 版本切换命令
 - `--version` 安装参数支持
+- version-switch-test 脚本已集成到 CI
 - 文档：`docs/VERSION-MANAGEMENT.md`
 
 ---

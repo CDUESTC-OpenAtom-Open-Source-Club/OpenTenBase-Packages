@@ -21,7 +21,9 @@ run_as_otb() {
 }
 
 ensure_dirs() {
+    local otb_version="${OTB_HOME##*/}"
     install -d -o "$OTB_USER" -g "$OTB_GROUP" -m 0750 /var/log/opentenbase
+    install -d -o "$OTB_USER" -g "$OTB_GROUP" -m 0750 "/var/log/opentenbase/$otb_version"
     install -d -o "$OTB_USER" -g "$OTB_GROUP" -m 0700 /var/lib/opentenbase
     install -d -o "$OTB_USER" -g "$OTB_GROUP" -m 0755 /var/run/opentenbase
 }

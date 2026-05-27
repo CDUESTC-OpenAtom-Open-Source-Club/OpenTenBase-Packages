@@ -9,6 +9,24 @@
 
 set -e
 
+# ============================================================
+# Cleanup residual /tmp packages from previous runs
+# ============================================================
+cleanup_residual() {
+    # Remove leftover temp download directories from prior install attempts
+    if ls -d /tmp/tmp.* >/dev/null 2>&1; then
+        for d in /tmp/tmp.*; do
+            [ -d "$d" ] || continue
+            # Only remove dirs that contain .deb or .rpm files (leftover downloads)
+            if ls "$d"/*.deb "$d"/*.rpm 2>/dev/null | head -1 >/dev/null 2>&1; then
+                log_info "Cleaning up residual package dir: $d"
+                rm -rf "$d"
+            fi
+        done
+    fi
+}
+cleanup_residual
+
 REPO="muzimu217/OpenTenBase-deb"
 UPSTREAM_REPO="OpenTenBase/OpenTenBase"
 DEFAULT_VERSION="5.0"
@@ -29,6 +47,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 VERSION=""
 DIR=""
 BUILD_FROM_SOURCE=false
+FORCE=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -40,12 +59,17 @@ while [ $# -gt 0 ]; do
             BUILD_FROM_SOURCE=true
             shift
             ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
         -h|--help)
-            echo "Usage: bash install.sh [--version VERSION] [--build-from-source] [directory]"
+            echo "Usage: bash install.sh [--version VERSION] [--build-from-source] [--force] [directory]"
             echo ""
             echo "Options:"
             echo "  --version VERSION       OpenTenBase version (default: $DEFAULT_VERSION)"
             echo "  --build-from-source     Build from source (required for master/latest)"
+            echo "  --force                 Force reinstallation even if already installed"
             echo "  directory               Path to .deb/.rpm files"
             echo ""
             echo "Supported versions:"
@@ -60,6 +84,7 @@ while [ $# -gt 0 ]; do
             echo "  bash install.sh --version 2.6.0              # Install v2.6.0"
             echo "  bash install.sh --version master --build-from-source  # Build & install master"
             echo "  bash install.sh --version latest             # Install latest stable tag"
+            echo "  bash install.sh --force                      # Force reinstall v5.0"
             echo "  bash install.sh /path/to/debs                # Install from local directory"
             exit 0
             ;;
@@ -131,7 +156,9 @@ echo "============================================="
 echo "  OpenTenBase Installer"
 echo "============================================="
 echo "  Version:  $VERSION"
+echo "  Tag:      ${TAG:-'(source build)'}"
 echo "  Source:   $([ "$BUILD_FROM_SOURCE" = true ] && echo "build from source" || echo "pre-built packages")"
+echo "  Force:    $([ "$FORCE" = true ] && echo "yes" || echo "no")"
 echo "============================================="
 echo ""
 
@@ -387,12 +414,23 @@ install_deb() {
         "opentenbase-contrib_${ver}_amd64.deb"
     )
 
+    # If --force, remove any previously installed version first
+    if [ "$FORCE" = true ]; then
+        log_info "Force mode: removing any previous OpenTenBase packages..."
+        dpkg --purge opentenbase-contrib opentenbase-client opentenbase-server opentenbase 2>/dev/null || true
+    fi
+
     local dir="${DIR:-.}"
     cd "$dir"
 
-    if [ ! -f "${DEBS[0]}" ]; then
+    # When a local directory is given, check for matching files there.
+    # Otherwise, always download to a fresh temp directory to avoid
+    # picking up stale packages from /tmp of a previous run.
+    if [ -n "$DIR" ] && [ -f "${DEBS[0]}" ]; then
+        log_info "Using local packages from $dir"
+    else
         DLDIR=$(mktemp -d)
-        log_info "Downloading packages from GitHub..."
+        log_info "Downloading packages from GitHub (TAG=$TAG)..."
         for deb in "${DEBS[@]}"; do
             echo "  $deb"
             curl -sL -o "${DLDIR}/${deb}" "https://github.com/${REPO}/releases/download/${TAG}/${deb}"
@@ -412,7 +450,11 @@ install_deb() {
 
     log_info "Installing packages and dependencies..."
     apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq ./*.deb
+    if [ "$FORCE" = true ]; then
+        apt-get install -y -qq --reinstall ./*.deb
+    else
+        apt-get install -y -qq ./*.deb
+    fi
 }
 
 install_rpm() {
@@ -423,12 +465,23 @@ install_rpm() {
         "opentenbase-${ver}.${arch}.rpm"
     )
 
+    # If --force, remove any previously installed version first
+    if [ "$FORCE" = true ]; then
+        log_info "Force mode: removing any previous OpenTenBase packages..."
+        rpm -e opentenbase 2>/dev/null || true
+    fi
+
     local dir="${DIR:-.}"
     cd "$dir"
 
-    if [ ! -f "${RPMS[0]}" ]; then
+    # When a local directory is given, check for matching files there.
+    # Otherwise, always download to a fresh temp directory to avoid
+    # picking up stale packages from /tmp of a previous run.
+    if [ -n "$DIR" ] && [ -f "${RPMS[0]}" ]; then
+        log_info "Using local packages from $dir"
+    else
         DLDIR=$(mktemp -d)
-        log_info "Downloading packages from GitHub..."
+        log_info "Downloading packages from GitHub (TAG=$TAG)..."
         for rpm in "${RPMS[@]}"; do
             echo "  $rpm"
             curl -sL -o "${DLDIR}/${rpm}" "https://github.com/${REPO}/releases/download/${TAG}/${rpm}"
@@ -437,12 +490,20 @@ install_rpm() {
     fi
 
     log_info "Installing packages..."
+    local reinstall_flag=""
+    if [ "$FORCE" = true ]; then
+        reinstall_flag="--reinstall"
+    fi
     if command -v dnf >/dev/null 2>&1; then
-        dnf install -y ./*.rpm
+        dnf install -y $reinstall_flag ./*.rpm
     elif command -v yum >/dev/null 2>&1; then
-        yum install -y ./*.rpm
+        yum install -y $reinstall_flag ./*.rpm
     else
-        rpm -ivh ./*.rpm
+        if [ "$FORCE" = true ]; then
+            rpm -ivh --force ./*.rpm
+        else
+            rpm -ivh ./*.rpm
+        fi
     fi
 }
 
