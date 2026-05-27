@@ -133,8 +133,10 @@ jobs:
     steps:
       - name: Install deps
         run: |
-          dnf install -y sudo procps-ng libatomic curl 2>/dev/null || \
-            yum install -y sudo procps-ng libatomic curl 2>/dev/null || true
+          dnf install -y sudo procps-ng libatomic curl util-linux 2>&1 || \
+            yum install -y sudo procps-ng libatomic curl util-linux 2>&1 || true
+          # Verify sudo or runuser is available
+          command -v sudo || command -v runuser || { echo "ERROR: neither sudo nor runuser available"; exit 1; }
 
       - name: Download packages from release
         run: |

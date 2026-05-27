@@ -37,8 +37,15 @@ run_as_otb() {
         cd / && sudo -u "$OTB_USER" env LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
     elif command -v runuser >/dev/null 2>&1; then
         cd / && runuser -u "$OTB_USER" -- env LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
-    else
+    elif command -v setpriv >/dev/null 2>&1; then
+        OTB_UID=$(id -u "$OTB_USER")
+        OTB_GID=$(id -g "$OTB_USER")
+        cd / && setpriv --reuid="$OTB_UID" --regid="$OTB_GID" --init-groups env LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
+    elif command -v su >/dev/null 2>&1; then
         cd / && su -s /bin/bash "$OTB_USER" -c "LD_LIBRARY_PATH=$OTB_HOME/lib $*"
+    else
+        echo "ERROR: No user-switching tool available (sudo/runuser/setpriv/su)" >&2
+        exit 1
     fi
 }
 
