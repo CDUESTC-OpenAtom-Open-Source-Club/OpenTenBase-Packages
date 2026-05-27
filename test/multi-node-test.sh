@@ -139,49 +139,56 @@ else
 fi
 
 info "=== 7. Register Nodes ==="
-COORD_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p $COORD_PORT -U $OTB_USER -d postgres -X -q"
-DN_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p $DN_PORT -U $OTB_USER -d postgres -X -q"
+COORD_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p $COORD_PORT -U $OTB_USER -d postgres -X -q -v ON_ERROR_STOP=0"
+DN_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p $DN_PORT -U $OTB_USER -d postgres -X -q -v ON_ERROR_STOP=0"
 
 # Register GTM node on coordinator
-run_as_otb $COORD_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || \
-    run_as_otb $COORD_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
 
 # Register datanode on coordinator
-run_as_otb $COORD_PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, FORWARD=$DN_FWD, PRIMARY, PREFERRED);" 2>/dev/null || \
-    run_as_otb $COORD_PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, FORWARD=$DN_FWD, PRIMARY, PREFERRED);" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, FORWARD=$DN_FWD, PRIMARY, PREFERRED);" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, FORWARD=$DN_FWD, PRIMARY, PREFERRED);" 2>/dev/null || true
 
 # Register coordinator on coordinator (self)
-run_as_otb $COORD_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || \
-    run_as_otb $COORD_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
 
 # Reload pool
-run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
+run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" >/dev/null 2>&1 || true
 
 # Propagate registrations to datanode
-run_as_otb $DN_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || \
-    run_as_otb $DN_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
-run_as_otb $DN_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || \
-    run_as_otb $DN_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
-run_as_otb $DN_PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
+run_as_otb $DN_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+run_as_otb $DN_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+run_as_otb $DN_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+run_as_otb $DN_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+run_as_otb $DN_PSQL -c "SELECT pgxc_pool_reload();" >/dev/null 2>&1 || true
 
 pass "Nodes registered"
 
 info "=== 8. Create Sharding Group ==="
-# Create default node group on datanode first
-run_as_otb $DN_PSQL -c "CREATE DEFAULT NODE GROUP default_group WITH (dn1);" 2>/dev/null || true
+# Check if node group already exists on coordinator
+HAS_GROUP=$(run_as_otb $COORD_PSQL -t -A -c "SELECT count(*) FROM pgxc_group WHERE group_name = 'default_group';" 2>/dev/null || echo "0")
 
-# Get datanode OID from coordinator
-DN_OID=$(run_as_otb $COORD_PSQL -t -A -c "SELECT oid FROM pgxc_node WHERE node_name = 'dn1' AND node_type = 'D';" 2>/dev/null)
-if [ -n "$DN_OID" ]; then
-    # Insert node group into coordinator catalog
-    run_as_otb $COORD_PSQL -c "INSERT INTO pgxc_group (group_name, default_group, group_members) VALUES ('default_group', 1, '$DN_OID');" 2>/dev/null || true
+if [ "$HAS_GROUP" != "1" ]; then
+    # Get datanode OID from coordinator first
+    DN_OID=$(run_as_otb $COORD_PSQL -t -A -c "SELECT oid FROM pgxc_node WHERE node_name = 'dn1' AND node_type = 'D';" 2>/dev/null || echo "")
+    if [ -n "$DN_OID" ]; then
+        # Create node group on datanode first
+        run_as_otb $DN_PSQL -c "CREATE DEFAULT NODE GROUP default_group WITH (dn1);" 2>/dev/null || true
+
+        # Insert node group into coordinator's catalog
+        run_as_otb $COORD_PSQL -c "INSERT INTO pgxc_group (group_name, default_group, group_members) VALUES ('default_group', 1, '$DN_OID');" 2>/dev/null || true
+
+        # Reload pool so coordinator sees the group
+        run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" >/dev/null 2>&1 || true
+
+        # Create sharding group
+        run_as_otb $COORD_PSQL -c "CREATE SHARDING GROUP TO GROUP default_group;" 2>/dev/null || true
+    else
+        echo "  WARNING: could not find datanode OID, skipping node group setup"
+    fi
 fi
-
-# Reload pool
-run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
-
-# Create sharding map
-run_as_otb $COORD_PSQL -c "CREATE SHARDING GROUP TO GROUP default_group;" 2>/dev/null || true
 pass "Sharding group created"
 
 PSQL="run_as_otb $OTB_BIN/psql -h 127.0.0.1 -p $COORD_PORT -U $OTB_USER -d postgres"
