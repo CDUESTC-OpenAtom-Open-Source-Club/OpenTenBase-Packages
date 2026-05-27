@@ -3,9 +3,10 @@ name: Test All Packages
 on:
   workflow_dispatch:
     inputs:
-      distro:
-        description: 'Test specific distro (leave empty for all)'
+      release_tag:
+        description: 'Release tag to test (default: latest)'
         required: false
+        default: ''
         type: string
 
 jobs:
@@ -48,26 +49,41 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get install -y sudo procps libatomic1 adduser
+          apt-get install -y sudo procps libatomic1 adduser curl
           apt-get install -y libreadline8 libxml2 libcurl4 libpam0g liblz4-1 libzstd1 2>/dev/null || true
-          apt-get install -y libreadline-dev 2>/dev/null || true
           apt-get install -y libssl3 2>/dev/null || apt-get install -y libssl1.1 2>/dev/null || true
           apt-get install -y libldap-2.5-0 2>/dev/null || apt-get install -y libldap-2.4-2 2>/dev/null || true
           apt-get install -y libsasl2-2 2>/dev/null || true
 
-      - name: Download packages
-        uses: actions/download-artifact@v4
-        with:
-          pattern: debs-*${{ matrix.codename }}*
-          path: /tmp/debs/
-          merge-multiple: true
+      - name: Download packages from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
+          fi
+          echo "Downloading from release: $TAG"
+          mkdir -p /tmp/debs
+          cd /tmp/debs
+          # Download all DEB packages matching this codename
+          curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
+            grep -o '"browser_download_url": *"[^"]*\.deb"' | \
+            sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
+            grep "${{ matrix.codename }}" | \
+            while read url; do curl -sLO "$url"; done
+          ls -la /tmp/debs/
 
       - name: Install packages
         run: |
-          ls -la /tmp/debs/
-          dpkg -i /tmp/debs/*.deb 2>/dev/null || apt-get install -f -y
-          mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
-          ldconfig || true
+          if ls /tmp/debs/*.deb 1>/dev/null 2>&1; then
+            dpkg -i /tmp/debs/*.deb 2>/dev/null || apt-get install -f -y
+            mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
+            ldconfig || true
+          else
+            echo "ERROR: No .deb packages found"
+            exit 1
+          fi
 
       - name: Checkout test scripts
         uses: actions/checkout@v4
@@ -85,20 +101,28 @@ jobs:
         include:
           - name: rocky-9
             container: rockylinux:9
+            pattern: rockylinux-9
           - name: rocky-8
             container: rockylinux:8
+            pattern: rockylinux-8
           - name: alma-9
             container: almalinux:9
+            pattern: almalinux-9
           - name: alma-8
             container: almalinux:8
+            pattern: almalinux-8
           - name: centos-stream-9
             container: quay.io/centos/centos:stream9
+            pattern: centos-stream-9
           - name: centos-stream-8
             container: quay.io/centos/centos:stream8
+            pattern: centos-stream-8
           - name: fedora-40
             container: fedora:40
+            pattern: fedora-40
           - name: openeuler-22.03
             container: openeuler/openeuler:22.03
+            pattern: openeuler-22.03
 
     name: RPM ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -109,22 +133,36 @@ jobs:
     steps:
       - name: Install deps
         run: |
-          dnf install -y sudo procps-ng libatomic || yum install -y sudo procps-ng libatomic
-          dnf install -y readline libxml2 libcurl libpq openssl-libs pam lz4 zstd 2>/dev/null || \
-            yum install -y readline libxml2 libcurl openssl-libs pam lz4 zstd 2>/dev/null || true
+          dnf install -y sudo procps-ng libatomic curl 2>/dev/null || \
+            yum install -y sudo procps-ng libatomic curl 2>/dev/null || true
 
-      - name: Download packages
-        uses: actions/download-artifact@v4
-        with:
-          pattern: rpms-*${{ matrix.name }}*
-          path: /tmp/rpms/
-          merge-multiple: true
+      - name: Download packages from release
+        run: |
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
+          fi
+          echo "Downloading from release: $TAG"
+          mkdir -p /tmp/rpms
+          cd /tmp/rpms
+          # Download RPM packages matching this distro (exclude debuginfo/debugsource)
+          curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
+            grep -o '"browser_download_url": *"[^"]*\.rpm"' | \
+            sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
+            grep "${{ matrix.pattern }}" | \
+            grep -v debuginfo | grep -v debugsource | \
+            while read url; do curl -sLO "$url"; done
+          ls -la /tmp/rpms/
 
       - name: Install packages
         run: |
-          ls -la /tmp/rpms/
-          rpm -ivh /tmp/rpms/*.rpm --nodeps 2>/dev/null || true
-          ldconfig || true
+          if ls /tmp/rpms/*.rpm 1>/dev/null 2>&1; then
+            rpm -ivh /tmp/rpms/*.rpm --nodeps 2>/dev/null || true
+            ldconfig || true
+          else
+            echo "ERROR: No .rpm packages found"
+            exit 1
+          fi
 
       - name: Checkout test scripts
         uses: actions/checkout@v4
