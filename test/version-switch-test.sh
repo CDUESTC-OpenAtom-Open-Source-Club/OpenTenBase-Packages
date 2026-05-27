@@ -38,10 +38,14 @@ run_as_otb() {
         OTB_UID=$(id -u "$OTB_USER")
         OTB_GID=$(id -g "$OTB_USER")
         cd / && setpriv --reuid="$OTB_UID" --regid="$OTB_GID" --init-groups env LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
+    elif command -v python3 >/dev/null 2>&1; then
+        OTB_UID=$(id -u "$OTB_USER")
+        OTB_GID=$(id -g "$OTB_USER")
+        cd / && python3 -c "import os,sys; os.setgid($OTB_GID); os.setuid($OTB_UID); os.environ['LD_LIBRARY_PATH']='$OTB_HOME/lib'; os.execv(sys.argv[1], sys.argv[1:])" "$@"
     elif command -v su >/dev/null 2>&1; then
         cd / && su -s /bin/bash "$OTB_USER" -c "LD_LIBRARY_PATH=$OTB_HOME/lib $*"
     else
-        echo "ERROR: No user-switching tool available (sudo/runuser/setpriv/su)" >&2
+        echo "ERROR: No user-switching tool available (sudo/runuser/setpriv/su/python3)" >&2
         exit 1
     fi
 }

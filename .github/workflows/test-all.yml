@@ -133,16 +133,15 @@ jobs:
     steps:
       - name: Install deps
         run: |
-          dnf install -y sudo procps-ng libatomic curl util-linux gcc 2>&1 || \
-            yum install -y sudo procps-ng libatomic curl util-linux gcc 2>&1 || true
-          # Ensure libatomic.so.1 exists (some distros need gcc for it)
-          if [ ! -f /usr/lib64/libatomic.so.1 ] && [ ! -f /usr/lib/libatomic.so.1 ]; then
-            dnf install -y libatomic 2>&1 || yum install -y libatomic 2>&1 || true
-          fi
-          # Create symlink if library exists but in non-standard path
+          dnf install -y sudo procps-ng libatomic curl util-linux python3 2>&1 || \
+            yum install -y sudo procps-ng libatomic curl util-linux python3 2>&1 || true
+          # Ensure libatomic.so.1 exists
           find / -name "libatomic.so*" 2>/dev/null | head -5
-          # Verify critical tools
-          command -v sudo || command -v runuser || command -v setpriv || { echo "ERROR: no user-switching tool"; exit 1; }
+          # Verify at least one user-switching tool or python3 is available
+          if ! command -v sudo && ! command -v runuser && ! command -v setpriv && ! command -v su && ! command -v python3; then
+            echo "ERROR: no user-switching tool available"
+            exit 1
+          fi
           ldconfig || true
 
       - name: Download packages from release
