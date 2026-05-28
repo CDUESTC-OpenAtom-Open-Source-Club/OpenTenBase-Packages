@@ -145,8 +145,8 @@ build_apt_repo() {
         # Generate Packages file
         local abs_binary_dir
         abs_binary_dir="$(cd "$binary_dir" && pwd)"
-        # Filename relative to dists/<codename>/ (3 levels up to reach pool/)
-        local filename_prefix="../../../pool/main"
+        # Filename relative to binary-amd64/ (4 levels up to reach apt/)
+        local filename_prefix="../../../../pool/main"
         if ! dpkg-scanpackages "$pool_dir" /dev/null 2>/dev/null | \
             sed "s|^Filename: $pool_dir/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages"; then
             log_warn "dpkg-scanpackages failed for $codename, trying without override"
