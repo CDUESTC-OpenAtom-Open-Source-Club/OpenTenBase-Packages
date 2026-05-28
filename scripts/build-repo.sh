@@ -120,7 +120,7 @@ build_apt_repo() {
 
         # Find and copy DEBs for this codename
         local debs
-        debs=$(find "$pkgdir" -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" 2>/dev/null || true)
+        debs=$(find "$pkgdir" \( -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) 2>/dev/null || true)
 
         if [ -z "$debs" ]; then
             log_warn "No DEB packages found for $codename, skipping"
@@ -138,7 +138,11 @@ build_apt_repo() {
 
         # Generate Packages file
         cd "$pool_dir"
-        dpkg-scanpackages . /dev/null 2>/dev/null > "$binary_dir/Packages"
+        dpkg-scanpackages . /dev/null 2>/dev/null > "$binary_dir/Packages" || {
+            log_warn "dpkg-scanpackages failed for $codename"
+            cd - > /dev/null
+            continue
+        }
         gzip -9c "$binary_dir/Packages" > "$binary_dir/Packages.gz"
         cd - > /dev/null
 
@@ -163,7 +167,7 @@ EOF
             local md5
             md5=$(md5sum "$f" | cut -d' ' -f1)
             local size
-            size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
+            size=$(wc -c < "$f" | tr -d ' ')
             echo " $md5 $size main/binary-amd64/$fname" >> "$dist_dir/Release"
         done
 
@@ -175,7 +179,7 @@ EOF
             local sha
             sha=$(sha256sum "$f" | cut -d' ' -f1)
             local size
-            size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
+            size=$(wc -c < "$f" | tr -d ' ')
             echo " $sha $size main/binary-amd64/$fname" >> "$dist_dir/Release"
         done
 
