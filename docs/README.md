@@ -325,7 +325,7 @@ See [GitHub Releases](https://github.com/muzimu217/OpenTenBase-deb/releases) for
 
 | Limitation | Description |
 |-----------|-------------|
-| Single-machine multi-node | Not supported due to forward manager port conflict; use Docker or multi-machine deployment |
+| Multiple clusters on same machine | Not supported due to port conflicts; each machine runs one cluster (GTM + Coordinator + Datanode) |
 
 ---
 
