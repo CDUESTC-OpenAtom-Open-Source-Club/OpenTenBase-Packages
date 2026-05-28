@@ -1,4 +1,4 @@
-FROM rockylinux:8
+FROM rockylinux:9
 
 # Install only missing runtime dependencies
 # Rocky 8 base already includes: openssl-libs (1.1), libxml2, libcurl, pam, lz4-libs, libzstd, libuuid, curl
