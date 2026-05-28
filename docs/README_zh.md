@@ -24,6 +24,7 @@
 | **多版本共存** | 支持 v5.0 / v2.6 / v2.5 及开发版本并行安装，通过 `opentenbase-ctl switch` 切换 |
 | **一键安装** | `curl -sSL ... \| sudo bash` 自动检测系统、下载对应包、解决依赖 |
 | **CI/CD 自动化** | GitHub Actions 自动构建、签名、发布 |
+| **GPG 签名** | 所有发布包均经 GPG 签名（RSA 4096 位），确保包的完整性和来源可信 |
 | **systemd 集成** | 原生 systemd 服务单元，支持 `systemctl` 管理 |
 | **集群管理** | 内置 `opentenbase-ctl` 管理脚本，一键初始化、启动、停止集群 |
 
@@ -289,7 +290,7 @@ OpenTenBase-packages/
 
 - [x] 多版本管理（`opentenbase-switch-version`）
 - [x] 一键安装脚本
-- [ ] GPG 签名集成
+- [x] GPG 签名集成（RSA 4096 位，CI 自动化）
 - [ ] APT/RPM 仓库托管（需要域名和服务器）
 
 ### 阶段三：跨平台生态（3-6 月）
@@ -378,4 +379,4 @@ OpenTenBase-packages/
 ---
 
 **维护者**：muzimu217
-**最后更新**：2026-05-24
+**最后更新**：2026-05-28

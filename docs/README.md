@@ -24,6 +24,7 @@ English | [中文](README_zh.md)
 | **Multi-version coexistence** | Install v5.0 / v2.6 / v2.5 and dev versions side-by-side, switch with `opentenbase-ctl switch` |
 | **One-line install** | `curl -sSL ... \| sudo bash` — auto-detects OS, downloads correct packages, resolves dependencies |
 | **CI/CD automation** | GitHub Actions for automated build, sign, and publish |
+| **GPG signed packages** | All release packages are GPG-signed (RSA 4096-bit) for authenticity verification |
 | **systemd integration** | Native systemd service units, managed via `systemctl` |
 | **Cluster management** | Built-in `opentenbase-ctl` script for one-command init, start, stop |
 
@@ -271,7 +272,7 @@ See [GitHub Releases](https://github.com/muzimu217/OpenTenBase-deb/releases) for
 
 - [x] Multi-version management (`opentenbase-switch-version`)
 - [x] One-click installation script
-- [ ] GPG signing integration
+- [x] GPG signing integration (RSA 4096-bit, CI automated)
 - [ ] APT/RPM repository hosting (requires domain + server)
 
 ### Phase 3: Cross-Platform Ecosystem (3-6 months)
@@ -360,4 +361,4 @@ Same as OpenTenBase — [Apache License 2.0](https://www.apache.org/licenses/LIC
 ---
 
 **Maintainer**: muzimu217
-**Last Updated**: 2026-05-27
+**Last Updated**: 2026-05-28

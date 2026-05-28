@@ -366,5 +366,18 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT * FR
 
 ---
 
+## 十、GPG 签名配置（2026-05-28）
+
+| 项目 | 值 |
+|------|-----|
+| **密钥指纹** | `D8B2E316E1FF88EE178703549D8FA46F3A55D5F0` |
+| **密钥 ID** | `9D8FA46F3A55D5F0` |
+| **类型** | RSA 4096-bit |
+| **身份** | OpenTenBase Packages <packages@opentenbase.org> |
+| **GitHub Secrets** | `GPG_PRIVATE_KEY` ✅ / `GPG_PASSPHRASE` ✅ |
+| **CI 集成** | release.yml 自动签名 DEB + RPM |
+
+---
+
 **验证完成日期：** 2026-05-18
-**最后更新：** 2026-05-27
+**最后更新：** 2026-05-28

@@ -19,16 +19,19 @@ The signing step is fully optional and does not block the release.
 
 ## Setting Up GPG Signing (Maintainers)
 
-### Step 1: Generate a GPG Key Pair
+### Step 1: GPG Key Pair (Already Configured)
 
-You only need to do this once. Use the included script:
+The signing key is already set up:
 
-```bash
-cd /path/to/opentenbase-push
-./scripts/sign-packages.sh --generate
-```
+| Field | Value |
+|-------|-------|
+| **Fingerprint** | `D8B2E316E1FF88EE178703549D8FA46F3A55D5F0` |
+| **Key ID** | `9D8FA46F3A55D5F0` |
+| **Type** | RSA 4096-bit |
+| **Identity** | OpenTenBase Packages <packages@opentenbase.org> |
+| **Expiration** | None |
 
-Or generate manually:
+If you need to generate a new key:
 
 ```bash
 gpg --full-generate-key
@@ -37,7 +40,7 @@ gpg --full-generate-key
 Recommended settings:
 - Key type: RSA 4096-bit (best compatibility) or Ed25519 (modern)
 - Expiration: none (or set a long expiry and plan to rotate)
-- Name/Email: use the project maintainer identity (e.g., `OpenTenBase <release@opentenbase.org>`)
+- Name/Email: use the project maintainer identity
 
 ### Step 2: Export the Private Key
 
