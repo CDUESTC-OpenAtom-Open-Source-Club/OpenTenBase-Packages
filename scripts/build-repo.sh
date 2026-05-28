@@ -114,7 +114,8 @@ build_apt_repo() {
         cp scripts/opentenbase-packages-key.asc "$apt_dir/gpg-key.asc"
     fi
 
-    # Standard APT repo layout: pool/ and dists/ both under apt_dir
+    # Standard APT repo layout: dists/ and pool/ siblings under apt_dir
+    # This ensures relative paths in Packages stay within the URL scope
     local pool_dir="$apt_dir/pool/main"
     mkdir -p "$pool_dir"
 
@@ -145,8 +146,11 @@ build_apt_repo() {
         # Generate Packages file
         local abs_binary_dir
         abs_binary_dir="$(cd "$binary_dir" && pwd)"
-        # Filename relative to binary-amd64/ (4 levels up to reach apt/)
-        local filename_prefix="../../../../pool/main"
+        # Filename relative to repo root (base URL), NOT relative to Packages file.
+        # APT resolves Filename relative to the base URL in sources.list:
+        #   base_url + Filename = download URL
+        #   https://host/apt/ + pool/main/file.deb = https://host/apt/pool/main/file.deb
+        local filename_prefix="pool/main"
         if ! dpkg-scanpackages "$pool_dir" /dev/null 2>/dev/null | \
             sed "s|^Filename: $pool_dir/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages"; then
             log_warn "dpkg-scanpackages failed for $codename, trying without override"
