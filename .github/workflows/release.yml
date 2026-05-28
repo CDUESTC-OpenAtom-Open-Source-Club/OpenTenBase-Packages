@@ -145,11 +145,47 @@ jobs:
           path: release/rpms/
           merge-multiple: true
 
+      - name: Check GPG signing availability
+        id: gpg_check
+        run: |
+          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+            echo "has_gpg=true" >> $GITHUB_OUTPUT
+            echo "GPG signing is enabled"
+          else
+            echo "has_gpg=false" >> $GITHUB_OUTPUT
+            echo "GPG signing is skipped (no GPG_PRIVATE_KEY secret)"
+          fi
+
+      - name: Install GPG signing tools
+        if: steps.gpg_check.outputs.has_gpg == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dpkg-sig rpm gpg
+
+      - name: Sign packages (GPG)
+        if: steps.gpg_check.outputs.has_gpg == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          chmod +x scripts/sign-packages.sh
+          scripts/sign-packages.sh --ci \
+            --deb-dir release/debs \
+            --rpm-dir release/rpms \
+            --export release/opentenbase-gpg-key.asc
+
       - name: Generate checksums
         run: |
           cd release
-          find . -type f \( -name "*.deb" -o -name "*.rpm" \) -exec sha256sum {} \; > checksums.sha256
+          find . -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.sig" -o -name "*.asc" -o -name "*.key" \) \
+            -exec sha256sum {} \; > checksums.sha256
           cat checksums.sha256
+
+      - name: Verify signatures (if signed)
+        if: steps.gpg_check.outputs.has_gpg == 'true'
+        run: |
+          chmod +x scripts/sign-packages.sh
+          scripts/sign-packages.sh --verify-deb release/debs --verify-rpm release/rpms || true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -161,8 +197,10 @@ jobs:
           prerelease: false
           files: |
             release/debs/**/*.deb
+            release/debs/**/*.sig
             release/rpms/**/*.rpm
             release/checksums.sha256
+            release/opentenbase-gpg-key.asc
             scripts/install.sh
           generate_release_notes: false
         env:
@@ -176,6 +214,13 @@ jobs:
           echo "- DEB: $(find release/debs -name '*.deb' | wc -l) packages" >> $GITHUB_STEP_SUMMARY
           echo "- RPM: $(find release/rpms -name '*.rpm' | wc -l) packages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.gpg_check.outputs.has_gpg }}" = "true" ]; then
+            echo "### GPG Signing" >> $GITHUB_STEP_SUMMARY
+            echo "- Packages are GPG-signed" >> $GITHUB_STEP_SUMMARY
+            echo "- Public key: \`opentenbase-gpg-key.asc\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Detached signatures (DEB): \`*.sig\` files" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "### Install" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "curl -sSL https://github.com/muzimu217/OpenTenBase-deb/releases/download/${{ steps.version.outputs.tag }}/install.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
