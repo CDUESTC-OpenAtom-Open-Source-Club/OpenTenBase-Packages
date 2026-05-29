@@ -78,7 +78,7 @@ jobs:
       - name: Install packages
         run: |
           if ls /tmp/debs/*.deb 1>/dev/null 2>&1; then
-            dpkg -i /tmp/debs/*.deb 2>/dev/null || apt-get install -f -y
+            dpkg --force-depends -i /tmp/debs/*.deb
             mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
             ldconfig || true
           else
