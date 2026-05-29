@@ -17,12 +17,20 @@ export PKG_CONFIG_PATH := /usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARC
 
 override_dh_auto_configure:
 	# GCC 15+ defaults: implicit function declarations are errors, breaking configure thread test.
-	# Pre-compile and run the thread test, then cache the result for configure
+	# Diagnose: compile and run thread test with full output
+	echo "=== THREAD TEST DIAGNOSTIC ==="; \
+	echo "PWD=$$(pwd)"; \
+	ls -la src/test/thread/thread_test.c 2>&1 || echo "thread_test.c NOT FOUND"; \
 	if [ -f src/test/thread/thread_test.c ]; then \
-	    gcc -DIN_CONFIGURE -w -Wno-error -o /tmp/thread_test src/test/thread/thread_test.c -lpthread 2>/dev/null && \
-	    (/tmp/thread_test 2>/dev/null && echo "Thread test: PASS" || echo "Thread test: FAIL"); \
+	    echo "Compiling thread test..."; \
+	    gcc -DIN_CONFIGURE -w -Wno-error -o /tmp/thread_test src/test/thread/thread_test.c -lpthread 2>&1; \
+	    echo "Compile exit: $$?"; \
+	    echo "Running thread test..."; \
+	    /tmp/thread_test 2>&1; \
+	    echo "Run exit: $$?"; \
 	    rm -f /tmp/thread_test; \
-	fi
+	fi; \
+	echo "=== END DIAGNOSTIC ==="
 	# GCC compatibility patches for modern GCC (12+)
 	# Fix bool type conflict: modern GCC uses _Bool, not char
 	if grep -q 'typedef char bool;' src/include/c.h 2>/dev/null; then \
