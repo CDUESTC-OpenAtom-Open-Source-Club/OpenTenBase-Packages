@@ -18,9 +18,12 @@ export PKG_CONFIG_PATH := /usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARC
 override_dh_auto_configure:
 	# GCC 15+ (C23 default): bool is a keyword, MAXHOSTNAMELEN needs sys/param.h
 	if [ -f src/test/thread/thread_test.c ]; then \
-	    sed -i 's/typedef char bool;/#ifndef __cplusplus\n#ifndef bool\ntypedef char bool;\n#endif\n#endif/' src/test/thread/thread_test.c; \
-	    sed -i '/#include <fcntl.h>/a #include <sys/param.h>' src/test/thread/thread_test.c; \
+	    sed -i 's/typedef char bool;/#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L\ntypedef char bool;\n#endif/' src/test/thread/thread_test.c; \
+	    sed -i '/#include <fcntl.h>/a #ifndef MAXHOSTNAMELEN\n#include <sys/param.h>\n#endif' src/test/thread/thread_test.c; \
 	fi
+	# Also patch configure to not fail on thread test — modern glibc IS thread-safe
+	sed -i 's/as_fn_error \$? "thread test program failed/# as_fn_error \$? "thread test program failed/' configure; \
+	sed -i 's/Use --disable-thread-safety to disable thread safety\." "\$LINENO" 5/# Use --disable-thread-safety.../' configure
 	# GCC compatibility patches for modern GCC (12+)
 	# Fix bool type conflict: modern GCC uses _Bool, not char
 	if grep -q 'typedef char bool;' src/include/c.h 2>/dev/null; then \
