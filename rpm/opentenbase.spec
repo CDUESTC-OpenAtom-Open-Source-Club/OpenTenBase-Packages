@@ -588,6 +588,21 @@ DN_FORWARD_PORT=6670
 DN1_LOG="/var/log/opentenbase/%{otb_ver}/dn1.log"
 CONF
 
+%package doc
+Summary: Documentation for OpenTenBase
+BuildArch: noarch
+Requires: %{name} = %{version}-%{release}
+
+%description doc
+Documentation files for OpenTenBase distributed database system,
+including README, license, and SGML documentation sources.
+
+%files doc
+%doc README.md
+%license COPYRIGHT
+%doc doc/src/sgml/*.sgml 2>/dev/null || true
+%doc doc/src/sgml/*.xml 2>/dev/null || true
+
 %files
 %{otb_prefix}
 /usr/bin/*
