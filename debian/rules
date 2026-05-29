@@ -24,10 +24,9 @@ override_dh_auto_configure:
 	# Also patch configure to not fail on thread test — modern glibc IS thread-safe
 	sed -i 's/as_fn_error \$? "thread test program failed/# as_fn_error \$? "thread test program failed/' configure; \
 	sed -i 's/Use --disable-thread-safety to disable thread safety\." "\$LINENO" 5/# Use --disable-thread-safety.../' configure
-	# GCC compatibility patches for modern GCC (12+)
-	# Fix bool type conflict: modern GCC uses _Bool, not char
+	# GCC 15+ (C23 default): bool is a keyword, cannot be typedef'd
 	if grep -q 'typedef char bool;' src/include/c.h 2>/dev/null; then \
-	    sed -i 's/typedef char bool;/typedef _Bool bool;/' src/include/c.h; \
+	    sed -i 's/typedef char bool;/#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L\ntypedef char bool;\n#endif/' src/include/c.h; \
 	fi
 	# Fix gtm_opt.c struct initializer
 	if grep -q 'false, false, NULL' src/gtm/main/gtm_opt.c 2>/dev/null; then \
