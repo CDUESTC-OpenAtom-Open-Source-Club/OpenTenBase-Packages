@@ -66,11 +66,12 @@ jobs:
           echo "Downloading from release: $TAG"
           mkdir -p /tmp/debs
           cd /tmp/debs
-          # Download all DEB packages matching this codename
+          # Download all DEB packages matching this codename (v5.0 only)
           curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.deb"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "${{ matrix.codename }}" | \
+            grep "_5\.0-" | \
             while read url; do curl -sLO "$url"; done
           ls -la /tmp/debs/
 
@@ -184,12 +185,13 @@ jobs:
           echo "Downloading from release: $TAG"
           mkdir -p /tmp/rpms
           cd /tmp/rpms
-          # Download RPM packages matching this distro (exclude debuginfo/debugsource)
+          # Download RPM packages matching this distro (v5.0 only, exclude debuginfo/debugsource)
           curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.rpm"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "${{ matrix.pattern }}" | \
             grep "$(uname -m)" | \
+            grep "5\.0" | \
             grep -v debuginfo | grep -v debugsource | \
             while read url; do curl -sLO "$url"; done
           ls -la /tmp/rpms/
