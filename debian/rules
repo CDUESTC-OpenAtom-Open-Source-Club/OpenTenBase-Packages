@@ -16,9 +16,9 @@ export PKG_CONFIG_PATH := /usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARC
 	dh $@
 
 override_dh_auto_configure:
-	# Disable Ubuntu hardening flags that break configure's thread safety test
-	# -Wl,-Bsymbolic-functions causes false negative in thread_test
-	export DEB_BUILD_MAINT_OPTIONS="hardening=-all"
+	# GCC 15+ defaults: implicit function declarations are errors, breaking configure thread test.
+	# Set CC with -Wno-error flags so configure test programs compile correctly.
+	export CC="gcc -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
 	# GCC compatibility patches for modern GCC (12+)
 	# Fix bool type conflict: modern GCC uses _Bool, not char
 	if grep -q 'typedef char bool;' src/include/c.h 2>/dev/null; then \
