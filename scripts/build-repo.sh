@@ -115,19 +115,25 @@ build_apt_repo() {
     fi
 
     # Standard APT repo layout: dists/ and pool/ siblings under apt_dir
-    # This ensures relative paths in Packages stay within the URL scope
-    local pool_dir="$apt_dir/pool/main"
-    mkdir -p "$pool_dir"
+    # This ensures relative paths in Packages stay within the URL scope.
+    # Each codename gets its own pool subdirectory to prevent dpkg-scanpackages
+    # from including packages from other codenames in the Packages index.
+    local pool_base="$apt_dir/pool/main"
+    mkdir -p "$pool_base"
 
     for codename in "${DEB_CODENAMES[@]}"; do
         local dist_dir="$apt_dir/dists/$codename"
         local binary_dir="$dist_dir/main/binary-amd64"
+        local codename_pool="$pool_base/$codename"
 
-        mkdir -p "$binary_dir"
+        mkdir -p "$binary_dir" "$codename_pool"
 
-        # Find and copy DEBs for this codename
+        # Find DEBs for this codename.
+        # Package filenames use tilde (~) to embed the codename, e.g.:
+        #   opentenbase-server_5.0-1ubuntu1~jammy_amd64.deb
+        # Also match dot-based naming (.) for backward compatibility.
         local debs
-        debs=$(find "$pkgdir" \( -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) 2>/dev/null || true)
+        debs=$(find "$pkgdir" \( -name "*~${codename}_*.deb" -o -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) 2>/dev/null || true)
 
         if [ -z "$debs" ]; then
             log_warn "No DEB packages found for $codename, skipping"
@@ -137,25 +143,26 @@ build_apt_repo() {
         local count=0
         while IFS= read -r deb; do
             [ -f "$deb" ] || continue
-            cp "$deb" "$pool_dir/"
+            cp "$deb" "$codename_pool/"
             count=$((count + 1))
         done <<< "$debs"
 
         log_info "  $codename: $count packages"
 
-        # Generate Packages file
+        # Generate Packages file from this codename's pool only.
+        # Filename is relative to the repo root (base URL), NOT relative to
+        # the Packages file.  APT resolves Filename relative to the base URL
+        # in sources.list:
+        #   base_url + Filename = download URL
+        #   https://host/apt/ + pool/main/jammy/file.deb = ...
         local abs_binary_dir
         abs_binary_dir="$(cd "$binary_dir" && pwd)"
-        # Filename relative to repo root (base URL), NOT relative to Packages file.
-        # APT resolves Filename relative to the base URL in sources.list:
-        #   base_url + Filename = download URL
-        #   https://host/apt/ + pool/main/file.deb = https://host/apt/pool/main/file.deb
-        local filename_prefix="pool/main"
-        if ! dpkg-scanpackages "$pool_dir" /dev/null 2>/dev/null | \
-            sed "s|^Filename: $pool_dir/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages"; then
+        local filename_prefix="pool/main/$codename"
+        if ! dpkg-scanpackages "$codename_pool" /dev/null 2>/dev/null | \
+            sed "s|^Filename: $codename_pool/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages"; then
             log_warn "dpkg-scanpackages failed for $codename, trying without override"
-            dpkg-scanpackages "$pool_dir" /dev/null 2>/dev/null | \
-                sed "s|^Filename: $pool_dir/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages" || {
+            dpkg-scanpackages "$codename_pool" /dev/null 2>/dev/null | \
+                sed "s|^Filename: $codename_pool/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages" || {
                 log_warn "dpkg-scanpackages completely failed for $codename"
                 continue
             }
