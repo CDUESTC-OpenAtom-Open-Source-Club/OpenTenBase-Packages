@@ -25,8 +25,10 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - id: set-matrix
+        env:
+          INPUT_VERSIONS: ${{ inputs.versions }}
         run: |
-          VERSIONS='${{ inputs.versions || ''5.0,2.6.0,2.5.0'' }}'
+          VERSIONS="${INPUT_VERSIONS:-5.0,2.6.0,2.5.0}"
           MATRIX='{"include":['
           FIRST=true
           for ver in $(echo "$VERSIONS" | tr ',' ' '); do
