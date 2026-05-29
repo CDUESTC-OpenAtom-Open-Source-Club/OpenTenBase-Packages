@@ -1,0 +1,156 @@
+# Changelog
+
+All notable changes to OpenTenBase Packages are documented in this file.
+
+Format based on [Keep a Changelog](https://keepachangelog.com/).
+
+---
+
+## [v5.0-p2] — 2026-05-28
+
+Patch release with critical packaging fixes and full cross-distro CI verification.
+
+### Fixed
+- Correct `lib/postgresql` path in `opentenbase-server.dirs` (versioned path `/usr/lib/opentenbase/5.0/lib/postgresql`)
+- Use relative Filename from base URL root in APT Packages file
+- Correct `pool/` relative path in Packages file (4 levels up)
+- Standard APT repo layout (`pool/` + `dists/`) with robust GPG key handling
+- Move log functions before `detect_mirror` in `setup-apt.sh`
+
+### Added
+- Gitee mirror auto-detection for China users in setup scripts
+- Huawei Cloud EulerOS (hce) support in `setup-rpm.sh`
+
+### CI/CD
+- All 7 DEB targets: Ubuntu 20.04/22.04/24.04/25.04, Debian 11/12/13
+- All 8 RPM targets: AlmaLinux 8/9, CentOS Stream 8/9, Rocky 8/9, Fedora 40, openEuler 22.03
+- All 14 cross-distro tests pass (install + init + start + SQL)
+- APT/RPM repository auto-deployed to GitHub Pages
+
+### Packages
+- 42 DEB packages (6 per distro × 7 distros)
+- 8 RPM packages (1 per distro × 8 distros)
+- **Total: 50 packages**
+
+---
+
+## [v5.0-multi16] — 2026-05-26
+
+Multi-distro release with version-switch-test integration.
+
+### Fixed
+- `opentenbase-ctl start`: start all nodes before `register_nodes` to avoid pooler hang
+- Download test packages from GitHub Release instead of artifacts
+- `version-switch-test.sh` PATH inheritance and syntax fixes
+- `run_as_otb` fallback for containers without sudo
+- Use full paths and correct initdb flags in test scripts
+- Add `setpriv` fallback and fix RPM deps installation
+- Correct node registration flow and add python3 fallback
+- Filter RPM downloads by architecture to prevent cross-arch conflicts
+
+### Added
+- Multi-node test plan and scripts (`test/multi-node-test.sh`)
+- Version switching test plan and script (`test/version-switch-test.sh`)
+- Long-term maintenance plan
+- ARM64 performance test results in documentation
+
+---
+
+## [v5.0-multi12] — 2026-05-25
+
+Multi-distro release with RPM build fixes.
+
+### Fixed
+- RPM build for aarch64: skip pgsql-http, fix SSL objfiles, disable debuginfo
+- Remove unreliable QEMU ARM64 builds from CI/CD
+- Rename packages with distro name to avoid overwrites in release
+- Make openeuler build optional, release runs even if openeuler fails
+
+### Added
+- ARM64 builds to CI/CD (native runners)
+- Per-distro CI/CD with manual trigger support
+- Auto-release workflow and release notes generator
+
+---
+
+## [v5.0-multi9] — 2026-05-20
+
+Multi-distro release with 30 build targets.
+
+### Fixed
+- DEB libpq race condition + RPM Fedora hardened build
+- `--allow-multiple-definition` to fix linker errors
+- Clear RPM env vars + improve DEB build logging
+- Add GCC 12+ compatibility patches
+- Add `-Wno-error` flags for GCC 12+ incompatible pointer types
+- Escape shell variable in Makefile recipe for objfiles.txt
+- Copy config and scripts dirs for DEB build
+- Update `.install` files for versioned prefix `/usr/lib/opentenbase/5.0`
+- Add `-latomic` to LIBS for 128-bit atomics
+- Use `--no-as-needed` for libatomic and fix flex `lex.backup` error
+- Add `-fPIC` to RPM CFLAGS for shared object linking
+- Add `-mcx16` for inline 128-bit atomics
+- Replace entire lex.backup check with `rm -f` for flex race condition
+
+### Added
+- 30 build targets (16 DEB + 14 RPM)
+- Source-compiled Docker Compose deployment
+- Multi-version management support (`opentenbase-switch-version`)
+- `master`/`latest` version support in install.sh
+
+---
+
+## [v5.0-multi8] — 2026-05-18
+
+Expanded distro support.
+
+### Fixed
+- Install.sh package naming to match CI output (`.jammy`/`.noble` suffixes)
+- Dockerfile paths and missing Ubuntu Dockerfiles
+- Optional packages tolerate missing versions (libpqxx-dev, libcli11-dev)
+- Add `-L/usr/lib/x86_64-linux-gnu` to LDFLAGS for zstd/lz4
+- Symlink zstd/lz4 to `/usr/local/lib` for OpenTenBase's hardcoded configure paths
+- Add `-latomic` to LDFLAGS for 128-bit atomics on Debian
+- Remove system libpq-dev to prevent linker conflicts
+- Use `__atomic` builtins for 128-bit CAS instead of libatomic
+
+### Added
+- Ubuntu 20.04/22.04/24.04 multi-version build
+- Auto-detect Ubuntu version in install.sh
+- Chinese README (README_zh.md)
+- Contributing guidelines (CONTRIBUTING.md, CONTRIBUTING_zh.md)
+- Roadmap documentation (ROADMAP.md, ROADMAP_zh.md)
+
+---
+
+## [v5.0-1ubuntu1] — 2026-05-18
+
+Initial DEB release.
+
+### Added
+- Ubuntu .deb packaging for OpenTenBase v5.0
+- Runtime dependencies: libossp-uuid16, libpqxx-7.8t64
+- `--enable-license=no` to disable license check
+- `opentenbase-ctl` auto-setup node group and sharding map
+- `02-nolic-sharding.patch`: bypass license check during sharding init
+
+---
+
+## [v5.0] — 2026-05-18
+
+First release.
+
+### Added
+- Initial OpenTenBase v5.0 packaging
+- DEB packages for Ubuntu 22.04/24.04
+- Basic installation and verification
+
+---
+
+[v5.0-p2]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p2
+[v5.0-multi16]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi16
+[v5.0-multi12]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi12
+[v5.0-multi9]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi9
+[v5.0-multi8]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi8
+[v5.0-1ubuntu1]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-1ubuntu1
+[v5.0]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0
