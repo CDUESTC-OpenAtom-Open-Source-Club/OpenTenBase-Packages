@@ -19,20 +19,18 @@ export PKG_CONFIG_PATH := /usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARC
 override_dh_auto_configure:
 	# GCC 15+ (C23 default): bool is a keyword, MAXHOSTNAMELEN needs sys/param.h
 	if [ -f src/test/thread/thread_test.c ]; then \
-	    sed -i 's/typedef char bool;/#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L\ntypedef char bool;\n#endif/' src/test/thread/thread_test.c; \
+	    sed -i 's/typedef char bool;/#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L\ntypedef _Bool bool;\n#endif/' src/test/thread/thread_test.c; \
 	    sed -i '/#include <fcntl.h>/a #ifndef MAXHOSTNAMELEN\n#include <sys/param.h>\n#endif' src/test/thread/thread_test.c; \
 	fi
 	# Also patch configure to not fail on thread test — modern glibc IS thread-safe
 	sed -i 's/as_fn_error \$? "thread test program failed/# as_fn_error \$? "thread test program failed/' configure; \
 	sed -i 's/Use --disable-thread-safety to disable thread safety\." "\$LINENO" 5/# Use --disable-thread-safety.../' configure
 	# GCC 15+ (C23 default): bool is a keyword, cannot be typedef'd
+	# Also change 'typedef char bool' to 'typedef _Bool bool' so that bool
+	# resolves to _Bool consistently (avoids conflict when system headers
+	# pull in stdbool.h which #define bool _Bool, making _Bool* != char*)
 	if grep -q 'typedef char bool;' src/include/c.h 2>/dev/null; then \
-	    sed -i 's/typedef char bool;/#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L\ntypedef char bool;\n#endif/' src/include/c.h; \
-	fi
-	# Fix _Bool vs bool conflict: htup_details.h uses _Bool* but tuptable.h uses bool* (= char*)
-	# These conflict because _Bool != char. Replace _Bool with bool in htup_details.h
-	if [ -f src/include/access/htup_details.h ]; then \
-	    sed -i 's/\b_Bool\b/bool/g' src/include/access/htup_details.h; \
+	    sed -i 's/typedef char bool;/#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L\ntypedef _Bool bool;\n#endif/' src/include/c.h; \
 	fi
 	# Fix gtm_opt.c struct initializer
 	if grep -q 'false, false, NULL' src/gtm/main/gtm_opt.c 2>/dev/null; then \
