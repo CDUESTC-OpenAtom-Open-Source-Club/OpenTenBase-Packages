@@ -1,0 +1,537 @@
+#!/usr/bin/env bash
+# =============================================================================
+# opentenbase-ctl — OpenTenBase Cluster Management Script
+# =============================================================================
+# Manages an OpenTenBase cluster (GTM + Coordinator + Datanode) with
+# versioned directory support.
+#
+# Usage:
+#   opentenbase-ctl [OPTIONS] COMMAND
+#
+# Commands:
+#   init      Initialize a new cluster (GTM + Coordinator + Datanode)
+#   start     Start all cluster components
+#   stop      Stop all cluster components
+#   status    Show cluster status
+#   restart   Stop then start the cluster
+#   switch VERSION  Switch active version (updates /etc/opentenbase/current)
+#
+# Options:
+#   -V, --version VERSION   Override active version (default: from /etc/opentenbase/current)
+#   -h, --help              Show this help message
+#   -q, --quiet             Suppress informational output
+#
+# Exit codes:
+#   0 - Success
+#   1 - Error
+# =============================================================================
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+OT_BASE="/usr/lib/opentenbase"
+OT_SYSCONF="/etc/opentenbase"
+OT_DATA="/var/lib/opentenbase"
+OT_LOG="/var/log/opentenbase"
+CURRENT_LINK="${OT_SYSCONF}/current"
+
+# Default ports
+GTM_PORT=6666
+COORD_PORT=5432
+COORD_POOLER_PORT=6667
+DN_PORT=15432
+DN_POOLER_PORT=6668
+
+STARTUP_TIMEOUT=60
+QUIET=false
+
+# ---------------------------------------------------------------------------
+# Color output
+# ---------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info()  { [[ "$QUIET" == "true" ]] || echo -e "${CYAN}[INFO]${NC} $*"; }
+log_ok()    { [[ "$QUIET" == "true" ]] || echo -e "${GREEN}[OK]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+# ---------------------------------------------------------------------------
+# Resolve active version
+# ---------------------------------------------------------------------------
+resolve_version() {
+    if [[ -n "${OTB_VERSION_OVERRIDE:-}" ]]; then
+        echo "$OTB_VERSION_OVERRIDE"
+        return
+    fi
+    if [[ -L "$CURRENT_LINK" ]]; then
+        local target
+        target=$(readlink "$CURRENT_LINK")
+        basename "$target"
+    else
+        # Fallback: find the first installed version
+        local ver
+        for ver in "${OT_BASE}"/*/; do
+            local v
+            v=$(basename "$ver")
+            case "$v" in bin|lib|share|include) continue ;; esac
+            echo "$v"
+            return
+        done
+        echo "5.0"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Resolve service user
+# ---------------------------------------------------------------------------
+resolve_service_user() {
+    if id opentenbase >/dev/null 2>&1; then
+        echo "opentenbase"
+    elif id postgres >/dev/null 2>&1; then
+        echo "postgres"
+    else
+        echo "$(whoami)"
+    fi
+}
+
+# Run command as service user
+as_svc() {
+    local user="$1"
+    shift
+    if [[ "$user" == "$(whoami)" ]]; then
+        "$@"
+    else
+        su -s /bin/bash -c "$*" "$user"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Port check
+# ---------------------------------------------------------------------------
+check_port() {
+    local port="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ss -tlnp 2>/dev/null | grep -q ":${port} "
+    elif command -v netstat >/dev/null 2>&1; then
+        netstat -tlnp 2>/dev/null | grep -q ":${port} "
+    else
+        (echo >/dev/tcp/127.0.0.1/"${port}") 2>/dev/null
+    fi
+}
+
+wait_for_port() {
+    local port="$1"
+    local timeout="$2"
+    local elapsed=0
+    while ! check_port "$port"; do
+        if [[ $elapsed -ge $timeout ]]; then
+            return 1
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+cmd_init() {
+    local ver="$1"
+    local bin="${OT_BASE}/${ver}/bin"
+    local data="${OT_DATA}/${ver}"
+    local log="${OT_LOG}/${ver}"
+    local svc_user
+    svc_user=$(resolve_service_user)
+
+    log_info "Initializing OpenTenBase ${ver} cluster..."
+
+    # Check binaries
+    for b in initgtm gtm_ctl initdb pg_ctl postgres; do
+        if [[ ! -x "${bin}/${b}" ]]; then
+            log_error "Binary not found: ${bin}/${b}"
+            exit 1
+        fi
+    done
+
+    # Create directories
+    mkdir -p "${data}/gtm" "${data}/coord" "${data}/dn1" "${log}"
+    if [[ "$svc_user" != "$(whoami)" ]]; then
+        chown -R "${svc_user}:${svc_user}" "${data}" "${log}" 2>/dev/null || true
+    fi
+
+    # Initialize GTM
+    log_info "Initializing GTM..."
+    as_svc "$svc_user" "${bin}/initgtm -D ${data}/gtm -Z gtm" || {
+        log_error "initgtm failed"
+        exit 1
+    }
+
+    # Initialize Datanode
+    log_info "Initializing Datanode..."
+    as_svc "$svc_user" "${bin}/initdb -D ${data}/dn1 --nodename=dn1" || {
+        log_error "Datanode initdb failed"
+        exit 1
+    }
+
+    # Configure Datanode
+    cat >> "${data}/dn1/postgresql.conf" <<DNCONF
+# -- OpenTenBase cluster config --
+gtm_host = '127.0.0.1'
+gtm_port = ${GTM_PORT}
+gtm_backup_host = ''
+gtm_backup_port = 0
+pooler_port = ${DN_POOLER_PORT}
+max_pool_size = 100
+listen_addresses = '*'
+port = ${DN_PORT}
+DNCONF
+
+    cat > "${data}/dn1/pg_hba.conf" <<HBA
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   all             all                                     trust
+host    all             all             127.0.0.1/32            trust
+host    all             all             ::1/128                 trust
+HBA
+
+    # Initialize Coordinator
+    log_info "Initializing Coordinator..."
+    as_svc "$svc_user" "${bin}/initdb -D ${data}/coord --nodename=coord" || {
+        log_error "Coordinator initdb failed"
+        exit 1
+    }
+
+    # Configure Coordinator
+    cat >> "${data}/coord/postgresql.conf" <<COORDCONF
+# -- OpenTenBase cluster config --
+gtm_host = '127.0.0.1'
+gtm_port = ${GTM_PORT}
+gtm_backup_host = ''
+gtm_backup_port = 0
+pooler_port = ${COORD_POOLER_PORT}
+max_pool_size = 100
+listen_addresses = '*'
+port = ${COORD_PORT}
+COORDCONF
+
+    cat > "${data}/coord/pg_hba.conf" <<HBA
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   all             all                                     trust
+host    all             all             127.0.0.1/32            trust
+host    all             all             ::1/128                 trust
+HBA
+
+    # Fix ownership
+    if [[ "$svc_user" != "$(whoami)" ]]; then
+        chown -R "${svc_user}:${svc_user}" "${data}" "${log}" 2>/dev/null || true
+    fi
+
+    log_ok "Cluster initialized (GTM + Coordinator + Datanode)"
+    log_info "Data directory: ${data}"
+    log_info "Log directory:  ${log}"
+    log_info "Run 'opentenbase-ctl start' to start the cluster"
+}
+
+cmd_start() {
+    local ver="$1"
+    local bin="${OT_BASE}/${ver}/bin"
+    local data="${OT_DATA}/${ver}"
+    local log="${OT_LOG}/${ver}"
+    local svc_user
+    svc_user=$(resolve_service_user)
+
+    # Check if already running
+    if check_port "$GTM_PORT" && check_port "$COORD_PORT" && check_port "$DN_PORT"; then
+        log_warn "Cluster appears to be already running"
+        return 0
+    fi
+
+    log_info "Starting OpenTenBase ${ver} cluster..."
+
+    # Start GTM
+    if ! check_port "$GTM_PORT"; then
+        log_info "Starting GTM..."
+        as_svc "$svc_user" "${bin}/gtm_ctl start -D ${data}/gtm -Z gtm -l ${log}/gtm.log" || {
+            log_error "GTM start failed"
+            exit 1
+        }
+        if ! wait_for_port "$GTM_PORT" "$STARTUP_TIMEOUT"; then
+            log_error "GTM not listening on port ${GTM_PORT} within ${STARTUP_TIMEOUT}s"
+            tail -10 "${log}/gtm.log" 2>/dev/null || true
+            exit 1
+        fi
+        log_ok "GTM started (port ${GTM_PORT})"
+    else
+        log_ok "GTM already running (port ${GTM_PORT})"
+    fi
+
+    # Start Datanode
+    if ! check_port "$DN_PORT"; then
+        log_info "Starting Datanode..."
+        as_svc "$svc_user" "${bin}/pg_ctl start -D ${data}/dn1 -Z datanode -l ${log}/dn1.log" || {
+            log_error "Datanode start failed"
+            exit 1
+        }
+        if ! wait_for_port "$DN_PORT" "$STARTUP_TIMEOUT"; then
+            log_error "Datanode not listening on port ${DN_PORT} within ${STARTUP_TIMEOUT}s"
+            tail -10 "${log}/dn1.log" 2>/dev/null || true
+            exit 1
+        fi
+        log_ok "Datanode started (port ${DN_PORT})"
+    else
+        log_ok "Datanode already running (port ${DN_PORT})"
+    fi
+
+    # Start Coordinator
+    if ! check_port "$COORD_PORT"; then
+        log_info "Starting Coordinator..."
+        as_svc "$svc_user" "${bin}/pg_ctl start -D ${data}/coord -Z coordinator -l ${log}/coord.log" || {
+            log_error "Coordinator start failed"
+            exit 1
+        }
+        if ! wait_for_port "$COORD_PORT" "$STARTUP_TIMEOUT"; then
+            log_error "Coordinator not listening on port ${COORD_PORT} within ${STARTUP_TIMEOUT}s"
+            tail -10 "${log}/coord.log" 2>/dev/null || true
+            exit 1
+        fi
+        log_ok "Coordinator started (port ${COORD_PORT})"
+    else
+        log_ok "Coordinator already running (port ${COORD_PORT})"
+    fi
+
+    log_ok "Cluster started successfully"
+}
+
+cmd_stop() {
+    local ver="$1"
+    local bin="${OT_BASE}/${ver}/bin"
+    local data="${OT_DATA}/${ver}"
+    local svc_user
+    svc_user=$(resolve_service_user)
+
+    log_info "Stopping OpenTenBase ${ver} cluster..."
+
+    # Stop in reverse order: Coordinator, Datanode, GTM
+    if check_port "$COORD_PORT"; then
+        log_info "Stopping Coordinator..."
+        as_svc "$svc_user" "${bin}/pg_ctl stop -D ${data}/coord -Z coordinator -m fast" 2>/dev/null || true
+        log_ok "Coordinator stopped"
+    fi
+
+    if check_port "$DN_PORT"; then
+        log_info "Stopping Datanode..."
+        as_svc "$svc_user" "${bin}/pg_ctl stop -D ${data}/dn1 -Z datanode -m fast" 2>/dev/null || true
+        log_ok "Datanode stopped"
+    fi
+
+    if check_port "$GTM_PORT"; then
+        log_info "Stopping GTM..."
+        as_svc "$svc_user" "${bin}/gtm_ctl stop -D ${data}/gtm -Z gtm -m fast" 2>/dev/null || true
+        log_ok "GTM stopped"
+    fi
+
+    log_ok "Cluster stopped"
+}
+
+cmd_status() {
+    local ver="$1"
+    local bin="${OT_BASE}/${ver}/bin"
+
+    echo ""
+    echo -e "${BOLD}OpenTenBase Cluster Status${NC}"
+    echo -e "  Version:  ${ver}"
+    echo -e "  Binaries: ${bin}"
+    echo ""
+    printf "  %-20s %-10s %-10s\n" "Component" "Port" "Status"
+    printf "  %-20s %-10s %-10s\n" "---------" "----" "------"
+
+    local all_running=true
+
+    if check_port "$GTM_PORT"; then
+        printf "  %-20s %-10s ${GREEN}%-10s${NC}\n" "GTM" "$GTM_PORT" "RUNNING"
+    else
+        printf "  %-20s %-10s ${RED}%-10s${NC}\n" "GTM" "$GTM_PORT" "STOPPED"
+        all_running=false
+    fi
+
+    if check_port "$COORD_PORT"; then
+        printf "  %-20s %-10s ${GREEN}%-10s${NC}\n" "Coordinator" "$COORD_PORT" "RUNNING"
+    else
+        printf "  %-20s %-10s ${RED}%-10s${NC}\n" "Coordinator" "$COORD_PORT" "STOPPED"
+        all_running=false
+    fi
+
+    if check_port "$DN_PORT"; then
+        printf "  %-20s %-10s ${GREEN}%-10s${NC}\n" "Datanode" "$DN_PORT" "RUNNING"
+    else
+        printf "  %-20s %-10s ${RED}%-10s${NC}\n" "Datanode" "$DN_PORT" "STOPPED"
+        all_running=false
+    fi
+
+    echo ""
+
+    if [[ "$all_running" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+cmd_switch() {
+    local new_ver="$1"
+    local new_dir="${OT_BASE}/${new_ver}"
+
+    if [[ ! -d "$new_dir" ]]; then
+        log_error "Version directory not found: ${new_dir}"
+        exit 1
+    fi
+    if [[ ! -x "${new_dir}/bin/postgres" ]]; then
+        log_error "Binaries not found in ${new_dir}/bin/"
+        exit 1
+    fi
+
+    local old_ver="none"
+    if [[ -L "$CURRENT_LINK" ]]; then
+        old_ver=$(basename "$(readlink "$CURRENT_LINK")")
+    fi
+
+    if [[ "$old_ver" == "$new_ver" ]]; then
+        log_info "Already on version ${new_ver}"
+        return 0
+    fi
+
+    log_info "Switching from ${old_ver} to ${new_ver}..."
+
+    # Create config directory if needed
+    mkdir -p "${OT_SYSCONF}/${new_ver}"
+
+    # Update symlink
+    ln -sfn "${OT_SYSCONF}/${new_ver}" "$CURRENT_LINK"
+
+    log_ok "Switched to version ${new_ver}"
+    log_info "Active version: $(readlink "$CURRENT_LINK")"
+
+    if [[ "$old_ver" != "none" ]] && check_port "$COORD_PORT" 2>/dev/null; then
+        echo ""
+        log_warn "Services are still running with version ${old_ver}."
+        log_warn "Run 'opentenbase-ctl stop' then 'opentenbase-ctl start' to use ${new_ver}."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Help
+# ---------------------------------------------------------------------------
+usage() {
+    cat <<EOF
+Usage: opentenbase-ctl [OPTIONS] COMMAND
+
+Commands:
+  init              Initialize a new cluster (GTM + Coordinator + Datanode)
+  start             Start all cluster components
+  stop              Stop all cluster components
+  status            Show cluster status
+  restart           Stop then start the cluster
+  switch VERSION    Switch active version
+
+Options:
+  -V, --version VERSION   Override active version
+  -q, --quiet             Suppress informational output
+  -h, --help              Show this help message
+
+Examples:
+  opentenbase-ctl init          # Initialize cluster
+  opentenbase-ctl start         # Start cluster
+  opentenbase-ctl status        # Check status
+  opentenbase-ctl stop          # Stop cluster
+  opentenbase-ctl switch 5.0    # Switch to version 5.0
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+main() {
+    local command=""
+    local version_arg=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -V|--version)
+                OTB_VERSION_OVERRIDE="$2"
+                shift 2
+                ;;
+            -q|--quiet)
+                QUIET=true
+                shift
+                ;;
+            init|start|stop|status|restart)
+                command="$1"
+                shift
+                ;;
+            switch)
+                command="switch"
+                version_arg="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown command: $1"
+                usage
+                exit 1
+                ;;
+        esac
+    done
+
+    if [[ -z "$command" ]]; then
+        usage
+        exit 1
+    fi
+
+    # Must be root for most operations
+    if [[ "$(id -u)" -ne 0 ]] && [[ "$command" != "status" ]]; then
+        log_error "This command requires root privileges. Use: sudo opentenbase-ctl $command"
+        exit 1
+    fi
+
+    local ver
+    ver=$(resolve_version)
+
+    case "$command" in
+        init)
+            cmd_init "$ver"
+            ;;
+        start)
+            cmd_start "$ver"
+            ;;
+        stop)
+            cmd_stop "$ver"
+            ;;
+        status)
+            cmd_status "$ver"
+            ;;
+        restart)
+            cmd_stop "$ver"
+            sleep 2
+            cmd_start "$ver"
+            ;;
+        switch)
+            cmd_switch "$version_arg"
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
