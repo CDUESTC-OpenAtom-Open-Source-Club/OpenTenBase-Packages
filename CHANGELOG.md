@@ -6,6 +6,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [v5.0-p3] — 2026-05-29
+
+Multi-version coexistence release with expanded platform support.
+
+### Added
+- Multi-version coexistence: support OpenTenBase 5.0, 2.6.0, 2.5.0 side by side
+- 15 Linux distros: Ubuntu 20.04/22.04/24.04/25.04, Debian 11/12/13, AlmaLinux 8/9, CentOS Stream 8/9, Rocky 8/9, Fedora 40/41, openEuler 22.03
+- `opentenbase-ctl` cluster management script (init/start/stop/status/restart/switch)
+- Versioned directory structure: `/usr/lib/opentenbase/{version}/`, `/etc/opentenbase/{version}/`
+- `opentenbase-switch-version` tool for switching active versions
+- Gitee mirror auto-detection for China users in setup scripts
+- Huawei Cloud EulerOS (hce) support in `setup-rpm.sh`
+
+### CI/CD
+- Complete CI/CD pipeline: automated build, test, and release for all versions
+- Automated test suite: install, init, start, and SQL verification across all distros
+- GitHub Pages auto-deployment for APT/RPM repositories
+- Version selection mechanism in install script
+
+### Packages
+- 126 DEB packages (supporting Ubuntu/Debian series)
+- 24 RPM packages (supporting RedHat series)
+- 1 install.sh unified installer
+- **Total: 151 packages**
+
+### Known Issues
+- First install requires manual `opentenbase-ctl init` to initialize the cluster
+- Ubuntu 25.04 is preview support, may have compatibility issues
+
+---
+
 ## [v5.0-p2] — 2026-05-28
 
 Patch release with critical packaging fixes and full cross-distro CI verification.
@@ -147,6 +178,7 @@ First release.
 
 ---
 
+[v5.0-p3]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p3
 [v5.0-p2]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p2
 [v5.0-multi16]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi16
 [v5.0-multi12]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi12
