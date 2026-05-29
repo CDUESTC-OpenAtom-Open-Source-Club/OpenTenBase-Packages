@@ -32,6 +32,10 @@ override_dh_auto_configure:
 	if grep -q 'false, false, NULL' src/gtm/main/gtm_opt.c 2>/dev/null; then \
 	    sed -i '/enable_gtm_resqueue_debug/,/},/{s/true, false, NULL/true, NULL, NULL, false, NULL/; s/false, false, NULL/false, NULL, NULL, false, NULL/}' src/gtm/main/gtm_opt.c; \
 	fi
+	# Fix CLI11 missing cstdint (uint64_t not found in newer GCC/libstdc++)
+	if [ -f contrib/opentenbase_tool/src/CLI/Validators.hpp ]; then \
+	    sed -i '20a #include <cstdint>' contrib/opentenbase_tool/src/CLI/Validators.hpp; \
+	fi
 	# Fix hardcoded static library paths in configure
 	sed -i 's|/usr/local/lib/liblz4.a|-llz4|g' configure
 	sed -i 's|/usr/local/lib/libzstd.a|-lzstd|g' configure
