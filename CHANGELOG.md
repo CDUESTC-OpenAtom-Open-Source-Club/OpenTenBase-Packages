@@ -6,6 +6,39 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [v5.0-p4] — 2026-05-30
+
+Advanced CI test suite — all 14 distros fully passing with 5 new test suites.
+
+### Fixed
+- Bash `((var++))` returns exit code 1 when var=0, triggers `set -e` — changed all 5 test scripts to use `var=$((var + 1))`
+- `timeout` inside `su -c` doesn't propagate signals to child processes — moved timeout outside su wrapper
+- `INSERT INTO distributed_table SELECT ... FROM generate_series()` hangs indefinitely on distributed tables — replaced with single-row INSERT loops
+- `psql` captured `COMMIT` output instead of `SELECT` result in transaction tests — used `psql -1` flag for single-transaction mode
+- Job timeout of 30 minutes too short for advanced tests — increased to 60 minutes in test-all.yml
+- Port conflicts between multi-node-test and advanced tests — added port cleanup and `wait_for_port_free()`
+- Sharding map initialization: correct SQL syntax is `CREATE SHARDING GROUP TO GROUP <group_name>`
+
+### Added
+- 5 advanced test suites: transactions, connection pool, data types, performance benchmarks, failover & recovery
+- `test/advanced/test_transactions.sh` — distributed COMMIT/ROLLBACK, cross-node consistency, READ COMMITTED isolation, SAVEPOINT/nested SAVEPOINT (6 tests)
+- `test/advanced/test_connection_pool.sh` — connection establishment, concurrent connections, pool reload, pool exhaustion (6 tests)
+- `test/advanced/test_data_types.sh` — int, text, jsonb, timestamp, array, numeric, NULL handling (7 tests)
+- `test/advanced/test_performance.sh` — bulk INSERT, full table scan, filtered SELECT, JOIN, index effectiveness, ORDER BY+LIMIT (6 tests)
+- `test/advanced/test_failover.sh` — cluster health, GTM status, datanode connectivity, stress R/W, data consistency, query routing, transaction recovery (7 tests)
+- `test/run-advanced-tests.sh` — advanced test runner with cluster lifecycle management
+
+### CI/CD
+- `test-all.yml` now runs advanced test suite alongside basic tests
+- All 14 distros (7 DEB + 7 RPM) pass both basic and advanced tests
+- CI run 26683489025: 14/14 PASSED, all jobs completed in 2-7 minutes
+
+### Test Results
+- **31 advanced tests** across 5 suites, all passing
+- Transactions: 6/6 | Connection Pool: 6/6 | Data Types: 7/7 | Performance: 6/6 | Failover: 7/7
+
+---
+
 ## [v5.0-p3] — 2026-05-29
 
 Multi-version coexistence release with expanded platform support.
@@ -178,6 +211,7 @@ First release.
 
 ---
 
+[v5.0-p4]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p4
 [v5.0-p3]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p3
 [v5.0-p2]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p2
 [v5.0-multi16]: https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi16
