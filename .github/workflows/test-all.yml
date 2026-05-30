@@ -105,10 +105,14 @@ jobs:
           bash test/multi-node-test.sh
 
       - name: Run version switch test
-        continue-on-error: true
         run: |
           chmod +x test/version-switch-test.sh
           bash test/version-switch-test.sh
+
+      - name: Run advanced tests
+        run: |
+          chmod +x test/run-advanced-tests.sh
+          bash test/run-advanced-tests.sh
 
   test-rpm:
     strategy:
@@ -235,7 +239,11 @@ jobs:
           bash test/multi-node-test.sh
 
       - name: Run version switch test
-        continue-on-error: true
         run: |
           chmod +x test/version-switch-test.sh
           bash test/version-switch-test.sh
+
+      - name: Run advanced tests
+        run: |
+          chmod +x test/run-advanced-tests.sh
+          bash test/run-advanced-tests.sh
