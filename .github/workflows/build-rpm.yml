@@ -180,6 +180,87 @@ jobs:
           rm -rf /tmp/source
           dnf clean all
 
-  # NOTE: aarch64/arm64 packages are built natively on ARM64 hardware
-  # and uploaded to GitHub releases manually. QEMU emulation is unreliable
-  # for compiling C/C++ projects with gcc. See scripts/build-arm64.sh
+  # ============================================================
+  # ARM64 RPM builds using QEMU emulation
+  # ============================================================
+  build-rpm-aarch64:
+    needs: setup-matrix
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - version: '5.0'
+            distro: 'openeuler-22.03'
+            container: 'openeuler/openeuler:22.03'
+          - version: '5.0'
+            distro: 'rockylinux-9'
+            container: 'rockylinux:9'
+          - version: '5.0'
+            distro: 'almalinux-9'
+            container: 'almalinux:9'
+
+    name: ${{ matrix.distro }}-${{ matrix.version }}-aarch64
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Set up QEMU for ARM64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          path: opentenbase-pkg
+
+      - name: Build ARM64 RPM in container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}/opentenbase-pkg:/pkg:ro \
+            -v /tmp/source:/tmp/source \
+            -e VERSION=${{ matrix.version }} \
+            ${CONTAINER} bash -c '
+              # Install dependencies
+              dnf install -y gcc gcc-c++ make bison flex perl \
+                readline-devel zlib-devel openssl-devel pam-devel \
+                libxml2-devel openldap-devel libuuid-devel \
+                libcurl-devel lz4-devel zstd-devel \
+                pkg-config libtool rpm-build git \
+                libssh2-devel libatomic || true
+
+              # Clone source
+              if [ "$VERSION" = "5.0" ]; then
+                git clone --depth=1 https://github.com/OpenTenBase/OpenTenBase.git /tmp/source/OpenTenBase
+              else
+                git clone --depth=1 --branch "v${VERSION}" https://github.com/OpenTenBase/OpenTenBase.git /tmp/source/OpenTenBase
+              fi
+
+              # Build
+              cd /pkg/rpm
+              bash build-rpm.sh --source-dir /tmp/source/OpenTenBase --version $VERSION
+
+              # Rename and output
+              ARCH=$(uname -m)
+              cd ~/rpmbuild/RPMS/${ARCH} || cd ~/rpmbuild/RPMS/noarch || true
+              for rpm in *.rpm; do
+                [ -f "$rpm" ] || continue
+                newname=$(echo "$rpm" | sed "s/-${VERSION}-1\./-${VERSION}-1.${{ matrix.distro }}-${VERSION}-aarch64./")
+                [ "$newname" != "$rpm" ] && mv "$rpm" "$newname"
+              done
+              ls -la *.rpm
+
+              # Copy to shared volume
+              mkdir -p /tmp/output
+              cp *.rpm /tmp/output/
+            '
+        env:
+          CONTAINER: ${{ matrix.container }}
+
+      - name: Upload ARM64 RPM packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpms-${{ matrix.distro }}-${{ matrix.version }}-aarch64
+          path: /tmp/output/*.rpm
+          retention-days: 30
