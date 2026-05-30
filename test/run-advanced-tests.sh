@@ -3,7 +3,7 @@
 # OpenTenBase Advanced Test Runner
 # =============================================================================
 # Starts a cluster, runs all advanced test suites, then tears down.
-# Uses direct process start (not gtm_ctl/pg_ctl) to avoid zombie detection.
+# Uses gtm_ctl/pg_ctl with nohup setsid to ensure processes persist.
 # =============================================================================
 set -e
 
@@ -12,13 +12,25 @@ TEST_BASE="/tmp/otb-adv-test"
 GTM_DATA="${TEST_BASE}/gtm"
 COORD_DATA="${TEST_BASE}/coord"
 DN_DATA="${TEST_BASE}/dn1"
+LOG_DIR="${TEST_BASE}/logs"
 GTM_PORT=6666
 COORD_PORT=5432
 DN_PORT=15432
 STARTUP_TIMEOUT=30
 
 log() { echo "[adv-test] $(date '+%H:%M:%S') $*"; }
-fail() { echo "[adv-test] FAIL: $*" >&2; stop_services 2>/dev/null; rm -rf "${TEST_BASE}" 2>/dev/null; exit 1; }
+fail() {
+    echo "[adv-test] FAIL: $*" >&2
+    echo "--- GTM log (last 10) ---" >&2
+    tail -10 "${LOG_DIR}/gtm.log" 2>/dev/null >&2 || true
+    echo "--- DN log (last 10) ---" >&2
+    tail -10 "${LOG_DIR}/dn1.log" 2>/dev/null >&2 || true
+    echo "--- Coord log (last 10) ---" >&2
+    tail -10 "${LOG_DIR}/coord.log" 2>/dev/null >&2 || true
+    stop_services 2>/dev/null
+    rm -rf "${TEST_BASE}" 2>/dev/null
+    exit 1
+}
 
 check_port() {
     local port="$1"
@@ -64,26 +76,19 @@ stop_services
 
 # Prepare directories
 rm -rf "${TEST_BASE}"
-mkdir -p "${GTM_DATA}" "${COORD_DATA}" "${DN_DATA}"
-chown "${SVC_USER}:${SVC_USER}" "${TEST_BASE}" "${GTM_DATA}" "${COORD_DATA}" "${DN_DATA}"
+mkdir -p "${GTM_DATA}" "${COORD_DATA}" "${DN_DATA}" "${LOG_DIR}"
+chown "${SVC_USER}:${SVC_USER}" "${TEST_BASE}" "${GTM_DATA}" "${COORD_DATA}" "${DN_DATA}" "${LOG_DIR}"
 
-# Initialize and start GTM (direct start, not gtm_ctl)
+# Initialize and start GTM
 log "Starting GTM..."
 as_svc "${BIN_DIR}/initgtm -D ${GTM_DATA} -Z gtm" || fail "initgtm failed"
-cat > "${GTM_DATA}/gtm.conf" <<EOF
-listen_addresses = '*'
-port = ${GTM_PORT}
-nodename = 'one'
-EOF
-chown "${SVC_USER}:${SVC_USER}" "${GTM_DATA}/gtm.conf"
-as_svc "${BIN_DIR}/gtm -D ${GTM_DATA}" > /tmp/adv-gtm.log 2>&1 &
-GTM_PID=$!
-sleep 3
-if kill -0 $GTM_PID 2>/dev/null; then
-    log "GTM up on port ${GTM_PORT} (PID $GTM_PID)"
-else
-    fail "GTM failed to start"
+
+# Start GTM using nohup+setsid so process persists when su exits
+as_svc "nohup setsid ${BIN_DIR}/gtm -D ${GTM_DATA} > ${LOG_DIR}/gtm.log 2>&1 &" || true
+if ! wait_for_port "${GTM_PORT}" "${STARTUP_TIMEOUT}"; then
+    fail "GTM not listening on port ${GTM_PORT} within ${STARTUP_TIMEOUT}s"
 fi
+log "GTM up on port ${GTM_PORT}"
 
 # Initialize and start Datanode
 log "Starting Datanode..."
@@ -97,14 +102,12 @@ host    all             all             127.0.0.1/32            trust
 host    all             all             ::1/128                 trust
 HBA
 chown "${SVC_USER}:${SVC_USER}" "${DN_DATA}/postgresql.conf" "${DN_DATA}/pg_hba.conf"
-as_svc "${BIN_DIR}/postgres --datanode -D ${DN_DATA}" > /tmp/adv-dn.log 2>&1 &
-DN_PID=$!
-sleep 3
-if kill -0 $DN_PID 2>/dev/null; then
-    log "Datanode up on port ${DN_PORT} (PID $DN_PID)"
-else
-    fail "Datanode failed to start"
+
+as_svc "nohup setsid ${BIN_DIR}/postgres --datanode -D ${DN_DATA} > ${LOG_DIR}/dn1.log 2>&1 &" || true
+if ! wait_for_port "${DN_PORT}" "${STARTUP_TIMEOUT}"; then
+    fail "Datanode not listening on port ${DN_PORT} within ${STARTUP_TIMEOUT}s"
 fi
+log "Datanode up on port ${DN_PORT}"
 
 # Initialize and start Coordinator
 log "Starting Coordinator..."
@@ -118,16 +121,14 @@ host    all             all             127.0.0.1/32            trust
 host    all             all             ::1/128                 trust
 HBA
 chown "${SVC_USER}:${SVC_USER}" "${COORD_DATA}/postgresql.conf" "${COORD_DATA}/pg_hba.conf"
-as_svc "${BIN_DIR}/postgres --coordinator -D ${COORD_DATA}" > /tmp/adv-coord.log 2>&1 &
-COORD_PID=$!
-sleep 3
-if kill -0 $COORD_PID 2>/dev/null; then
-    log "Coordinator up on port ${COORD_PORT} (PID $COORD_PID)"
-else
-    fail "Coordinator failed to start"
-fi
 
-# Register nodes and create default node group
+as_svc "nohup setsid ${BIN_DIR}/postgres --coordinator -D ${COORD_DATA} > ${LOG_DIR}/coord.log 2>&1 &" || true
+if ! wait_for_port "${COORD_PORT}" "${STARTUP_TIMEOUT}"; then
+    fail "Coordinator not listening on port ${COORD_PORT} within ${STARTUP_TIMEOUT}s"
+fi
+log "Coordinator up on port ${COORD_PORT}"
+
+# Register nodes
 log "Registering nodes..."
 COORD_PSQL="${BIN_DIR}/psql -h 127.0.0.1 -p ${COORD_PORT} -U ${SVC_USER} -d postgres -X -q"
 DN_PSQL="${BIN_DIR}/psql -h 127.0.0.1 -p ${DN_PORT} -U ${SVC_USER} -d postgres -X -q"
@@ -137,14 +138,19 @@ as_svc "${COORD_PSQL} -c \"CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.
 as_svc "${DN_PSQL} -c \"CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=${GTM_PORT}, PRIMARY);\"" 2>/dev/null || true
 as_svc "${DN_PSQL} -c \"CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=${COORD_PORT}, FORWARD=6669);\"" 2>/dev/null || true
 
-# Create default node group (required for distribute by shard)
-log "Creating default node group..."
+# Create default node group and initialize sharding map
+log "Creating default node group and sharding map..."
 as_svc "${COORD_PSQL} -c \"CREATE DEFAULT NODE GROUP default_group WITH (dn1);\"" 2>/dev/null || \
 as_svc "${COORD_PSQL} -c \"CREATE NODE GROUP default_group WITH (dn1);\"" 2>/dev/null || true
 
+# Initialize sharding map for the node group (required before distribute by shard)
+as_svc "${COORD_PSQL} -c \"SELECT pgxc_create_group_sharding_map('default_group');\"" 2>/dev/null || \
+as_svc "${COORD_PSQL} -c \"CREATE SHARDING MAP TO GROUP default_group;\"" 2>/dev/null || \
+as_svc "${COORD_PSQL} -c \"SELECT pgxc_group_sharding_map_init('default_group');\"" 2>/dev/null || true
+
 as_svc "${COORD_PSQL} -c \"SELECT pgxc_pool_reload();\"" 2>/dev/null || true
 as_svc "${DN_PSQL} -c \"SELECT pgxc_pool_reload();\"" 2>/dev/null || true
-log "Nodes registered"
+log "Nodes registered and sharding initialized"
 
 # Run advanced tests as SVC_USER so psql connects with the correct role
 export PATH="/usr/lib/opentenbase/5.0/bin:$PATH"
