@@ -6,6 +6,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [v5.0-p5] — 2026-05-30
+
+Critical bug fix for cluster initialization.
+
+### Fixed
+- `opentenbase-ctl` node registration failure: changed psql from `-d postgres` to `-d template1`
+  - `register_nodes()`: postgres database doesn't exist after initdb (only template0/template1)
+  - `setup_node_group()`: pgxc_group is a global catalog, accessible from any database
+  - Added postgres database creation after node registration completes
+  - This fixes silent failures where all errors were swallowed by `2>/dev/null || true`
+
+---
+
 ## [v5.0-p4] — 2026-05-30
 
 Advanced CI test suite — all 14 distros fully passing with 5 new test suites.
