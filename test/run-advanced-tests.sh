@@ -143,29 +143,34 @@ log "Creating default node group..."
 as_svc "${COORD_PSQL} -c \"CREATE DEFAULT NODE GROUP default_group WITH (dn1);\"" || \
 as_svc "${COORD_PSQL} -c \"CREATE NODE GROUP default_group WITH (dn1);\"" || true
 
-# Initialize sharding map - try multiple approaches with visible errors
+# Initialize sharding map for the default group
+# This is required before any 'distribute by shard()' tables can be created.
+# The SQL syntax is: CREATE SHARDING GROUP TO GROUP <group_name>
 log "Initializing sharding map..."
-# Try approach 1: pgxc_create_group_sharding_map
-echo "--- Attempting pgxc_create_group_sharding_map ---"
-as_svc "${COORD_PSQL} -c \"SELECT pgxc_create_group_sharding_map('default_group');\"" 2>&1 || true
-# Try approach 2: CREATE SHARDING MAP
-echo "--- Attempting CREATE SHARDING MAP ---"
-as_svc "${COORD_PSQL} -c \"CREATE SHARDING MAP TO GROUP default_group;\"" 2>&1 || true
-# Try approach 3: pgxc_group_sharding_map_init
-echo "--- Attempting pgxc_group_sharding_map_init ---"
-as_svc "${COORD_PSQL} -c \"SELECT pgxc_group_sharding_map_init('default_group');\"" 2>&1 || true
-# Try approach 4: initdb with --sharding
-echo "--- Attempting SELECT pgxc_init_group_sharding_map ---"
-as_svc "${COORD_PSQL} -c \"SELECT pgxc_init_group_sharding_map('default_group');\"" 2>&1 || true
+as_svc "${COORD_PSQL} -c \"CREATE SHARDING GROUP TO GROUP default_group;\"" 2>&1 || true
 
 as_svc "${COORD_PSQL} -c \"SELECT pgxc_pool_reload();\"" || true
 as_svc "${DN_PSQL} -c \"SELECT pgxc_pool_reload();\"" || true
 log "Nodes registered"
 
+# Verify sharding map is initialized
+log "Verifying sharding map..."
+SHARD_CHECK=$(as_svc "${COORD_PSQL} -t -A -c \"SELECT count(*) FROM pgxc_shard_map;\"" 2>&1) || true
+log "Shard map entries: ${SHARD_CHECK}"
+if [ "${SHARD_CHECK}" = "0" ] || [ -z "${SHARD_CHECK}" ]; then
+    log "WARNING: Sharding map appears empty, distributed tables may fail"
+fi
+
 # Quick sanity check - try a simple distributed table
 log "Sanity check: creating test distributed table..."
-as_svc "${COORD_PSQL} -c \"CREATE TABLE _adv_sanity_check (id int) distribute by shard(id);\"" 2>&1 || true
-as_svc "${COORD_PSQL} -c \"DROP TABLE IF EXISTS _adv_sanity_check;\"" 2>&1 || true
+if as_svc "${COORD_PSQL} -c \"CREATE TABLE _adv_sanity_check (id int) distribute by shard(id);\""; then
+    log "Sanity check: PASSED"
+    as_svc "${COORD_PSQL} -c \"DROP TABLE _adv_sanity_check;\"" || true
+else
+    log "Sanity check: FAILED - distributed tables not working"
+    # Show coordinator log for debugging
+    tail -20 "${LOG_DIR}/coord.log" 2>/dev/null || true
+fi
 
 # Run advanced tests as SVC_USER so psql connects with the correct role
 export PATH="/usr/lib/opentenbase/5.0/bin:$PATH"
