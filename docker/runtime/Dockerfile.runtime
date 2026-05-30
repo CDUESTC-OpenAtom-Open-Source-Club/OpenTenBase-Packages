@@ -13,8 +13,11 @@ RUN dnf install -y \
     util-linux-user \
     && dnf clean all
 
-# Install OpenTenBase from extracted files
-COPY extracted/ /
+# Install OpenTenBase from extracted RPM files
+# rpm2cpio extracts to usr/, etc/, var/ directories
+COPY usr/ /usr/
+COPY etc/ /etc/
+COPY var/ /var/
 # rpm2cpio extraction overwrites directory permissions to 750 — restore 755
 # on all directories so the opentenbase user can traverse them
 RUN chmod 755 /usr /etc /var /bin /sbin /lib /usr/bin /usr/lib /usr/lib/opentenbase /etc/opentenbase /var/lib /var/lib/opentenbase 2>/dev/null; \

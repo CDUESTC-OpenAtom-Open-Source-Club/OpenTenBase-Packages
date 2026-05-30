@@ -32,12 +32,47 @@ jobs:
 
       - name: Determine version tag
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "tag=${INPUT_TAG}" >> $GITHUB_OUTPUT
           else
             echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
           fi
+
+      - name: Download and extract RPM packages
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # Create extracted directory structure
+          mkdir -p docker/runtime/extracted
+
+          # Download openEuler 22.03 RPM from releases
+          # Naming: opentenbase-{version}-1.openeuler-22.03-{version}-x86_64.x86_64.rpm
+          RPM_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/opentenbase-5.0-1.openeuler-22.03-5.0-x86_64.x86_64.rpm"
+
+          # If tag doesn't have RPM, try latest release
+          if ! curl -sfL "$RPM_URL" -o /tmp/opentenbase.rpm; then
+            echo "Tag RPM not found, fetching latest..."
+            LATEST_TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+            RPM_URL="https://github.com/${{ github.repository }}/releases/download/${LATEST_TAG}/opentenbase-5.0-1.openeuler-22.03-5.0-x86_64.x86_64.rpm"
+            curl -sfL "$RPM_URL" -o /tmp/opentenbase.rpm || {
+              echo "ERROR: No openEuler RPM found in releases"
+              exit 1
+            }
+          fi
+
+          echo "Extracting RPM to docker/runtime/extracted/..."
+          cd docker/runtime
+          rpm2cpio /tmp/opentenbase.rpm | cpio -idmv 2>/dev/null || true
+
+          # Verify extraction - rpm2cpio extracts to root structure (usr/, etc/, var/)
+          ls -la usr/lib/opentenbase/ 2>/dev/null || {
+            echo "ERROR: Extraction failed"
+            exit 1
+          }
 
       # Set up QEMU for future multi-platform builds (arm64 etc.)
       - name: Set up QEMU
