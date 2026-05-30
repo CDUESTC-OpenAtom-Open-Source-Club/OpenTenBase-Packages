@@ -11,9 +11,9 @@ PSQL="psql -h ${COORD_HOST} -p ${COORD_PORT} -XAt"
 PASS_COUNT=0
 FAIL_COUNT=0
 
-log_pass() { echo -e "\033[32m[PASS]\033[0m $1"; ((PASS_COUNT++)); }
-log_fail() { echo -e "\033[31m[FAIL]\033[0m $1"; ((FAIL_COUNT++)); }
-log_info() { echo -e "\033[36m[INFO]\033[0m $1"; }
+log_pass() { echo -e "[32m[PASS][0m $1"; PASS_COUNT=$((PASS_COUNT + 1)); }
+log_fail() { echo -e "[31m[FAIL][0m $1"; FAIL_COUNT=$((FAIL_COUNT + 1)); }
+log_info() { echo -e "[36m[INFO][0m $1"; }
 
 # ---------------------------------------------------------------------------
 # Pre-flight
