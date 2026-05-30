@@ -121,10 +121,10 @@ OpenTenBase-deb/
 
 | 任务 | 优先级 | 工作量 | 状态 |
 |------|--------|--------|------|
-| 2.1 APT 仓库 | P0 | 4h | 待开始（超出当前范围） |
+| 2.1 APT 仓库 | P0 | 4h | Done (GitHub Pages APT/RPM repo, GPG signed) |
 | 2.2 多架构支持 | P1 | 8h | ✅ 已完成（x86_64 + aarch64 双架构，CI 14/14 通过） |
 | 2.3 版本升级自动化 | P1 | 4h | ✅ 已完成（自动发布工作流） |
-| 2.4 监控集成 | P2 | 4h | 待开始（超出当前范围） |
+| 2.4 监控集成 | P2 | 4h | Deferred |
 | 2.5 多版本管理 | P1 | 16h | ✅ 已完成 |
 
 ### 2.2 多架构支持（已完成）
@@ -159,3 +159,5 @@ OpenTenBase-deb/
 - 仓库地址：https://github.com/muzimu217/OpenTenBase-deb
 - 最新 Release：https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi10
 - 上游仓库：https://github.com/OpenTenBase/OpenTenBase
+
+**Update 2026-05-30:** APT/RPM repository fully operational via GitHub Pages. setup-apt.sh and setup-rpm.sh scripts available. GPG signing configured. CI run 26683489025: 14/14 distros + 31/31 advanced tests all passing.
