@@ -192,7 +192,7 @@ for node_info in "otb-cn:${CN_NAME}" "otb-dn01:${DN01_NAME}" "otb-dn02:${DN02_NA
   # 配置 pg_hba.conf
   docker exec -u opentenbase $container bash -c "
     grep -q '172.20.0.0/24' ${data_dir}/pg_hba.conf || echo 'host all all 172.20.0.0/24 trust' >> ${data_dir}/pg_hba.conf
-    grep -q '0.0.0.0/0' ${data_dir}/pg_hba.conf || echo 'host all all 0.0.0.0/0 trust' >> ${data_dir}/pg_hba.conf
+    grep -q '0.0.0.0/0' ${data_dir}/pg_hba.conf || echo 'host all all 0.0.0.0/0 md5' >> ${data_dir}/pg_hba.conf
   "
 done
 

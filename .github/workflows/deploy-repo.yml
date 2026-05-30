@@ -48,9 +48,10 @@ jobs:
         env:
           GPG_KEY_ID: "9D8FA46F3A55D5F0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           chmod +x scripts/build-repo.sh
-          TAG="${{ github.event.inputs.tag }}"
+          TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
             ./scripts/build-repo.sh -o repo
           else

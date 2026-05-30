@@ -41,9 +41,10 @@ jobs:
     steps:
       - name: Check if should test
         id: check
+        env:
+          INPUT_DISTRO: ${{ github.event.inputs.distro }}
+          MATRIX_KEY: ${{ matrix.distro }}-${{ matrix.version }}
         run: |
-          INPUT_DISTRO="${{ github.event.inputs.distro }}"
-          MATRIX_KEY="${{ matrix.distro }}-${{ matrix.version }}"
           if [ -z "$INPUT_DISTRO" ] || [ "$INPUT_DISTRO" = "$MATRIX_KEY" ]; then
             echo "should_test=true" >> $GITHUB_OUTPUT
           else

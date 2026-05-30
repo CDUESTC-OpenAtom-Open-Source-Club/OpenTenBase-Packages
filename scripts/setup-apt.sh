@@ -178,7 +178,8 @@ add_gpg_key() {
 
     # 尝试从多个镜像下载
     local success=false
-    local tmpkey="/tmp/opentenbase-gpg-key.asc"
+    local tmpkey
+    tmpkey=$(mktemp /tmp/opentenbase-gpg-key-XXXXXX.asc)
     for url in "$GPG_KEY_URL" "https://muzimu217.github.io/OpenTenBase-deb/apt/gpg-key.asc"; do
         if curl -sL --connect-timeout 10 --max-time 30 "$url" -o "$tmpkey" 2>/dev/null && \
            [ -s "$tmpkey" ] && head -1 "$tmpkey" | grep -q "BEGIN PGP"; then

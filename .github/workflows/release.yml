@@ -117,9 +117,12 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "tag=$INPUT_TAG" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -147,8 +150,10 @@ jobs:
 
       - name: Check GPG signing availability
         id: gpg_check
+        env:
+          HAS_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          if [ -n "${{ secrets.GPG_PRIVATE_KEY }}" ]; then
+          if [ -n "$HAS_GPG_KEY" ]; then
             echo "has_gpg=true" >> $GITHUB_OUTPUT
             echo "GPG signing is enabled"
           else

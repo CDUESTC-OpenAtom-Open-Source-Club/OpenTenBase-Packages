@@ -58,8 +58,10 @@ jobs:
       - name: Download packages from release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+          MATRIX_CODENAME: ${{ matrix.codename }}
         run: |
-          TAG="${{ github.event.inputs.release_tag }}"
+          TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
             TAG=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
           fi
@@ -70,7 +72,7 @@ jobs:
           curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.deb"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
-            grep "${{ matrix.codename }}" | \
+            grep "$MATRIX_CODENAME" | \
             grep "_5\.0-" | \
             while read url; do curl -sLO "$url"; done
           ls -la /tmp/debs/
@@ -192,8 +194,11 @@ jobs:
           ldconfig || true
 
       - name: Download packages from release
+        env:
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+          MATRIX_PATTERN: ${{ matrix.pattern }}
         run: |
-          TAG="${{ github.event.inputs.release_tag }}"
+          TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
             TAG=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
           fi
@@ -204,7 +209,7 @@ jobs:
           curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.rpm"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
-            grep "${{ matrix.pattern }}" | \
+            grep "$MATRIX_PATTERN" | \
             grep "$(uname -m)" | \
             grep "5\.0" | \
             grep -v debuginfo | grep -v debugsource | \

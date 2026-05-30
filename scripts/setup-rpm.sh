@@ -85,7 +85,8 @@ add_gpg_key() {
 
     # Try multiple mirrors with robust fallback
     local imported=false
-    local tmpkey="/tmp/opentenbase-gpg-key.asc"
+    local tmpkey
+    tmpkey=$(mktemp /tmp/opentenbase-gpg-key-XXXXXX.asc)
     for url in "$GPG_KEY_URL" "https://muzimu217.github.io/OpenTenBase-deb/rpm/gpg-key.asc"; do
         # Try direct rpm --import first
         rpm --import "$url" 2>/dev/null && imported=true && break

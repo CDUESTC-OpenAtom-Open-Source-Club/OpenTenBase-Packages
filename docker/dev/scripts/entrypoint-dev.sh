@@ -80,7 +80,7 @@ listen_addresses = '*'
 pooler_port = 6669
 forward_port = 6670
 EOF
-        echo "host all all 0.0.0.0/0 trust" >> "$DATA_DIR/pg_hba.conf"
+        echo "host all all 0.0.0.0/0 md5" >> "$DATA_DIR/pg_hba.conf"
     fi
 
     wait_for_port "$GTM_IP" "$GTM_PORT"
@@ -129,7 +129,7 @@ listen_addresses = '*'
 pooler_port = 6669
 forward_port = $DN_FORWARD_PORT
 EOF
-        echo "host all all 0.0.0.0/0 trust" >> "$DATA_DIR/pg_hba.conf"
+        echo "host all all 0.0.0.0/0 md5" >> "$DATA_DIR/pg_hba.conf"
     fi
 
     wait_for_port "$GTM_IP" "$GTM_PORT"
