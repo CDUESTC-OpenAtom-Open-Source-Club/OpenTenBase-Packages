@@ -32,6 +32,16 @@ GPG_KEY_ID="${GPG_KEY_ID:-9D8FA46F3A55D5F0}"
 # DEB codenames
 DEB_CODENAMES=(focal jammy noble plucky bullseye bookworm trixie)
 
+# Version -> APT component mapping
+# The latest/default version uses "main"; older versions get their own component.
+# Users add components to sources.list to access specific versions.
+# Format: "version:component"
+DEB_VERSION_COMPONENTS=(
+    "5.0:main"
+    "2.6.0:v2.6"
+    "2.5.0:v2.5"
+)
+
 # RPM distro patterns -> repo directory mapping
 # Format: "pattern:repo_dir"
 RPM_DISTROS=(
@@ -100,6 +110,12 @@ download_release() {
 }
 
 # Build APT repository structure
+# Uses components as version selectors:
+#   main  -> v5.0 (latest, default)
+#   v2.6  -> v2.6.0
+#   v2.5  -> v2.5.0
+# Each component has its own pool/ and Packages file, so dpkg-scanpackages
+# doesn't deduplicate across versions (same package name, different versions).
 build_apt_repo() {
     local pkgdir=$1
     local outdir=$2
@@ -114,62 +130,59 @@ build_apt_repo() {
         cp scripts/opentenbase-packages-key.asc "$apt_dir/gpg-key.asc"
     fi
 
-    # Standard APT repo layout: dists/ and pool/ siblings under apt_dir
-    # This ensures relative paths in Packages stay within the URL scope.
-    # Each codename gets its own pool subdirectory to prevent dpkg-scanpackages
-    # from including packages from other codenames in the Packages index.
-    local pool_base="$apt_dir/pool/main"
-    mkdir -p "$pool_base"
-
     for codename in "${DEB_CODENAMES[@]}"; do
         local dist_dir="$apt_dir/dists/$codename"
-        local binary_dir="$dist_dir/main/binary-amd64"
-        local codename_pool="$pool_base/$codename"
+        local components_for_codename=()
+        local has_packages=false
 
-        mkdir -p "$binary_dir" "$codename_pool"
+        # Process each version -> component mapping
+        for vc_entry in "${DEB_VERSION_COMPONENTS[@]}"; do
+            local version="${vc_entry%%:*}"
+            local component="${vc_entry##*:}"
+            local component_pool="$apt_dir/pool/$component/$codename"
+            local binary_dir="$dist_dir/$component/binary-amd64"
 
-        # Find DEBs for this codename.
-        # Package filenames use tilde (~) to embed the codename, e.g.:
-        #   opentenbase-server_5.0-1ubuntu1~jammy_amd64.deb
-        # Also match dot-based naming (.) for backward compatibility.
-        local debs
-        debs=$(find "$pkgdir" \( -name "*~${codename}_*.deb" -o -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) 2>/dev/null || true)
+            mkdir -p "$binary_dir" "$component_pool"
 
-        if [ -z "$debs" ]; then
+            # Find DEBs matching this codename AND version
+            local debs
+            debs=$(find "$pkgdir" \( -name "*~${codename}_*.deb" -o -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) 2>/dev/null | grep "_${version}-" || true)
+
+            if [ -z "$debs" ]; then
+                continue
+            fi
+
+            local count=0
+            while IFS= read -r deb; do
+                [ -f "$deb" ] || continue
+                cp "$deb" "$component_pool/"
+                count=$((count + 1))
+            done <<< "$debs"
+
+            log_info "  $codename/$component (v$version): $count packages"
+            components_for_codename+=("$component")
+            has_packages=true
+
+            # Generate Packages file
+            local abs_binary_dir
+            abs_binary_dir="$(cd "$binary_dir" && pwd)"
+            local filename_prefix="pool/$component/$codename"
+            if ! dpkg-scanpackages "$component_pool" /dev/null 2>/dev/null | \
+                sed "s|^Filename: $component_pool/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages"; then
+                log_warn "dpkg-scanpackages failed for $codename/$component"
+                dpkg-scanpackages "$component_pool" /dev/null 2>/dev/null | \
+                    sed "s|^Filename: $component_pool/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages" || continue
+            fi
+            gzip -9c "$abs_binary_dir/Packages" > "$abs_binary_dir/Packages.gz"
+        done
+
+        if [ "$has_packages" != "true" ]; then
             log_warn "No DEB packages found for $codename, skipping"
             continue
         fi
 
-        local count=0
-        while IFS= read -r deb; do
-            [ -f "$deb" ] || continue
-            cp "$deb" "$codename_pool/"
-            count=$((count + 1))
-        done <<< "$debs"
-
-        log_info "  $codename: $count packages"
-
-        # Generate Packages file from this codename's pool only.
-        # Filename is relative to the repo root (base URL), NOT relative to
-        # the Packages file.  APT resolves Filename relative to the base URL
-        # in sources.list:
-        #   base_url + Filename = download URL
-        #   https://host/apt/ + pool/main/jammy/file.deb = ...
-        local abs_binary_dir
-        abs_binary_dir="$(cd "$binary_dir" && pwd)"
-        local filename_prefix="pool/main/$codename"
-        if ! dpkg-scanpackages "$codename_pool" /dev/null 2>/dev/null | \
-            sed "s|^Filename: $codename_pool/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages"; then
-            log_warn "dpkg-scanpackages failed for $codename, trying without override"
-            dpkg-scanpackages "$codename_pool" /dev/null 2>/dev/null | \
-                sed "s|^Filename: $codename_pool/|Filename: $filename_prefix/|" > "$abs_binary_dir/Packages" || {
-                log_warn "dpkg-scanpackages completely failed for $codename"
-                continue
-            }
-        fi
-        gzip -9c "$abs_binary_dir/Packages" > "$abs_binary_dir/Packages.gz"
-
-        # Generate Release file for this codename
+        # Generate Release file listing all components
+        local component_list="${components_for_codename[*]}"
         mkdir -p "$dist_dir"
         cat > "$dist_dir/Release" << EOF
 Origin: OpenTenBase
@@ -177,34 +190,38 @@ Label: OpenTenBase
 Suite: $codename
 Codename: $codename
 Architectures: amd64
-Components: main
+Components: $component_list
 Description: OpenTenBase packages for $codename
 Date: $(date -Ru)
 EOF
 
-        # Add checksums to Release
+        # Add checksums for all components
         echo "MD5Sum:" >> "$dist_dir/Release"
-        for f in "$binary_dir/Packages" "$binary_dir/Packages.gz"; do
-            [ -f "$f" ] || continue
-            local fname
-            fname=$(basename "$f")
-            local md5
-            md5=$(md5sum "$f" | cut -d' ' -f1)
-            local size
-            size=$(wc -c < "$f" | tr -d ' ')
-            echo " $md5 $size main/binary-amd64/$fname" >> "$dist_dir/Release"
+        for comp in "${components_for_codename[@]}"; do
+            for f in "$dist_dir/$comp/binary-amd64/Packages" "$dist_dir/$comp/binary-amd64/Packages.gz"; do
+                [ -f "$f" ] || continue
+                local fname
+                fname=$(basename "$f")
+                local md5
+                md5=$(md5sum "$f" | cut -d' ' -f1)
+                local size
+                size=$(wc -c < "$f" | tr -d ' ')
+                echo " $md5 $size $comp/binary-amd64/$fname" >> "$dist_dir/Release"
+            done
         done
 
         echo "SHA256:" >> "$dist_dir/Release"
-        for f in "$binary_dir/Packages" "$binary_dir/Packages.gz"; do
-            [ -f "$f" ] || continue
-            local fname
-            fname=$(basename "$f")
-            local sha
-            sha=$(sha256sum "$f" | cut -d' ' -f1)
-            local size
-            size=$(wc -c < "$f" | tr -d ' ')
-            echo " $sha $size main/binary-amd64/$fname" >> "$dist_dir/Release"
+        for comp in "${components_for_codename[@]}"; do
+            for f in "$dist_dir/$comp/binary-amd64/Packages" "$dist_dir/$comp/binary-amd64/Packages.gz"; do
+                [ -f "$f" ] || continue
+                local fname
+                fname=$(basename "$f")
+                local sha
+                sha=$(sha256sum "$f" | cut -d' ' -f1)
+                local size
+                size=$(wc -c < "$f" | tr -d ' ')
+                echo " $sha $size $comp/binary-amd64/$fname" >> "$dist_dir/Release"
+            done
         done
 
         # Sign Release file
