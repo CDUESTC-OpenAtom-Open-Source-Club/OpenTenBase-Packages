@@ -394,6 +394,12 @@ if { [ -f /usr/lib64/libssh2.so ] || [ -f /usr/lib/libssh2.so ]; }; then
     LIBSSH2_FOUND=1
 fi
 
+# If CLI11 is not available, skip opentenbase_ctl (uses CLI/CLI.hpp)
+CLI11_FOUND=0
+if [ -f /usr/include/CLI/CLI.hpp ] || [ -f /usr/local/include/CLI/CLI.hpp ]; then
+    CLI11_FOUND=1
+fi
+
 # Pre-build libpq and generate objfiles.txt (race condition fix)
 # libpq's Makefile has 'all: all-lib' but doesn't generate objfiles.txt
 # which the postgres binary needs to link against libpq objects
@@ -423,13 +429,13 @@ sed -i 's/^ALWAYS_SUBDIRS += uuid-ossp/# ALWAYS_SUBDIRS += uuid-ossp/' contrib/M
 sed -i '/pgsql-http/d' contrib/Makefile
 %endif
 
-# Skip opentenbase_ctl if libssh2 is not available (it requires libssh2 for SSH functionality)
-if [ "$LIBSSH2_FOUND" = "0" ]; then
+# Skip opentenbase_ctl if libssh2 or CLI11 is not available
+if [ "$LIBSSH2_FOUND" = "0" ] || [ "$CLI11_FOUND" = "0" ]; then
     # opentenbase_ctl is the last entry in the SUBDIRS continuation list in contrib/Makefile
     # Remove trailing backslash from previous entry first, then delete the line
     sed -i '/opentenbase_ai/s/ *\\$//' contrib/Makefile
     sed -i '/opentenbase_ctl/d' contrib/Makefile
-    echo "NOTE: libssh2-devel not found, skipping opentenbase_ctl"
+    echo "NOTE: libssh2 ($LIBSSH2_FOUND) or CLI11 ($CLI11_FOUND) not found, skipping opentenbase_ctl"
 fi
 
 make -C contrib -j$(nproc)

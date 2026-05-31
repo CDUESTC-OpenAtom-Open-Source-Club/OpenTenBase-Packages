@@ -101,6 +101,7 @@ jobs:
             pkg-config libtool rpm-build rpmlint git
           dnf install -y zstd-devel 2>/dev/null || true
           dnf install -y libssh2-devel 2>/dev/null || true
+          dnf install -y cli11-devel 2>/dev/null || true
           dnf install -y libatomic 2>/dev/null || true
           for dir in /usr/lib64 /usr/lib; do
             if [ -f "$dir/libatomic.so.1" ] && [ ! -f "$dir/libatomic.so" ]; then
@@ -249,7 +250,7 @@ jobs:
                 pkg-config libtool rpm-build git libatomic
 
               # Install optional dependencies (may not be available on all arches)
-              dnf install -y zstd-devel libssh2-devel 2>/dev/null || true
+              dnf install -y zstd-devel libssh2-devel cli11-devel 2>/dev/null || true
 
               # Fix libatomic symlink if needed
               for dir in /usr/lib64 /usr/lib; do
