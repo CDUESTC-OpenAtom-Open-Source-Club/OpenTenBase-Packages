@@ -81,12 +81,13 @@ chown $OTB_USER:$OTB_USER $OTB_HOME/data/gtm/gtm.conf
 info "=== 2. Initialize Datanode ==="
 run_as_otb $OTB_BIN/initdb -D $OTB_HOME/data/dn1 --nodename=dn1 --nodetype=datanode \
     --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=$GTM_PORT
+# forward_port is only valid in v5.0+
 cat >> $OTB_HOME/data/dn1/postgresql.conf <<EOF
 port = $DN_PORT
 pooler_port = $DN_POOLER
-forward_port = $DN_FWD
 listen_addresses = '*'
 EOF
+[ "${OTB_VERSION:-5.0}" = "5.0" ] && echo "forward_port = $DN_FWD" >> $OTB_HOME/data/dn1/postgresql.conf
 
 info "=== 3. Initialize Coordinator ==="
 run_as_otb $OTB_BIN/initdb -D $OTB_HOME/data/coord --nodename=coord --nodetype=coordinator \
@@ -94,9 +95,9 @@ run_as_otb $OTB_BIN/initdb -D $OTB_HOME/data/coord --nodename=coord --nodetype=c
 cat >> $OTB_HOME/data/coord/postgresql.conf <<EOF
 port = $COORD_PORT
 pooler_port = $COORD_POOLER
-forward_port = $COORD_FWD
 listen_addresses = '*'
 EOF
+[ "${OTB_VERSION:-5.0}" = "5.0" ] && echo "forward_port = $COORD_FWD" >> $OTB_HOME/data/coord/postgresql.conf
 
 info "=== 4. Start GTM ==="
 run_as_otb $OTB_BIN/gtm -D $OTB_HOME/data/gtm > /tmp/gtm.log 2>&1 &

@@ -122,9 +122,11 @@ log "GTM up on port ${GTM_PORT}"
 # Initialize and start Datanode
 log "Starting Datanode..."
 as_svc "${BIN_DIR}/initdb -D ${DN_DATA} --nodename=dn1 --nodetype=datanode --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=${GTM_PORT}" || fail "Datanode initdb failed"
+# forward_port is only valid in v5.0+
 append_conf "${DN_DATA}/postgresql.conf" \
-    "port = ${DN_PORT}" "pooler_port = 6661" "forward_port = 6670" \
+    "port = ${DN_PORT}" "pooler_port = 6661" \
     "listen_addresses = '*'"
+[ "${OTB_VERSION:-5.0}" = "5.0" ] && echo "forward_port = 6670" >> "${DN_DATA}/postgresql.conf"
 cat > "${DN_DATA}/pg_hba.conf" <<HBA
 local   all             all                                     trust
 host    all             all             127.0.0.1/32            trust
@@ -142,8 +144,9 @@ log "Datanode up on port ${DN_PORT}"
 log "Starting Coordinator..."
 as_svc "${BIN_DIR}/initdb -D ${COORD_DATA} --nodename=coord --nodetype=coordinator --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=${GTM_PORT}" || fail "Coordinator initdb failed"
 append_conf "${COORD_DATA}/postgresql.conf" \
-    "port = ${COORD_PORT}" "pooler_port = 6662" "forward_port = 6669" \
+    "port = ${COORD_PORT}" "pooler_port = 6662" \
     "listen_addresses = '*'"
+[ "${OTB_VERSION:-5.0}" = "5.0" ] && echo "forward_port = 6669" >> "${COORD_DATA}/postgresql.conf"
 cat > "${COORD_DATA}/pg_hba.conf" <<HBA
 local   all             all                                     trust
 host    all             all             127.0.0.1/32            trust
