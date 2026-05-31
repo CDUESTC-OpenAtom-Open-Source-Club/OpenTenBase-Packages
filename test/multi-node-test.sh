@@ -196,37 +196,38 @@ PSQL="run_as_otb $OTB_BIN/psql -h 127.0.0.1 -p $COORD_PORT -U $OTB_USER -d postg
 
 info "=== 9. CRUD Operations ==="
 
-# CREATE TABLE (sharding)
-$PSQL -c "CREATE TABLE smoke_test (id int PRIMARY KEY, name text) DISTRIBUTE BY SHARD(id);" && \
-    pass "CREATE sharding table" || fail "CREATE sharding table"
+# Sharding table tests (v5.0 only — older versions may not have DISTRIBUTE BY SHARD support)
+if [ "${OTB_VERSION:-5.0}" = "5.0" ]; then
+    $PSQL -c "CREATE TABLE smoke_test (id int PRIMARY KEY, name text) DISTRIBUTE BY SHARD(id);" && \
+        pass "CREATE sharding table" || fail "CREATE sharding table"
 
-# INSERT
-$PSQL -c "INSERT INTO smoke_test VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie');" && \
-    pass "INSERT 3 rows" || fail "INSERT"
+    $PSQL -c "INSERT INTO smoke_test VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie');" && \
+        pass "INSERT 3 rows" || fail "INSERT"
 
-# SELECT all
-RESULT=$($PSQL -t -A -c "SELECT count(*) FROM smoke_test;")
-[ "$RESULT" = "3" ] && pass "SELECT count = 3" || fail "SELECT count (got $RESULT)"
+    RESULT=$($PSQL -t -A -c "SELECT count(*) FROM smoke_test;")
+    [ "$RESULT" = "3" ] && pass "SELECT count = 3" || fail "SELECT count (got $RESULT)"
 
-# SELECT with WHERE
-RESULT=$($PSQL -t -A -c "SELECT name FROM smoke_test WHERE id = 2;")
-[ "$RESULT" = "Bob" ] && pass "SELECT WHERE id=2" || fail "SELECT WHERE (got $RESULT)"
+    RESULT=$($PSQL -t -A -c "SELECT name FROM smoke_test WHERE id = 2;")
+    [ "$RESULT" = "Bob" ] && pass "SELECT WHERE id=2" || fail "SELECT WHERE (got $RESULT)"
 
-# UPDATE
-$PSQL -c "UPDATE smoke_test SET name = 'Alice2' WHERE id = 1;" && \
-    pass "UPDATE row" || fail "UPDATE"
+    $PSQL -c "UPDATE smoke_test SET name = 'Alice2' WHERE id = 1;" && \
+        pass "UPDATE row" || fail "UPDATE"
 
-RESULT=$($PSQL -t -A -c "SELECT name FROM smoke_test WHERE id = 1;")
-[ "$RESULT" = "Alice2" ] && pass "UPDATE verified" || fail "UPDATE verify (got $RESULT)"
+    RESULT=$($PSQL -t -A -c "SELECT name FROM smoke_test WHERE id = 1;")
+    [ "$RESULT" = "Alice2" ] && pass "UPDATE verified" || fail "UPDATE verify (got $RESULT)"
 
-# DELETE
-$PSQL -c "DELETE FROM smoke_test WHERE id = 3;" && \
-    pass "DELETE row" || fail "DELETE"
+    $PSQL -c "DELETE FROM smoke_test WHERE id = 3;" && \
+        pass "DELETE row" || fail "DELETE"
 
-RESULT=$($PSQL -t -A -c "SELECT count(*) FROM smoke_test;")
-[ "$RESULT" = "2" ] && pass "DELETE verified (count=2)" || fail "DELETE verify (got $RESULT)"
+    RESULT=$($PSQL -t -A -c "SELECT count(*) FROM smoke_test;")
+    [ "$RESULT" = "2" ] && pass "DELETE verified (count=2)" || fail "DELETE verify (got $RESULT)"
 
-# Normal table
+    $PSQL -c "DROP TABLE smoke_test;" && pass "DROP sharding table" || fail "DROP sharding table"
+else
+    info "Skipping sharding table tests (v${OTB_VERSION} — DISTRIBUTE BY SHARD may not be supported)"
+fi
+
+# Normal table (all versions)
 $PSQL -c "CREATE TABLE smoke_normal (id int, val text);" && \
     pass "CREATE normal table" || fail "CREATE normal table"
 
@@ -236,8 +237,6 @@ $PSQL -c "INSERT INTO smoke_normal VALUES (100, 'test');" && \
 RESULT=$($PSQL -t -A -c "SELECT val FROM smoke_normal WHERE id = 100;")
 [ "$RESULT" = "test" ] && pass "SELECT normal table" || fail "SELECT normal table"
 
-# Cleanup
-$PSQL -c "DROP TABLE smoke_test;" && pass "DROP sharding table" || fail "DROP sharding table"
 $PSQL -c "DROP TABLE smoke_normal;" && pass "DROP normal table" || fail "DROP normal table"
 
 info "=== 10. License Check ==="

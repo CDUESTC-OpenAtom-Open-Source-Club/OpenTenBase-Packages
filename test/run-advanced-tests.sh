@@ -210,6 +210,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TOTAL_PASS=0
 TOTAL_FAIL=0
 
+# Advanced tests use DISTRIBUTE BY SHARD which requires v5.0 node group setup.
+# Skip for older versions (v2.6.0, v2.5.0) where sharding setup differs.
+if [ "${OTB_VERSION:-5.0}" != "5.0" ]; then
+    log "Skipping advanced tests for v${OTB_VERSION} (sharding-dependent tests require v5.0)"
+    log "========================================="
+    log "  Advanced Tests: 0 passed, 0 failed (skipped)"
+    log "========================================="
+    stop_services 2>/dev/null
+    rm -rf "${TEST_BASE}" 2>/dev/null
+    exit 0
+fi
+
 for test_script in "${SCRIPT_DIR}"/advanced/test_*.sh; do
     [ -f "$test_script" ] || continue
     test_name=$(basename "$test_script" .sh)
