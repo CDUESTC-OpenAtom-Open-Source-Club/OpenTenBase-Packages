@@ -254,7 +254,7 @@ OpenTenBase supports two deployment approaches:
 
 ```bash
 git clone https://github.com/muzimu217/OpenTenBase-deb.git
-cd OpenTenBase-packages
+cd OpenTenBase-deb
 
 # Build for all distributions
 ./scripts/build-multi.sh --all
@@ -285,7 +285,7 @@ sudo apt install -y debhelper-compat bison flex perl libreadline-dev \
 ## Directory Structure
 
 ```
-OpenTenBase-packages/
+OpenTenBase-deb/
 ├── .github/workflows/       # CI/CD pipelines
 ├── config/                  # Default configuration templates
 ├── debian/                  # DEB packaging rules

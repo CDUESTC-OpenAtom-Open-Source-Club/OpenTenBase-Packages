@@ -71,14 +71,16 @@ lines.
 
 ### Step 4: Distribute the Public Key
 
-Export the public key and commit it to the repository so users can verify packages:
+Export the public key and commit it to the repository so users can verify packages.
+The canonical in-repo copy lives at `scripts/opentenbase-packages-key.asc`:
 
 ```bash
-gpg --armor --export YOUR_KEY_ID > docs/opentenbase-gpg-key.asc
+gpg --armor --export YOUR_KEY_ID > scripts/opentenbase-packages-key.asc
 ```
 
 The public key is also automatically included in every signed release as
-`opentenbase-gpg-key.asc`.
+`opentenbase-gpg-key.asc`, and published on the package repository site as
+`gpg-key.asc`.
 
 ### Step 5: Verify the Setup
 
@@ -111,9 +113,22 @@ curl -sLO https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download/
 gpg --import opentenbase-gpg-key.asc
 
 # Or from the repository
-curl -sLO https://raw.githubusercontent.com/muzimu217/OpenTenBase-deb/main/docs/opentenbase-gpg-key.asc
-gpg --import opentenbase-gpg-key.asc
+curl -sLO https://raw.githubusercontent.com/muzimu217/OpenTenBase-deb/main/scripts/opentenbase-packages-key.asc
+gpg --import opentenbase-packages-key.asc
 ```
+
+### Verify the Key Fingerprint (Recommended)
+
+Before trusting the key, confirm it matches the published fingerprint:
+
+```bash
+gpg --show-keys opentenbase-packages-key.asc | grep -A1 pub
+# Expected fingerprint:
+#   D8B2E316 E1FF88EE 17870354 9D8FA46F 3A55D5F0
+```
+
+The `setup-apt.sh` / `setup-rpm.sh` scripts perform this check automatically and
+abort if the downloaded key does not match this fingerprint.
 
 ### Verify a DEB Package
 

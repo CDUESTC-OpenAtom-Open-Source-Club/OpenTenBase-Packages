@@ -73,6 +73,24 @@ REPO_URL="https://github.com/muzimu217/OpenTenBase-deb/releases/latest/download"
 GPG_KEY_URL="${APT_REPO_URL}/gpg-key.asc"
 KEYRING_PATH="/usr/share/keyrings/opentenbase-archive-keyring.gpg"
 SOURCES_LIST="/etc/apt/sources.list.d/opentenbase.list"
+# Pinned signing-key fingerprint. The downloaded key is verified against this
+# value so a compromised mirror cannot substitute a different key (TOFU -> pin).
+EXPECTED_FINGERPRINT="D8B2E316E1FF88EE178703549D8FA46F3A55D5F0"
+
+# Verify that an (armored) GPG key file matches the pinned fingerprint.
+verify_key_fingerprint() {
+    local keyfile="$1"
+    local got
+    got=$(gpg --show-keys --with-colons "$keyfile" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')
+    if [ "$got" != "$EXPECTED_FINGERPRINT" ]; then
+        log_error "GPG 密钥指纹不匹配，已拒绝该密钥！"
+        log_error "  期望: $EXPECTED_FINGERPRINT"
+        log_error "  实际: ${got:-<none>}"
+        return 1
+    fi
+    log_info "GPG 密钥指纹已校验: $EXPECTED_FINGERPRINT"
+    return 0
+}
 
 # 检查 root 权限
 check_root() {
@@ -188,6 +206,12 @@ add_gpg_key() {
     for url in "$GPG_KEY_URL" "https://muzimu217.github.io/OpenTenBase-deb/apt/gpg-key.asc"; do
         if curl -sL --connect-timeout 10 --max-time 30 "$url" -o "$tmpkey" 2>/dev/null && \
            [ -s "$tmpkey" ] && head -1 "$tmpkey" | grep -q "BEGIN PGP"; then
+            # Pin the key: reject anything that does not match the expected
+            # fingerprint before trusting it as an APT signing key.
+            if ! verify_key_fingerprint "$tmpkey"; then
+                rm -f "$tmpkey"
+                continue
+            fi
             if gpg --batch --dearmor -o "$KEYRING_PATH" < "$tmpkey" 2>/dev/null; then
                 chmod 644 "$KEYRING_PATH"
                 log_info "GPG 密钥已添加到: $KEYRING_PATH"

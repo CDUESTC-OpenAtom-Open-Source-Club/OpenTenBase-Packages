@@ -70,6 +70,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: OpenTenBase/OpenTenBase
+          # This workflow builds OpenTenBase 5.0 only. Pin to the release tag
+          # for reproducible builds instead of the moving default branch.
+          ref: v5.0
           path: source
           fetch-depth: 1
 

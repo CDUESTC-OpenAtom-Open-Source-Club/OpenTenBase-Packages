@@ -37,6 +37,24 @@ detect_mirror() {
 
 detect_mirror
 GPG_KEY_URL="${REPO_BASE_URL}/gpg-key.asc"
+# Pinned signing-key fingerprint. The downloaded key is verified against this
+# value (when gpg is available) so a compromised mirror cannot substitute a
+# different key.
+EXPECTED_FINGERPRINT="D8B2E316E1FF88EE178703549D8FA46F3A55D5F0"
+
+# Verify an (armored) GPG key file against the pinned fingerprint.
+# Returns 0 if it matches, 1 on mismatch, 2 if gpg is unavailable (skip).
+verify_key_fingerprint() {
+    local keyfile="$1"
+    command -v gpg >/dev/null 2>&1 || return 2
+    local got
+    got=$(gpg --show-keys --with-colons "$keyfile" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')
+    [ "$got" = "$EXPECTED_FINGERPRINT" ] && return 0
+    log_error "GPG key fingerprint mismatch — rejecting key!"
+    log_error "  expected: $EXPECTED_FINGERPRINT"
+    log_error "  got:      ${got:-<none>}"
+    return 1
+}
 
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -93,11 +111,18 @@ add_gpg_key() {
     local tmpkey
     tmpkey=$(mktemp /tmp/opentenbase-gpg-key-XXXXXX.asc)
     for url in "$GPG_KEY_URL" "https://muzimu217.github.io/OpenTenBase-deb/rpm/gpg-key.asc"; do
-        # Try direct rpm --import first
-        rpm --import "$url" 2>/dev/null && imported=true && break
-        # Fallback: download then import (verify it's a real GPG key)
+        # Always download first so the key can be verified against the pinned
+        # fingerprint before it is imported into the rpm trust store.
         if curl -sL --connect-timeout 10 --max-time 30 "$url" -o "$tmpkey" 2>/dev/null && \
            [ -s "$tmpkey" ] && head -1 "$tmpkey" | grep -q "BEGIN PGP"; then
+            verify_key_fingerprint "$tmpkey"; rc=$?
+            if [ "$rc" -eq 1 ]; then
+                # Mismatch: skip this source entirely.
+                rm -f "$tmpkey"
+                continue
+            elif [ "$rc" -eq 2 ]; then
+                log_warn "gpg 不可用，跳过指纹校验（仍依赖 rpm gpgcheck）"
+            fi
             rpm --import "$tmpkey" 2>/dev/null && imported=true && rm -f "$tmpkey" && break
         fi
         rm -f "$tmpkey"

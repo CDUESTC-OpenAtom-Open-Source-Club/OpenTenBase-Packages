@@ -99,23 +99,26 @@ jobs:
           path: opentenbase-pkg
 
       - name: Clone OpenTenBase upstream source
+        env:
+          VERSION: ${{ matrix.version }}
         run: |
-          # For v2.6.0 and v2.5.0, clone the specific tag
-          VERSION="${{ matrix.version }}"
-          if [ "$VERSION" = "5.0" ]; then
-            git clone --depth=1 \
-              https://github.com/OpenTenBase/OpenTenBase.git \
-              /tmp/source/OpenTenBase
-          else
-            git clone --depth=1 --branch "v${VERSION}" \
-              https://github.com/OpenTenBase/OpenTenBase.git \
-              /tmp/source/OpenTenBase 2>/dev/null || {
-              echo "Tag v${VERSION} not found, trying default branch"
-              git clone --depth=1 \
-                https://github.com/OpenTenBase/OpenTenBase.git \
-                /tmp/source/OpenTenBase
-            }
-          fi
+          # Pin every release version to its upstream tag v<VERSION> so builds
+          # are reproducible. Do NOT silently fall back to the default branch:
+          # an unpinned clone makes the same release tag produce different
+          # binaries over time (master moves), which breaks reproducibility
+          # and auditability.
+          case "$VERSION" in
+            master|dev|latest) REF="master" ;;
+            *)                 REF="v${VERSION}" ;;
+          esac
+          echo "Cloning upstream OpenTenBase at ref ${REF}"
+          git clone --depth=1 --branch "${REF}" \
+            https://github.com/OpenTenBase/OpenTenBase.git \
+            /tmp/source/OpenTenBase
+          COMMIT="$(git -C /tmp/source/OpenTenBase rev-parse HEAD)"
+          echo "Upstream ${REF} resolved to commit ${COMMIT}"
+          echo "OTB_UPSTREAM_REF=${REF}" >> "$GITHUB_ENV"
+          echo "OTB_UPSTREAM_COMMIT=${COMMIT}" >> "$GITHUB_ENV"
 
       - name: Build DEB packages
         shell: bash
@@ -143,10 +146,20 @@ jobs:
           if [ -n "$OTB_VERSION" ] && [ "$OTB_VERSION" != "5.0" ]; then
             sed -i "s/^OTB_VERSION := .*/OTB_VERSION := $OTB_VERSION/" debian/rules
           fi
-          # Replace hardcoded 5.0 in all debian/ files for non-5.0 builds
+          # Substitute the packaging version into debian/ files for non-5.0
+          # builds. Use precise, anchored patterns instead of a blanket
+          # s/5.0/<ver>/g, which would also rewrite comments, unrelated
+          # numbers, and any string that merely contains "5.0".
           if [ "$OTB_VERSION" != "5.0" ]; then
-            find debian/ -type f \( -name '*.install' -o -name '*.dirs' -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' -o -name 'changelog' -o -name 'control' \) \
-              -exec sed -i "s/5\.0/$OTB_VERSION/g" {} +
+            files=$(find debian/ -type f \( -name '*.install' -o -name '*.dirs' \
+              -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \
+              -o -name 'changelog' -o -name 'control' \))
+            # 1) versioned install paths: .../opentenbase/5.0/...
+            sed -i "s|opentenbase/5\.0/|opentenbase/${OTB_VERSION}/|g" $files
+            # 2) OTB_VERSION shell variable in maintainer scripts
+            sed -i "s|^OTB_VERSION=\"5\.0\"|OTB_VERSION=\"${OTB_VERSION}\"|" $files
+            # 3) changelog version header: opentenbase (5.0-1ubuntu1)
+            sed -i "s|^opentenbase (5\.0-|opentenbase (${OTB_VERSION}-|" $files
           fi
           set -o pipefail
           fakeroot debian/rules binary 2>&1 | tee /tmp/build.log; EXIT_CODE=$?; if [ $EXIT_CODE -ne 0 ]; then echo "=== BUILD FAILED (last 300 lines) ==="; tail -300 /tmp/build.log; fi; exit $EXIT_CODE

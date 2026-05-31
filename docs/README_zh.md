@@ -251,8 +251,8 @@ OpenTenBase 支持两种部署方式：
 ### 使用 Docker 构建（推荐）
 
 ```bash
-git clone https://github.com/muzimu217/OpenTenBase-packages.git
-cd OpenTenBase-packages
+git clone https://github.com/muzimu217/OpenTenBase-deb.git
+cd OpenTenBase-deb
 
 # 构建所有发行版
 ./scripts/build-multi.sh --all
@@ -283,7 +283,7 @@ sudo apt install -y debhelper-compat bison flex perl libreadline-dev \
 ## 目录结构
 
 ```
-OpenTenBase-packages/
+OpenTenBase-deb/
 ├── .github/workflows/       # CI/CD 流水线
 ├── config/                  # 默认配置模板
 ├── debian/                  # DEB 打包规则
@@ -410,10 +410,10 @@ OpenTenBase-packages/
 
 | 资源 | 链接 |
 |------|------|
-| **本项目** | https://github.com/muzimu217/OpenTenBase-packages |
+| **本项目** | https://github.com/muzimu217/OpenTenBase-deb |
 | **上游仓库** | https://github.com/OpenTenBase/OpenTenBase |
 | **OpenTenBase 文档** | https://github.com/OpenTenBase/OpenTenBase/wiki |
-| **问题反馈** | [Issues](https://github.com/muzimu217/OpenTenBase-packages/issues) |
+| **问题反馈** | [Issues](https://github.com/muzimu217/OpenTenBase-deb/issues) |
 
 ---
 

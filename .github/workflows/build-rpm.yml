@@ -116,24 +116,21 @@ jobs:
       - name: Clone OpenTenBase upstream source
         run: |
           VERSION="${{ matrix.version }}"
+          # Pin every release version to its upstream tag v<VERSION> for
+          # reproducible builds. Do NOT fall back to the default branch.
+          case "$VERSION" in
+            master|dev|latest) REF="master" ;;
+            *)                 REF="v${VERSION}" ;;
+          esac
           if [ -d /tmp/source/OpenTenBase/.git ]; then
-            cd /tmp/source/OpenTenBase && git pull --depth=1
+            echo "Reusing existing checkout of /tmp/source/OpenTenBase"
           else
-            if [ "$VERSION" = "5.0" ]; then
-              git clone --depth=1 \
-                https://github.com/OpenTenBase/OpenTenBase.git \
-                /tmp/source/OpenTenBase
-            else
-              git clone --depth=1 --branch "v${VERSION}" \
-                https://github.com/OpenTenBase/OpenTenBase.git \
-                /tmp/source/OpenTenBase 2>/dev/null || {
-                echo "Tag v${VERSION} not found, trying default branch"
-                git clone --depth=1 \
-                  https://github.com/OpenTenBase/OpenTenBase.git \
-                  /tmp/source/OpenTenBase
-              }
-            fi
+            echo "Cloning upstream OpenTenBase at ref ${REF}"
+            git clone --depth=1 --branch "${REF}" \
+              https://github.com/OpenTenBase/OpenTenBase.git \
+              /tmp/source/OpenTenBase
           fi
+          echo "Upstream ${REF} resolved to commit $(git -C /tmp/source/OpenTenBase rev-parse HEAD)"
 
       - name: Build RPM packages
         run: |
@@ -236,13 +233,13 @@ jobs:
                 pkg-config libtool rpm-build git \
                 libssh2-devel libatomic || true
 
-              # Clone source if not already present
+              # Clone source if not already present (pinned to release tag)
               if [ ! -d /tmp/source/OpenTenBase ]; then
-                if [ "$VERSION" = "5.0" ]; then
-                  git clone --depth=1 https://github.com/OpenTenBase/OpenTenBase.git /tmp/source/OpenTenBase
-                else
-                  git clone --depth=1 --branch "v${VERSION}" https://github.com/OpenTenBase/OpenTenBase.git /tmp/source/OpenTenBase
-                fi
+                case "$VERSION" in
+                  master|dev|latest) REF="master" ;;
+                  *)                 REF="v${VERSION}" ;;
+                esac
+                git clone --depth=1 --branch "${REF}" https://github.com/OpenTenBase/OpenTenBase.git /tmp/source/OpenTenBase
               fi
 
               # Build
