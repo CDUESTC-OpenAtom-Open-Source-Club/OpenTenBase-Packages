@@ -113,7 +113,7 @@
 |--------|----------|------|------|
 | build-multi.yml | 26688996831 | ✅ 7/7 DEB | 全部成功 |
 | build-rpm.yml | 26691145759 | ✅ 8/8 x86_64 + 1/1 arm64 | 全部成功 |
-| test-all.yml | 26683489025 | ✅ 14/14 distros | 31/31 测试通过 |
+| test-all.yml | 26716213953 | ✅ 22/22 jobs | v5.0 + v2.6.0 + v2.5.0 全部通过 |
 | docker-publish.yml | 26689388947 | ✅ 成功 | GHCR 发布成功 |
 
 ### 4.2 手动测试结果
@@ -144,6 +144,7 @@
 | ARM64 RPM 未发布到 CDN | ✅ 已修复 | 修复 build-repo.sh glob 模式，触发 deploy-repo 重新部署 |
 | v2.6.0/v2.5.0 未在 CI 测试 | ✅ 已修复 | test-all.yml 多版本矩阵（v5.0 + v2.6.0 + v2.5.0） |
 | APT/RPM 仓库不索引 v2.6.0/v2.5.0 | ✅ 已修复 | APT component 选择器（main/v2.6/v2.5）+ RPM createrepo_c 原生支持 |
+| FORWARD 参数导致 v2.6.0/v2.5.0 节点注册失败 | ✅ 已修复 | CREATE NODE 的 FORWARD 参数仅 v5.0 有效，条件化处理 |
 | hdspace GitHub 下载慢 | ⚠️ 已知限制 | ~20KB/s，9.5MB RPM 需 ~8 分钟 |
 
 ---
