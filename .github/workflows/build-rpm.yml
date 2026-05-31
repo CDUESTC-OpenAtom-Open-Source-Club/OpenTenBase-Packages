@@ -178,20 +178,18 @@ jobs:
           dnf clean all
 
   # ============================================================
-  # ARM64 RPM builds using QEMU emulation
+  # ARM64 RPM builds using native ARM64 runners
   # ============================================================
   build-rpm-aarch64:
     needs: setup-matrix
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 3
       matrix:
         include:
-          # openEuler is the most stable for ARM64 QEMU builds
           - version: '5.0'
             distro: 'openeuler-22.03'
             container: 'openeuler/openeuler:22.03'
-          # Rocky/Alma ARM64 — may fail, continue-on-error
           - version: '5.0'
             distro: 'rockylinux-9'
             container: 'rockylinux:9'
@@ -200,16 +198,10 @@ jobs:
             container: 'almalinux:9'
 
     name: ${{ matrix.distro }}-${{ matrix.version }}-aarch64
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    continue-on-error: ${{ contains(matrix.distro, 'rocky') || contains(matrix.distro, 'alma') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
 
     steps:
-      - name: Set up QEMU for ARM64
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/arm64
-
       - name: Checkout source
         uses: actions/checkout@v4
         with:
@@ -217,10 +209,9 @@ jobs:
 
       - name: Build ARM64 RPM in container
         run: |
-          # Create output directory on host
           mkdir -p ${{ github.workspace }}/output
 
-          docker run --rm --platform linux/arm64 \
+          docker run --rm \
             -v ${{ github.workspace }}/opentenbase-pkg:/pkg:ro \
             -v ${{ github.workspace }}/output:/output \
             -v /tmp/source:/tmp/source \
@@ -250,13 +241,15 @@ jobs:
                 sed -i "s|repo.openeuler.org|mirrors.aliyun.com/openeuler|g" /etc/yum.repos.d/*.repo 2>/dev/null || true
               fi
 
-              # Install dependencies
+              # Install core dependencies (required)
               dnf install -y gcc gcc-c++ make bison flex perl \
                 readline-devel zlib-devel openssl-devel pam-devel \
                 libxml2-devel openldap-devel libuuid-devel \
-                libcurl-devel lz4-devel zstd-devel \
-                pkg-config libtool rpm-build git \
-                libssh2-devel libatomic || true
+                libcurl-devel lz4-devel \
+                pkg-config libtool rpm-build git libatomic
+
+              # Install optional dependencies (may not be available on all arches)
+              dnf install -y zstd-devel libssh2-devel 2>/dev/null || true
 
               # Fix libatomic symlink if needed
               for dir in /usr/lib64 /usr/lib; do

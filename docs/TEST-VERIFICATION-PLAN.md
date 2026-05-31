@@ -1,7 +1,7 @@
 # OpenTenBase 全面测试验证计划
 
 > 创建时间：2026-05-30
-> 版本：v5.0-p9
+> 版本：v5.0-p12
 > 状态：执行中
 
 ---
@@ -82,6 +82,18 @@
 | ARM64 集群初始化 | hdspace otb_ubu_test | ✅ | opentenbase-ctl init + start |
 | ARM64 SQL 验证 | hdspace otb_ubu_test | ✅ | DISTRIBUTE BY SHARD, INSERT, SELECT |
 | ARM64 节点注册 | hdspace otb_ubu_test | ✅ | pgxc_node: gtm_master + coord1 + dn1 |
+| 跨机器部署 | devenv + 47.108 | ✅ | GTM+Coord(devenv ARM64) + DN(47.108 x86_64) |
+| 跨机器 SQL | devenv + 47.108 | ✅ | DISTRIBUTE BY SHARD, CRUD 全部通过 |
+| 跨机器数据本地性 | devenv + 47.108 | ✅ | 数据确认存储在远程 Datanode |
+| SSH 隧道 | devenv → 47.108 | ✅ | 反向隧道 GTM/Coord + 本地转发 Datanode |
+
+### 2.5 跨机器多节点部署（实际服务器验证）
+
+| 测试项 | 部署拓扑 | 结果 | 备注 |
+|--------|----------|------|------|
+| 跨机器多节点集群 | devenv(ARM64 GTM+Coord) + 47.108(x86_64 DN) | ✅ | SSH 隧道连通 |
+| 跨机器 CRUD | DISTRIBUTE BY SHARD | ✅ | INSERT/SELECT/UPDATE/DELETE 全部通过 |
+| 数据本地性验证 | 远程 Datanode 确认 | ✅ | 数据确认存储在远程 DN |
 
 ---
 
@@ -101,7 +113,7 @@
 |--------|-----|------|------|------|
 | 云服务器 | 47.108.249.115 | Alibaba Cloud Linux 3 | 2核1.8GB | 安装验证（内存不足，OOM） |
 | hdspace otb_ubu_test | hdspace tunnel | openEuler 2.0 aarch64 | 4vCPU 7.2GB | ARM64 全功能验证 |
-| hdspace DevEnvVM | hdspace tunnel | openEuler 2.0 aarch64 | 4vCPU 8GB | ARM64 备用环境 |
+| hdspace DevEnvVM | hdspace tunnel (devenvport=56876) | HCE 2.0 aarch64 | 4vCPU 8GB | ARM64 跨机器部署测试 (GTM+Coord) |
 
 ---
 
@@ -125,7 +137,11 @@
 | ARM64 hdspace 部署 | ✅ | openEuler 2.0 aarch64, 全流程通过 |
 | ARM64 分布式表 | ✅ | DISTRIBUTE BY SHARD + INSERT/SELECT |
 | Cloudflare CDN | ✅ | apt.blackevil217.com |
-| Docker 镜像 | ✅ | ghcr.io 发布 |
+| APT 仓库 | ✅ | 7 个 codename 全部 200（focal/jammy/noble/plucky/bullseye/bookworm/trixie） |
+| RPM 仓库 | ✅ | el8/el9/fedora/openeuler x86_64 repomd.xml 全部 200 |
+| Docker 镜像 | ✅ | ghcr.io/muzimu217/opentenbase-runtime:v5.0-p3 |
+| 跨机器部署 | ✅ | devenv(ARM64 GTM+Coord) → 47.108(x86_64 DN), DISTRIBUTE BY SHARD CRUD 通过 |
+| 跨机器数据本地性 | ✅ | 直接查询远程 Datanode 确认数据存储在 47.108 |
 
 ---
 
@@ -134,7 +150,7 @@
 | 问题 | 状态 | 解决方案 |
 |------|------|----------|
 | opentenbase-ctl 节点注册失败 | ✅ 已修复 | -d template1 替代 -d postgres |
-| Rocky/Alma ARM64 构建失败 | ⏳ 待修复 | QEMU 依赖问题 |
+| Rocky/Alma ARM64 构建失败 | ✅ 已修复 | 改用原生 ARM64 runner（ubuntu-24.04-arm），无需 QEMU |
 | /var/run 符号链接冲突 | ✅ 已修复 | Dockerfile 只复制 var/lib/ |
 | Docker 容器输出隔离 | ✅ 已修复 | volume mount |
 | 1.8GB 服务器 OOM | ⚠️ 已知限制 | 最低需要 3GB RAM，脚本已加入内存自动检测 |
@@ -146,6 +162,7 @@
 | APT/RPM 仓库不索引 v2.6.0/v2.5.0 | ✅ 已修复 | APT component 选择器（main/v2.6/v2.5）+ RPM createrepo_c 原生支持 |
 | FORWARD 参数导致 v2.6.0/v2.5.0 节点注册失败 | ✅ 已修复 | CREATE NODE 的 FORWARD 参数仅 v5.0 有效，条件化处理 |
 | hdspace GitHub 下载慢 | ⚠️ 已知限制 | ~20KB/s，9.5MB RPM 需 ~8 分钟 |
+| SSH 隧道端口映射 | ✅ 已修复 | 使用 --ports=56876:22 格式明确指定本地:远程端口映射 |
 
 ---
 
@@ -158,8 +175,8 @@
 | 多版本 CI 测试 | P0 | ✅ 已完成 | test-all.yml 多版本矩阵（v5.0 + v2.6.0 + v2.5.0） |
 | 多版本仓库索引 | P0 | ✅ 已完成 | APT component 选择器 + RPM createrepo_c |
 | 一键部署脚本 | P0 | 进行中 | setup-cluster.sh 交互式部署 |
-| Rocky/Alma ARM64 修复 | P2 | ⏳ 待修复 | QEMU 依赖问题，需 ARM64 服务器调试 |
-| 跨机器多节点部署 | P1 | TODO | 支持分布式集群 |
+| Rocky/Alma ARM64 修复 | P2 | ✅ 已完成 | 改用原生 ARM64 runner（ubuntu-24.04-arm） |
+| 跨机器多节点部署 | P1 | ✅ 已完成 | devenv(GTM+Coord) + 47.108(DN), SSH 隧道 |
 | 文档完善 | P2 | TODO | 安装/配置/故障排查指南 |
 
 ### 6.2 中期（1月）
@@ -222,5 +239,5 @@ psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "
 ---
 
 **计划版本**: 1.1
-**最后更新**: 2026-05-31
+**最后更新**: 2026-06-02
 **维护者**: muzimu217
