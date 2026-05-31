@@ -121,7 +121,7 @@ OpenTenBase-deb/
 
 | 任务 | 优先级 | 工作量 | 状态 |
 |------|--------|--------|------|
-| 2.1 APT 仓库 | P0 | 4h | Done (GitHub Pages APT/RPM repo, GPG signed) |
+| 2.1 APT 仓库 | P0 | 4h | ✅ 已完成（GitHub Pages APT/RPM repo, GPG signed, 多版本 component 索引） |
 | 2.2 多架构支持 | P1 | 8h | ✅ 已完成（x86_64: 15 发行版全通过；aarch64: openEuler 22.03 已验证，Rocky/Alma ARM64 待修复） |
 | 2.3 版本升级自动化 | P1 | 4h | ✅ 已完成（自动发布工作流） |
 | 2.4 监控集成 | P2 | 4h | Deferred |
