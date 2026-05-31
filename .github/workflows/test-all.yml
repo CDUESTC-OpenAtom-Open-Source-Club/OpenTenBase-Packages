@@ -16,27 +16,53 @@ jobs:
       max-parallel: 4
       matrix:
         include:
-          - name: ubuntu-20.04
+          # v5.0 - all distros
+          - name: ubuntu-20.04-v5.0
             container: ubuntu:20.04
             codename: focal
-          - name: ubuntu-22.04
+            version: "5.0"
+          - name: ubuntu-22.04-v5.0
             container: ubuntu:22.04
             codename: jammy
-          - name: ubuntu-24.04
+            version: "5.0"
+          - name: ubuntu-24.04-v5.0
             container: ubuntu:24.04
             codename: noble
-          - name: ubuntu-25.04
+            version: "5.0"
+          - name: ubuntu-25.04-v5.0
             container: ubuntu:25.04
             codename: plucky
-          - name: debian-11
+            version: "5.0"
+          - name: debian-11-v5.0
             container: debian:bullseye
             codename: bullseye
-          - name: debian-12
+            version: "5.0"
+          - name: debian-12-v5.0
             container: debian:bookworm
             codename: bookworm
-          - name: debian-13
+            version: "5.0"
+          - name: debian-13-v5.0
             container: debian:trixie
             codename: trixie
+            version: "5.0"
+          # v2.6.0 - representative distros
+          - name: ubuntu-22.04-v2.6.0
+            container: ubuntu:22.04
+            codename: jammy
+            version: "2.6.0"
+          - name: debian-12-v2.6.0
+            container: debian:bookworm
+            codename: bookworm
+            version: "2.6.0"
+          # v2.5.0 - representative distros
+          - name: ubuntu-22.04-v2.5.0
+            container: ubuntu:22.04
+            codename: jammy
+            version: "2.5.0"
+          - name: debian-12-v2.5.0
+            container: debian:bookworm
+            codename: bookworm
+            version: "2.5.0"
 
     name: DEB ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -60,28 +86,31 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           MATRIX_CODENAME: ${{ matrix.codename }}
+          MATRIX_VERSION: ${{ matrix.version }}
         run: |
           TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
             TAG=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
           fi
-          echo "Downloading from release: $TAG"
+          echo "Downloading from release: $TAG (version=$MATRIX_VERSION)"
           mkdir -p /tmp/debs
           cd /tmp/debs
-          # Download all DEB packages matching this codename (v5.0 only)
+          # Download DEB packages matching this codename AND version
           curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.deb"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "$MATRIX_CODENAME" | \
-            grep "_5\.0-" | \
+            grep "_${MATRIX_VERSION}-" | \
             while read url; do curl -sLO "$url"; done
           ls -la /tmp/debs/
 
       - name: Install packages
+        env:
+          MATRIX_VERSION: ${{ matrix.version }}
         run: |
           if ls /tmp/debs/*.deb 1>/dev/null 2>&1; then
             dpkg --force-depends -i /tmp/debs/*.deb
-            mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
+            mkdir -p "/usr/lib/opentenbase/${MATRIX_VERSION}/lib/postgresql"
             ldconfig || true
           else
             echo "ERROR: No .deb packages found"
@@ -89,30 +118,38 @@ jobs:
           fi
 
       - name: Verify installation
+        env:
+          MATRIX_VERSION: ${{ matrix.version }}
         run: |
           echo "=== Installed packages ==="
           dpkg -l | grep opentenbase || true
-          echo "=== Binary check ==="
-          ls -la /usr/lib/opentenbase/5.0/bin/initgtm 2>&1 || echo "initgtm NOT FOUND"
-          ls -la /usr/lib/opentenbase/5.0/bin/postgres 2>&1 || echo "postgres NOT FOUND"
-          file /usr/lib/opentenbase/5.0/bin/initgtm 2>&1 || true
-          ldd /usr/lib/opentenbase/5.0/bin/initgtm 2>&1 || true
+          echo "=== Binary check (version $MATRIX_VERSION) ==="
+          ls -la "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/initgtm" 2>&1 || echo "initgtm NOT FOUND"
+          ls -la "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/postgres" 2>&1 || echo "postgres NOT FOUND"
+          file "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/initgtm" 2>&1 || true
+          ldd "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/initgtm" 2>&1 || true
 
       - name: Checkout test scripts
         uses: actions/checkout@v4
 
       - name: Run multi-node test
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
           chmod +x test/multi-node-test.sh
           bash test/multi-node-test.sh
 
       - name: Run version switch test
         continue-on-error: true
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
           chmod +x test/version-switch-test.sh
           bash test/version-switch-test.sh
 
       - name: Run advanced tests
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
           chmod +x test/run-advanced-tests.sh
           bash test/run-advanced-tests.sh
@@ -123,27 +160,53 @@ jobs:
       max-parallel: 4
       matrix:
         include:
-          - name: rocky-9
+          # v5.0 - all distros
+          - name: rocky-9-v5.0
             container: rockylinux:9
             pattern: rockylinux-9
-          - name: rocky-8
+            version: "5.0"
+          - name: rocky-8-v5.0
             container: rockylinux:8
             pattern: rockylinux-8
-          - name: alma-9
+            version: "5.0"
+          - name: alma-9-v5.0
             container: almalinux:9
             pattern: almalinux-9
-          - name: alma-8
+            version: "5.0"
+          - name: alma-8-v5.0
             container: almalinux:8
             pattern: almalinux-8
-          - name: centos-stream-9
+            version: "5.0"
+          - name: centos-stream-9-v5.0
             container: quay.io/centos/centos:stream9
             pattern: centos-stream-9
-          - name: fedora-40
+            version: "5.0"
+          - name: fedora-40-v5.0
             container: fedora:40
             pattern: fedora-40
-          - name: openeuler-22.03
+            version: "5.0"
+          - name: openeuler-22.03-v5.0
             container: openeuler/openeuler:22.03
             pattern: openeuler-22.03
+            version: "5.0"
+          # v2.6.0 - representative distros
+          - name: rocky-9-v2.6.0
+            container: rockylinux:9
+            pattern: rockylinux-9
+            version: "2.6.0"
+          - name: alma-9-v2.6.0
+            container: almalinux:9
+            pattern: almalinux-9
+            version: "2.6.0"
+          # v2.5.0 - representative distros
+          - name: rocky-9-v2.5.0
+            container: rockylinux:9
+            pattern: rockylinux-9
+            version: "2.5.0"
+          - name: alma-9-v2.5.0
+            container: almalinux:9
+            pattern: almalinux-9
+            version: "2.5.0"
 
     name: RPM ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -197,26 +260,29 @@ jobs:
         env:
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           MATRIX_PATTERN: ${{ matrix.pattern }}
+          MATRIX_VERSION: ${{ matrix.version }}
         run: |
           TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
             TAG=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
           fi
-          echo "Downloading from release: $TAG"
+          echo "Downloading from release: $TAG (version=$MATRIX_VERSION)"
           mkdir -p /tmp/rpms
           cd /tmp/rpms
-          # Download RPM packages matching this distro (v5.0 only, exclude debuginfo/debugsource)
+          # Download RPM packages matching this distro AND version (exclude debuginfo/debugsource)
           curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.rpm"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "$MATRIX_PATTERN" | \
             grep "$(uname -m)" | \
-            grep "5\.0" | \
+            grep "${MATRIX_VERSION}" | \
             grep -v debuginfo | grep -v debugsource | \
             while read url; do curl -sLO "$url"; done
           ls -la /tmp/rpms/
 
       - name: Install packages
+        env:
+          MATRIX_VERSION: ${{ matrix.version }}
         run: |
           if ls /tmp/rpms/*.rpm 1>/dev/null 2>&1; then
             rpm -ivh /tmp/rpms/*.rpm --nodeps --force 2>&1 || true
@@ -227,30 +293,38 @@ jobs:
           fi
 
       - name: Verify installation
+        env:
+          MATRIX_VERSION: ${{ matrix.version }}
         run: |
           echo "=== Installed packages ==="
           rpm -qa | grep opentenbase || true
-          echo "=== Binary check ==="
-          ls -la /usr/lib/opentenbase/5.0/bin/initgtm 2>&1 || echo "initgtm NOT FOUND"
-          ls -la /usr/lib/opentenbase/5.0/bin/postgres 2>&1 || echo "postgres NOT FOUND"
-          file /usr/lib/opentenbase/5.0/bin/initgtm 2>&1 || true
-          ldd /usr/lib/opentenbase/5.0/bin/initgtm 2>&1 || true
+          echo "=== Binary check (version $MATRIX_VERSION) ==="
+          ls -la "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/initgtm" 2>&1 || echo "initgtm NOT FOUND"
+          ls -la "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/postgres" 2>&1 || echo "postgres NOT FOUND"
+          file "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/initgtm" 2>&1 || true
+          ldd "/usr/lib/opentenbase/${MATRIX_VERSION}/bin/initgtm" 2>&1 || true
 
       - name: Checkout test scripts
         uses: actions/checkout@v4
 
       - name: Run multi-node test
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
           chmod +x test/multi-node-test.sh
           bash test/multi-node-test.sh
 
       - name: Run version switch test
         continue-on-error: true
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
           chmod +x test/version-switch-test.sh
           bash test/version-switch-test.sh
 
       - name: Run advanced tests
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
           chmod +x test/run-advanced-tests.sh
           bash test/run-advanced-tests.sh

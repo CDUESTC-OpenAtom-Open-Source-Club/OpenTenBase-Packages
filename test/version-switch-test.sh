@@ -21,7 +21,7 @@ info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 
 OTB_USER=opentenbase
 OTB_HOME=/var/lib/opentenbase
-OTB_BIN=/usr/lib/opentenbase/5.0/bin
+OTB_BIN=/usr/lib/opentenbase/${OTB_VERSION:-5.0}/bin
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -57,43 +57,44 @@ id $OTB_USER 2>/dev/null || {
 }
 
 # ============================================================
-# Test 1: Install first version (5.0)
+# Test 1: Install first version (OTB_VERSION or 5.0)
 # ============================================================
-info "=== Test 1: Install version 5.0 ==="
+PRIMARY_VERSION="${OTB_VERSION:-5.0}"
+info "=== Test 1: Install version $PRIMARY_VERSION ==="
 
 # In CI, packages are pre-installed by the workflow. Only call install.sh if needed.
-if [ -d /usr/lib/opentenbase/5.0/bin ]; then
-    info "Version 5.0 already installed, skipping install.sh"
+if [ -d "/usr/lib/opentenbase/${PRIMARY_VERSION}/bin" ]; then
+    info "Version $PRIMARY_VERSION already installed, skipping install.sh"
 elif [ -f "$REPO_DIR/scripts/install.sh" ]; then
-    bash "$REPO_DIR/scripts/install.sh" --version 5.0 2>&1 || true
+    bash "$REPO_DIR/scripts/install.sh" --version "$PRIMARY_VERSION" 2>&1 || true
 fi
 
 # Verify installation
-if [ -d /usr/lib/opentenbase/5.0/bin ]; then
-    pass "Version 5.0 binaries installed"
+if [ -d "/usr/lib/opentenbase/${PRIMARY_VERSION}/bin" ]; then
+    pass "Version $PRIMARY_VERSION binaries installed"
 else
-    fail "Version 5.0 binaries not found"
+    fail "Version $PRIMARY_VERSION binaries not found"
 fi
 
-if [ -d /etc/opentenbase/5.0 ]; then
-    pass "Version 5.0 config directory exists"
+if [ -d "/etc/opentenbase/${PRIMARY_VERSION}" ]; then
+    pass "Version $PRIMARY_VERSION config directory exists"
 else
-    fail "Version 5.0 config directory missing"
+    fail "Version $PRIMARY_VERSION config directory missing"
 fi
 
-if [ -f /etc/opentenbase/5.0/opentenbase.conf ]; then
-    pass "Version 5.0 opentenbase.conf exists"
+if [ -f "/etc/opentenbase/${PRIMARY_VERSION}/opentenbase.conf" ]; then
+    pass "Version $PRIMARY_VERSION opentenbase.conf exists"
 else
-    fail "Version 5.0 opentenbase.conf missing"
+    fail "Version $PRIMARY_VERSION opentenbase.conf missing"
 fi
 
 # Check current symlink
 if [ -L /etc/opentenbase/current ]; then
     CURRENT=$(basename "$(readlink -f /etc/opentenbase/current)")
-    if [ "$CURRENT" = "5.0" ]; then
-        pass "Current version symlink -> 5.0"
+    if [ "$CURRENT" = "$PRIMARY_VERSION" ]; then
+        pass "Current version symlink -> $PRIMARY_VERSION"
     else
-        fail "Current version symlink points to $CURRENT, expected 5.0"
+        fail "Current version symlink points to $CURRENT, expected $PRIMARY_VERSION"
     fi
 else
     fail "No current version symlink found"
@@ -149,7 +150,7 @@ if command -v opentenbase-switch-version >/dev/null 2>&1; then
     fi
 
     # Verify binary version
-    PG_VERSION=$(/usr/lib/opentenbase/5.0/bin/postgres --version 2>&1 || echo "unknown")
+    PG_VERSION=$("/usr/lib/opentenbase/${PRIMARY_VERSION}/bin/postgres" --version 2>&1 || echo "unknown")
     if echo "$PG_VERSION" | grep -q "5.0\|PostgreSQL"; then
         pass "postgres --version shows correct version"
     else
@@ -158,9 +159,9 @@ if command -v opentenbase-switch-version >/dev/null 2>&1; then
 fi
 
 # ============================================================
-# Test 5: Init and start cluster on version 5.0
+# Test 5: Init and start cluster on primary version
 # ============================================================
-info "=== Test 5: Init and start cluster (v5.0) ==="
+info "=== Test 5: Init and start cluster (v${PRIMARY_VERSION}) ==="
 
 if command -v opentenbase-ctl >/dev/null 2>&1; then
     sudo opentenbase-ctl stop 2>/dev/null || true
@@ -217,9 +218,9 @@ if command -v opentenbase-ctl >/dev/null 2>&1; then
 fi
 
 # ============================================================
-# Test 6: Switch to 2.6.0 and test (if available)
+# Test 6: Switch to 2.6.0 and test (if available and not already on it)
 # ============================================================
-if [ -d /usr/lib/opentenbase/2.6.0/bin ]; then
+if [ "$PRIMARY_VERSION" != "2.6.0" ] && [ -d /usr/lib/opentenbase/2.6.0/bin ]; then
     info "=== Test 6: Switch to version 2.6.0 and test ==="
 
     sudo opentenbase-switch-version 2.6.0 2>&1
@@ -248,11 +249,11 @@ if [ -d /usr/lib/opentenbase/2.6.0/bin ]; then
         sleep 2
     fi
 
-    # Switch back to 5.0
-    info "=== Switch back to 5.0 ==="
-    sudo opentenbase-switch-version 5.0 2>&1
+    # Switch back to primary version
+    info "=== Switch back to $PRIMARY_VERSION ==="
+    sudo opentenbase-switch-version "$PRIMARY_VERSION" 2>&1
     CURRENT=$(basename "$(readlink -f /etc/opentenbase/current)")
-    [ "$CURRENT" = "5.0" ] && pass "Switched back to 5.0" || fail "Switch back failed"
+    [ "$CURRENT" = "$PRIMARY_VERSION" ] && pass "Switched back to $PRIMARY_VERSION" || fail "Switch back failed"
 fi
 
 # ============================================================

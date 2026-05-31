@@ -122,17 +122,16 @@ OpenTenBase-deb/
 | 任务 | 优先级 | 工作量 | 状态 |
 |------|--------|--------|------|
 | 2.1 APT 仓库 | P0 | 4h | Done (GitHub Pages APT/RPM repo, GPG signed) |
-| 2.2 多架构支持 | P1 | 8h | ✅ 已完成（x86_64 + aarch64 双架构，CI 14/14 通过） |
+| 2.2 多架构支持 | P1 | 8h | ✅ 已完成（x86_64: 15 发行版全通过；aarch64: openEuler 22.03 已验证，Rocky/Alma ARM64 待修复） |
 | 2.3 版本升级自动化 | P1 | 4h | ✅ 已完成（自动发布工作流） |
 | 2.4 监控集成 | P2 | 4h | Deferred |
 | 2.5 多版本管理 | P1 | 16h | ✅ 已完成 |
 
 ### 2.2 多架构支持（已完成）
 
-- x86_64 和 aarch64 双架构构建
-- CI 验证：14/14 发行版全部通过（run 26510778148）
-- DEB: Ubuntu 22.04/24.04, Debian 11/12 (amd64 + arm64)
-- RPM: CentOS 8/9, Fedora 39/40, openEuler 22.03/24.03, EulerOS (x86_64)
+- x86_64: 15 个发行版全部通过（DEB 7 + RPM 8）
+- aarch64: openEuler 22.03 已验证（hdspace 实测，4vCPU 7.2GB）
+- ARM64 CI 仅构建 openEuler，Rocky/Alma ARM64 有 QEMU 依赖问题待修复
 
 ### 2.3 版本升级自动化（已完成）
 

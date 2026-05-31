@@ -19,7 +19,7 @@ info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 
 OTB_USER=opentenbase
 OTB_HOME=/var/lib/opentenbase
-OTB_BIN=/usr/lib/opentenbase/5.0/bin
+OTB_BIN=/usr/lib/opentenbase/${OTB_VERSION:-5.0}/bin
 GTM_PORT=6666
 DN_PORT=5433
 COORD_PORT=5432
