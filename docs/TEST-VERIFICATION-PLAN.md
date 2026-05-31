@@ -142,8 +142,8 @@
 | gtm_host/gtm_port 非法 GUC | ✅ 已修复 | 使用 CREATE NODE SQL 注册节点 |
 | max_coordinators 非法 GUC | ✅ 已修复 | 从配置中移除 |
 | ARM64 RPM 未发布到 CDN | ✅ 已修复 | 修复 build-repo.sh glob 模式，触发 deploy-repo 重新部署 |
-| v2.6.0/v2.5.0 未在 CI 测试 | ⏳ 待修复 | test-all.yml 只下载 v5.0 包测试 |
-| APT/RPM 仓库不索引 v2.6.0/v2.5.0 | ⏳ 待修复 | 需要独立包名（opentenbase-2.6.0）才能多版本共存 |
+| v2.6.0/v2.5.0 未在 CI 测试 | ✅ 已修复 | test-all.yml 多版本矩阵（v5.0 + v2.6.0 + v2.5.0） |
+| APT/RPM 仓库不索引 v2.6.0/v2.5.0 | ✅ 已修复 | APT component 选择器（main/v2.6/v2.5）+ RPM createrepo_c 原生支持 |
 | hdspace GitHub 下载慢 | ⚠️ 已知限制 | ~20KB/s，9.5MB RPM 需 ~8 分钟 |
 
 ---
@@ -152,13 +152,14 @@
 
 ### 6.1 短期（1周）
 
-| 任务 | 优先级 | 说明 |
-|------|--------|------|
-| 多版本 CI 测试 | P0 | test-all.yml 需测试 v2.6.0/v2.5.0，目前只测 v5.0 |
-| 多版本仓库索引 | P0 | APT/RPM 仓库需索引 v2.6.0/v2.5.0 包 |
-| Rocky/Alma ARM64 修复 | P2 | 调整依赖包列表 |
-| 跨机器多节点部署 | P1 | 支持分布式集群 |
-| 文档完善 | P2 | 安装/配置/故障排查指南 |
+| 任务 | 优先级 | 状态 | 说明 |
+|------|--------|------|------|
+| 多版本 CI 测试 | P0 | ✅ 已完成 | test-all.yml 多版本矩阵（v5.0 + v2.6.0 + v2.5.0） |
+| 多版本仓库索引 | P0 | ✅ 已完成 | APT component 选择器 + RPM createrepo_c |
+| 一键部署脚本 | P0 | 进行中 | setup-cluster.sh 交互式部署 |
+| Rocky/Alma ARM64 修复 | P2 | ⏳ 待修复 | QEMU 依赖问题，需 ARM64 服务器调试 |
+| 跨机器多节点部署 | P1 | TODO | 支持分布式集群 |
+| 文档完善 | P2 | TODO | 安装/配置/故障排查指南 |
 
 ### 6.2 中期（1月）
 
