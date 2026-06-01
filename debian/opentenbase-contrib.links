@@ -1,0 +1,3 @@
+usr/lib/opentenbase/5.0/bin/oid2name usr/bin/oid2name
+usr/lib/opentenbase/5.0/bin/vacuumlo usr/bin/vacuumlo
+usr/lib/opentenbase/5.0/bin/pgbench usr/bin/pgbench
