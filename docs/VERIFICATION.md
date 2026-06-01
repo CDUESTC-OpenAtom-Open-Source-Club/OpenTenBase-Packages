@@ -1,8 +1,10 @@
 # OpenTenBase .deb 安装验证报告
 
-**日期：** 2026-05-18
+> **状态：已归档** — 验证结果已合并至 [TEST-PLAN.md](../TEST-PLAN.md) 和 [TEST-VERIFICATION-PLAN.md](TEST-VERIFICATION-PLAN.md)。
+
+**日期：** 2026-05-18（初始）/ 2026-06-01（更新）
 **验证人：** muzimu217
-**Release 版本：** v5.0
+**Release 版本：** v5.0-p8
 
 ---
 

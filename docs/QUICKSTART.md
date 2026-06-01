@@ -129,6 +129,15 @@ sudo opentenbase-switch-version 5.0
 sudo opentenbase-switch-version 2.6.0
 ```
 
+> **安装其他版本**：APT/RPM 仓库通过 component 区分版本。安装非默认版本：
+> ```bash
+> # APT: 指定版本安装
+> curl -sSL .../setup-apt.sh | sudo bash -s -- --version 2.6.0
+> sudo apt install opentenbase
+>
+> # 或手动修改 sources.list 中的 component（main → v260）
+> ```
+
 ---
 
 ## 支持的系统
@@ -168,6 +177,25 @@ sudo opentenbase-ctl status
 # 检查 pg_hba.conf
 cat /var/lib/opentenbase/5.0/coord/pg_hba.conf
 ```
+
+**推荐 sysctl 参数**（3-4GB 内存环境）
+```bash
+# /etc/sysctl.d/99-opentenbase.conf
+kernel.shmmax = 1717986918
+vm.overcommit_memory = 2
+vm.overcommit_ratio = 90
+```
+
+---
+
+## 生产注意事项
+
+| 项目 | 说明 |
+|------|------|
+| **GTM 单点** | GTM 是全局事务管理器，无内置高可用。生产环境建议监控 GTM 进程 |
+| **备份恢复** | 使用 `pg_dump` / `pg_dumpall` 进行逻辑备份，暂无内置物理备份工具 |
+| **启动顺序** | `opentenbase-ctl start` 按 GTM → Coordinator → Datanode 顺序启动，无自动重试 |
+| **安装脚本安全** | `setup-apt.sh` / `setup-rpm.sh` 通过 HTTPS 传输，包使用 GPG 签名验证 |
 
 ---
 

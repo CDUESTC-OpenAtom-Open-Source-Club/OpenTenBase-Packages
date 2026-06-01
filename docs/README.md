@@ -106,7 +106,7 @@ curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-deb/main/scrip
 
 > **Total**: 15 distros, 150 packages per release (126 DEB + 24 RPM) — 3 versions × 15 distros
 >
-> **ARM64 Verified**: openEuler 22.03 aarch64 tested on hdspace cloud (4vCPU, 7.2GB RAM) — full cluster deployment, SQL connectivity, and distributed table operations confirmed.
+> **ARM64 Verified**: openEuler 22.03 aarch64 (hdspace cloud, 4vCPU 8GiB) + Ubuntu 24.04 aarch64 (developer-1) — full cluster deployment, SQL connectivity, and distributed table operations confirmed.
 
 ---
 
@@ -381,6 +381,8 @@ See [GitHub Releases](https://github.com/muzimu217/OpenTenBase-deb/releases) for
 | OpenEuler | 22.03 | yes | yes |
 
 **Total**: 30 build targets, 15+ distributions, x86_64 + aarch64.
+
+> **ARM64 Note**: x86_64 packages are built in CI (GitHub Actions). ARM64 (aarch64) packages are built natively on ARM64 hardware — CI-verified ARM64 targets: openEuler 22.03 (RPM), Ubuntu 24.04 (DEB, verified on developer-1). Other ARM64 targets are built but not yet CI-verified.
 
 ---
 

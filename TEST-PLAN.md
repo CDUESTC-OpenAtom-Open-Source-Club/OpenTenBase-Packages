@@ -23,7 +23,7 @@
 |--------|---------|-----------|---------|------|
 | Rocky Linux 8 | CI 通过 (run 26510778148) | CI 通过 (run 26517972392) | CI 通过 (continue-on-error) | CI 通过 |
 | Rocky Linux 9 | CI 通过 (run 26510778148) | CI 通过 (run 26517972392) | CI 通过 (continue-on-error) | CI 通过 |
-| CentOS Stream 8 | - | - | - | 未纳入CI（已弃用） |
+| CentOS Stream 8 | CI 构建通过 | - | - | CI 构建通过，未纳入高级测试矩阵 |
 | CentOS Stream 9 | CI 通过 (run 26510778148) | CI 通过 (run 26517972392) | CI 通过 (continue-on-error) | CI 通过，已知 `opentenbase-ctl start` 超时问题（集群启动后关闭，疑似 register_nodes/setup_node_group 相关） |
 | AlmaLinux 8 | CI 通过 (run 26510778148) | CI 通过 (run 26517972392) | CI 通过 (continue-on-error) | CI 通过 |
 | AlmaLinux 9 | CI 通过 (run 26510778148) | CI 通过 (run 26517972392) | CI 通过 (continue-on-error) | CI 通过，已知 `opentenbase-ctl start` 超时问题（集群启动后关闭，疑似 register_nodes/setup_node_group 相关） |

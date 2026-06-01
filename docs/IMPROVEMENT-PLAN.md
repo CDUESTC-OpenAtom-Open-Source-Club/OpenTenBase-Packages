@@ -1,5 +1,8 @@
 # OpenTenBase-deb 改进计划
 
+> **状态：已归档** — 本计划已完成，内容合并至 [ROADMAP.md](../ROADMAP.md)。
+> 如需查看历史规划，请保留本文档。
+
 > 创建时间：2026-05-21
 > 维护者：muzimu217
 
@@ -156,7 +159,7 @@ OpenTenBase-deb/
 ## 参考链接
 
 - 仓库地址：https://github.com/muzimu217/OpenTenBase-deb
-- 最新 Release：https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-multi10
+- 最新 Release：https://github.com/muzimu217/OpenTenBase-deb/releases/tag/v5.0-p8
 - 上游仓库：https://github.com/OpenTenBase/OpenTenBase
 
 **Update 2026-05-30:** APT/RPM repository fully operational via GitHub Pages. setup-apt.sh and setup-rpm.sh scripts available. GPG signing configured. CI run 26683489025: 14/14 distros + 31/31 advanced tests all passing.
