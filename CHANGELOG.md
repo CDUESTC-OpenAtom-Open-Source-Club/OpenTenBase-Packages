@@ -8,7 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [v5.0-p10] — 2026-06-02
 
-Docker container E2E testing on multiple distros (aarch64).
+Docker container E2E testing + native ARM64 package builds.
 
 ### Added
 - Docker container E2E test suite (`test/docker-e2e-test.sh`)
@@ -18,6 +18,15 @@ Docker container E2E testing on multiple distros (aarch64).
   - Ubuntu 22.04 (aarch64): skipped (OpenSSL 1.1 binary compatibility)
 - Test results: `test/docker-e2e-results.md`
 - Docker installed on DevEnvVM via static binary (Huawei mirror)
+- **Native ARM64 (aarch64) packages** built on DevEnvVM
+  - RPM: `opentenbase-5.0-1.aarch64.rpm` (9.0MB)
+  - DEB: 5 packages for Ubuntu 22.04 arm64 (server, client, contrib, dev, doc)
+  - Built natively on HCE 2.0 ARM64 (no QEMU emulation)
+
+### Fixed
+- DEB ARM64 build: `configure: error: zlib version is too old` caused by missing `intptr_t` in autoconf check
+  - Root cause: autoconf `AC_CHECK_TYPES([intptr_t])` doesn't include `<stdint.h>` on aarch64
+  - Fix: added `-include stdint.h` to CFLAGS in `debian/rules` for ARM64 builds
 
 ### Dependencies Documented
 | Distro | Required Packages |

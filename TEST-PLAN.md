@@ -38,6 +38,12 @@
 | Rocky Linux 9 (aarch64) | — | — | — | Docker 通过 | Docker E2E 通过 |
 | openEuler 24.03 (aarch64) | — | — | — | Docker 通过 | Docker E2E 通过 |
 
+### DEB 包（aarch64）
+
+| 发行版 | 安装测试 | 多节点测试 | 版本切换 | 状态 |
+|--------|---------|-----------|---------|------|
+| Ubuntu 22.04 (arm64) | 构建完成 | — | — | 原生 ARM64 构建完成（DevEnvVM HCE 2.0） |
+
 ## 测试用例
 
 ### 1. 安装测试（每个发行版）
