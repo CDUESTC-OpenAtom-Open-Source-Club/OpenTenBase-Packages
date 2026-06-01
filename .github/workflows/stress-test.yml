@@ -45,93 +45,156 @@ jobs:
           sudo dpkg --force-depends -i *.deb || true
           sudo ldconfig
 
-      - name: Run multi-node cluster setup
+      - name: Setup multi-node cluster
         env:
           OTB_VERSION: ${{ inputs.version || '5.0' }}
         run: |
-          chmod +x test/multi-node-test.sh
-          # Run multi-node-test.sh but stop before cleanup
-          # We'll run stress tests after
-          bash test/multi-node-test.sh 2>&1 | tee /tmp/multi-node-test.log || true
+          OTB_USER=opentenbase
+          OTB_HOME=/var/lib/opentenbase/${OTB_VERSION}
+          OTB_BIN=/usr/lib/opentenbase/${OTB_VERSION}/bin
+          GTM_PORT=6666
+          DN_PORT=5433
+          COORD_PORT=5432
+          DN_POOLER=6668
+          DN_FWD=6670
+          COORD_POOLER=6669
+          COORD_FWD=6671
 
-          # Check if cluster is still running
-          if pgrep -f "postgres.*coordinator" > /dev/null 2>&1; then
-            echo "Cluster is running"
-          else
-            echo "Cluster not running, re-initializing..."
-            # Re-run but this time keep it running
-            OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
-            OTB_HOME="/var/lib/opentenbase/${OTB_VERSION}"
-            OTB_USER="opentenbase"
-            OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
-            run_as_otb() { cd / && sudo -u "$OTB_USER" env LD_LIBRARY_PATH="$OTB_LIB" "$@"; }
+          run_as_otb() {
+              cd / && sudo -u "$OTB_USER" env LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"
+          }
 
-            sudo pkill -f gtm 2>/dev/null || true
-            sudo pkill -f "postgres.*datanode" 2>/dev/null || true
-            sudo pkill -f "postgres.*coordinator" 2>/dev/null || true
-            sleep 2
+          # Ensure directories
+          sudo mkdir -p $OTB_HOME/data/{gtm,dn1,coord} /var/log/opentenbase
+          sudo chown -R $OTB_USER:$OTB_USER $OTB_HOME /var/log/opentenbase
 
-            sudo rm -rf $OTB_HOME/{gtm,dn1,coord}
-            sudo mkdir -p $OTB_HOME/{gtm,dn1,coord}
-            sudo chown -R $OTB_USER:$OTB_USER /var/lib/opentenbase
+          # Ensure library path
+          echo "$OTB_HOME/lib" | sudo tee /etc/ld.so.conf.d/opentenbase.conf > /dev/null
+          sudo ldconfig
 
-            export PG_SHMEM_PAGES=512
+          # Reduce shared memory for CI
+          export PG_SHMEM_PAGES=512
 
-            run_as_otb $OTB_BIN/initgtm -Z gtm -D $OTB_HOME/gtm
-            sudo bash -c "printf 'listen_addresses = *\nport = 6666\nnodename = one\n' > $OTB_HOME/gtm/gtm.conf"
-            sudo chown $OTB_USER:$OTB_USER $OTB_HOME/gtm/gtm.conf
+          # 1. Initialize GTM
+          run_as_otb $OTB_BIN/initgtm -Z gtm -D $OTB_HOME/data/gtm
+          printf "listen_addresses = '*'\nport = %s\nnodename = 'one'\n" "$GTM_PORT" | sudo tee $OTB_HOME/data/gtm/gtm.conf > /dev/null
+          sudo chown $OTB_USER:$OTB_USER $OTB_HOME/data/gtm/gtm.conf
 
-            run_as_otb $OTB_BIN/initdb -D $OTB_HOME/dn1 --nodename=dn1 --nodetype=datanode \
-              --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=6666
-            sudo bash -c "printf '\nport = 5433\npooler_port = 6668\nlisten_addresses = *\nforward_port = 6670\n' >> $OTB_HOME/dn1/postgresql.conf"
-            sudo bash -c "echo 'host all all 0.0.0.0/0 trust' >> $OTB_HOME/dn1/pg_hba.conf"
-
-            run_as_otb $OTB_BIN/initdb -D $OTB_HOME/coord --nodename=coord --nodetype=coordinator \
-              --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=6666
-            sudo bash -c "printf '\nport = 5432\npooler_port = 6669\nlisten_addresses = *\nforward_port = 6671\n' >> $OTB_HOME/coord/postgresql.conf"
-            sudo bash -c "echo 'host all all 0.0.0.0/0 trust' >> $OTB_HOME/coord/pg_hba.conf"
-
-            run_as_otb $OTB_BIN/gtm -D $OTB_HOME/gtm > /tmp/gtm.log 2>&1 &
-            sleep 3
-            run_as_otb $OTB_BIN/postgres --datanode -D $OTB_HOME/dn1 > /tmp/dn.log 2>&1 &
-            sleep 3
-            run_as_otb $OTB_BIN/postgres --coordinator -D $OTB_HOME/coord > /tmp/coord.log 2>&1 &
-            sleep 3
-
-            COORD_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -X -q -v ON_ERROR_STOP=0"
-            DN_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p 5433 -U opentenbase -d postgres -X -q -v ON_ERROR_STOP=0"
-
-            run_as_otb $COORD_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
-            run_as_otb $COORD_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
-            run_as_otb $COORD_PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, FORWARD=6670, PRIMARY, PREFERRED);" 2>/dev/null || true
-            run_as_otb $COORD_PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, FORWARD=6670, PRIMARY, PREFERRED);" 2>/dev/null || true
-            run_as_otb $COORD_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=5432, FORWARD=6671);" 2>/dev/null || true
-            run_as_otb $COORD_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=5432, FORWARD=6671);" 2>/dev/null || true
-            run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
-
-            run_as_otb $DN_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
-            run_as_otb $DN_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
-            run_as_otb $DN_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=5432, FORWARD=6671);" 2>/dev/null || true
-            run_as_otb $DN_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=5432, FORWARD=6671);" 2>/dev/null || true
-            run_as_otb $DN_PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
-
-            DN_OID=$(run_as_otb $COORD_PSQL -t -A -c "SELECT oid FROM pgxc_node WHERE node_name = 'dn1' AND node_type = 'D';" 2>/dev/null || echo "")
-            if [ -n "$DN_OID" ]; then
-              run_as_otb $DN_PSQL -c "CREATE DEFAULT NODE GROUP default_group WITH (dn1);" 2>/dev/null || true
-              run_as_otb $COORD_PSQL -c "INSERT INTO pgxc_group (group_name, default_group, group_members) VALUES ('default_group', 1, '$DN_OID');" 2>/dev/null || true
-              run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
-              run_as_otb $COORD_PSQL -c "CREATE SHARDING GROUP TO GROUP default_group;" 2>/dev/null || true
-            fi
+          # 2. Initialize Datanode
+          run_as_otb $OTB_BIN/initdb -D $OTB_HOME/data/dn1 --nodename=dn1 --nodetype=datanode \
+              --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=$GTM_PORT
+          printf "\nport = %s\npooler_port = %s\nlisten_addresses = '*'\n" "$DN_PORT" "$DN_POOLER" | sudo tee -a $OTB_HOME/data/dn1/postgresql.conf > /dev/null
+          if [ "$OTB_VERSION" = "5.0" ]; then
+              echo "forward_port = $DN_FWD" | sudo tee -a $OTB_HOME/data/dn1/postgresql.conf > /dev/null
           fi
+          echo "host all all 0.0.0.0/0 trust" | sudo tee -a $OTB_HOME/data/dn1/pg_hba.conf > /dev/null
+
+          # 3. Initialize Coordinator
+          run_as_otb $OTB_BIN/initdb -D $OTB_HOME/data/coord --nodename=coord --nodetype=coordinator \
+              --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=$GTM_PORT
+          printf "\nport = %s\npooler_port = %s\nlisten_addresses = '*'\n" "$COORD_PORT" "$COORD_POOLER" | sudo tee -a $OTB_HOME/data/coord/postgresql.conf > /dev/null
+          if [ "$OTB_VERSION" = "5.0" ]; then
+              echo "forward_port = $COORD_FWD" | sudo tee -a $OTB_HOME/data/coord/postgresql.conf > /dev/null
+          fi
+          echo "host all all 0.0.0.0/0 trust" | sudo tee -a $OTB_HOME/data/coord/pg_hba.conf > /dev/null
+
+          # 4. Start GTM
+          run_as_otb $OTB_BIN/gtm -D $OTB_HOME/data/gtm > /tmp/gtm.log 2>&1 &
+          sleep 3
+          if pgrep -f "gtm.*gtm" > /dev/null 2>&1; then
+              echo "GTM started on port $GTM_PORT"
+          else
+              echo "GTM failed to start"; cat /tmp/gtm.log; exit 1
+          fi
+
+          # 5. Start Datanode
+          run_as_otb $OTB_BIN/postgres --datanode -D $OTB_HOME/data/dn1 > /tmp/dn.log 2>&1 &
+          sleep 3
+          if pgrep -f "postgres.*datanode" > /dev/null 2>&1; then
+              echo "Datanode started on port $DN_PORT"
+          else
+              echo "Datanode failed to start"; tail -20 /tmp/dn.log; exit 1
+          fi
+
+          # 6. Start Coordinator
+          run_as_otb $OTB_BIN/postgres --coordinator -D $OTB_HOME/data/coord > /tmp/coord.log 2>&1 &
+          sleep 3
+          if pgrep -f "postgres.*coordinator" > /dev/null 2>&1; then
+              echo "Coordinator started on port $COORD_PORT"
+          else
+              echo "Coordinator failed to start"; tail -20 /tmp/coord.log; exit 1
+          fi
+
+          # 7. Register Nodes
+          COORD_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p $COORD_PORT -U $OTB_USER -d postgres -X -q -v ON_ERROR_STOP=0"
+          DN_PSQL="$OTB_BIN/psql -h 127.0.0.1 -p $DN_PORT -U $OTB_USER -d postgres -X -q -v ON_ERROR_STOP=0"
+
+          # Register GTM on coordinator
+          run_as_otb $COORD_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+          run_as_otb $COORD_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+
+          # Register datanode on coordinator
+          if [ "$OTB_VERSION" = "5.0" ]; then
+              run_as_otb $COORD_PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, FORWARD=$DN_FWD, PRIMARY, PREFERRED);" 2>/dev/null || true
+              run_as_otb $COORD_PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, FORWARD=$DN_FWD, PRIMARY, PREFERRED);" 2>/dev/null || true
+          else
+              run_as_otb $COORD_PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, PRIMARY, PREFERRED);" 2>/dev/null || true
+              run_as_otb $COORD_PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=$DN_PORT, PRIMARY, PREFERRED);" 2>/dev/null || true
+          fi
+
+          # Register coordinator on coordinator (self)
+          if [ "$OTB_VERSION" = "5.0" ]; then
+              run_as_otb $COORD_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+              run_as_otb $COORD_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+          else
+              run_as_otb $COORD_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT);" 2>/dev/null || true
+              run_as_otb $COORD_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT);" 2>/dev/null || true
+          fi
+
+          run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" >/dev/null 2>&1 || true
+
+          # Propagate to datanode
+          run_as_otb $DN_PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+          run_as_otb $DN_PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=$GTM_PORT, PRIMARY);" 2>/dev/null || true
+          if [ "$OTB_VERSION" = "5.0" ]; then
+              run_as_otb $DN_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+              run_as_otb $DN_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT, FORWARD=$COORD_FWD);" 2>/dev/null || true
+          else
+              run_as_otb $DN_PSQL -c "CREATE NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT);" 2>/dev/null || true
+              run_as_otb $DN_PSQL -c "ALTER NODE coord WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=$COORD_PORT);" 2>/dev/null || true
+          fi
+          run_as_otb $DN_PSQL -c "SELECT pgxc_pool_reload();" >/dev/null 2>&1 || true
+
+          echo "Nodes registered"
+
+          # 8. Create Sharding Group
+          HAS_PGXC_GROUP=$(run_as_otb $COORD_PSQL -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_name = 'pgxc_group';" 2>/dev/null || echo "0")
+          if [ "$HAS_PGXC_GROUP" = "1" ]; then
+              HAS_GROUP=$(run_as_otb $COORD_PSQL -t -A -c "SELECT count(*) FROM pgxc_group WHERE group_name = 'default_group';" 2>/dev/null || echo "0")
+              if [ "$HAS_GROUP" != "1" ]; then
+                  DN_OID=$(run_as_otb $COORD_PSQL -t -A -c "SELECT oid FROM pgxc_node WHERE node_name = 'dn1' AND node_type = 'D';" 2>/dev/null || echo "")
+                  if [ -n "$DN_OID" ]; then
+                      run_as_otb $DN_PSQL -c "CREATE DEFAULT NODE GROUP default_group WITH (dn1);" 2>/dev/null || true
+                      run_as_otb $COORD_PSQL -c "INSERT INTO pgxc_group (group_name, default_group, group_members) VALUES ('default_group', 1, '$DN_OID');" 2>/dev/null || true
+                      run_as_otb $COORD_PSQL -c "SELECT pgxc_pool_reload();" >/dev/null 2>&1 || true
+                      run_as_otb $COORD_PSQL -c "CREATE SHARDING GROUP TO GROUP default_group;" 2>/dev/null || true
+                  fi
+              fi
+          fi
+          echo "Sharding group setup completed"
+
+          # Verify cluster
+          run_as_otb $COORD_PSQL -c "SELECT 1;" || { echo "Cluster not responding"; exit 1; }
+          echo "Cluster is ready"
 
       - name: Run stress tests
         env:
           OTB_VERSION: ${{ inputs.version || '5.0' }}
         run: |
           OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
-          OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
+          OTB_HOME="/var/lib/opentenbase/${OTB_VERSION}"
           PSQL="$OTB_BIN/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres"
-          run_as_otb() { cd / && sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_LIB" "$@"; }
+          run_as_otb() { cd / && sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_HOME/lib" "$@"; }
 
           echo "=== Stress Tests ==="
           echo ""
