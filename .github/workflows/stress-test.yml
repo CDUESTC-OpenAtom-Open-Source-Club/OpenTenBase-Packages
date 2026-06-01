@@ -38,10 +38,8 @@ jobs:
           OTB_VERSION: ${{ inputs.version || '5.0' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Download DEB packages from latest release
           RELEASE_TAG=$(curl -sL "https://api.github.com/repos/muzimu217/OpenTenBase-deb/releases/latest" | jq -r '.tag_name')
-          mkdir -p /tmp/debs
-          cd /tmp/debs
+          mkdir -p /tmp/debs && cd /tmp/debs
           gh release download "$RELEASE_TAG" \
             --pattern "opentenbase_${OTB_VERSION}*.deb" \
             --pattern "opentenbase-server_${OTB_VERSION}*.deb" \
@@ -49,24 +47,27 @@ jobs:
             --pattern "opentenbase-contrib_${OTB_VERSION}*.deb" \
             --pattern "libopentenbase-dev_${OTB_VERSION}*.deb" \
             --repo muzimu217/OpenTenBase-deb || true
-
-          # If no version-specific DEBs, try without version filter
           if [ $(ls *.deb 2>/dev/null | wc -l) -eq 0 ]; then
             gh release download "$RELEASE_TAG" \
               --pattern "*noble*.deb" \
               --repo muzimu217/OpenTenBase-deb || true
           fi
-
           sudo dpkg --force-depends -i *.deb || true
           sudo ldconfig
 
-      - name: Initialize cluster
+      - name: Initialize and start cluster
         env:
           OTB_VERSION: ${{ inputs.version || '5.0' }}
         run: |
           OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
           OTB_HOME="/var/lib/opentenbase/${OTB_VERSION}"
           OTB_USER="opentenbase"
+          OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
+
+          # Helper to run as opentenbase user (cd / avoids directory permission issues)
+          run_as_otb() {
+            cd / && sudo -u "$OTB_USER" env LD_LIBRARY_PATH="$OTB_LIB" "$@"
+          }
 
           # Ensure user exists
           id $OTB_USER 2>/dev/null || {
@@ -74,16 +75,13 @@ jobs:
             sudo useradd --system --gid $OTB_USER --home-dir /var/lib/opentenbase --shell /bin/bash $OTB_USER 2>/dev/null || true
           }
 
-          sudo mkdir -p $OTB_HOME/{gtm,dn1,coord} /var/log/opentenbase
-          sudo chown -R $OTB_USER:$OTB_USER /var/lib/opentenbase /var/log/opentenbase
+          sudo mkdir -p $OTB_HOME/{gtm,dn1,coord}
+          sudo chown -R $OTB_USER:$OTB_USER /var/lib/opentenbase
 
-          # Reduce shared memory for CI
           export PG_SHMEM_PAGES=512
 
           # Init GTM
-          sudo -u $OTB_USER env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $OTB_BIN/initgtm -Z gtm -D $OTB_HOME/gtm
-
+          run_as_otb $OTB_BIN/initgtm -Z gtm -D $OTB_HOME/gtm
           cat > /tmp/gtm.conf <<EOF
           listen_addresses = '*'
           port = 6666
@@ -93,10 +91,8 @@ jobs:
           sudo chown $OTB_USER:$OTB_USER $OTB_HOME/gtm/gtm.conf
 
           # Init Datanode
-          sudo -u $OTB_USER env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $OTB_BIN/initdb -D $OTB_HOME/dn1 --nodename=dn1 --nodetype=datanode \
+          run_as_otb $OTB_BIN/initdb -D $OTB_HOME/dn1 --nodename=dn1 --nodetype=datanode \
             --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=6666
-
           sudo bash -c "cat >> $OTB_HOME/dn1/postgresql.conf <<EOF
           port = 5433
           pooler_port = 6668
@@ -105,10 +101,8 @@ jobs:
           [ "$OTB_VERSION" = "5.0" ] && sudo bash -c "echo 'forward_port = 6670' >> $OTB_HOME/dn1/postgresql.conf"
 
           # Init Coordinator
-          sudo -u $OTB_USER env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $OTB_BIN/initdb -D $OTB_HOME/coord --nodename=coord --nodetype=coordinator \
+          run_as_otb $OTB_BIN/initdb -D $OTB_HOME/coord --nodename=coord --nodetype=coordinator \
             --master_gtm_nodename=one --master_gtm_ip=127.0.0.1 --master_gtm_port=6666
-
           sudo bash -c "cat >> $OTB_HOME/coord/postgresql.conf <<EOF
           port = 5432
           pooler_port = 6669
@@ -120,24 +114,19 @@ jobs:
           sudo bash -c "echo 'host all all 0.0.0.0/0 trust' >> $OTB_HOME/dn1/pg_hba.conf"
 
           # Start GTM
-          sudo bash -c "sudo -u $OTB_USER env LD_LIBRARY_PATH=/usr/lib/opentenbase/${OTB_VERSION}/lib \
-            $OTB_BIN/gtm -D $OTB_HOME/gtm > /var/log/opentenbase/gtm.log 2>&1 &"
+          run_as_otb $OTB_BIN/gtm -D $OTB_HOME/gtm > /tmp/gtm.log 2>&1 &
           sleep 3
+          pgrep -f gtm > /dev/null || { echo "GTM not running"; cat /tmp/gtm.log; exit 1; }
 
           # Start Datanode
-          sudo bash -c "sudo -u $OTB_USER env LD_LIBRARY_PATH=/usr/lib/opentenbase/${OTB_VERSION}/lib \
-            $OTB_BIN/postgres --datanode -D $OTB_HOME/dn1 > /var/log/opentenbase/dn.log 2>&1 &"
+          run_as_otb $OTB_BIN/postgres --datanode -D $OTB_HOME/dn1 > /tmp/dn.log 2>&1 &
           sleep 3
+          pgrep -f "postgres.*datanode" > /dev/null || { echo "Datanode not running"; cat /tmp/dn.log; exit 1; }
 
           # Start Coordinator
-          sudo bash -c "sudo -u $OTB_USER env LD_LIBRARY_PATH=/usr/lib/opentenbase/${OTB_VERSION}/lib \
-            $OTB_BIN/postgres --coordinator -D $OTB_HOME/coord > /var/log/opentenbase/coord.log 2>&1 &"
+          run_as_otb $OTB_BIN/postgres --coordinator -D $OTB_HOME/coord > /tmp/coord.log 2>&1 &
           sleep 3
-
-          # Verify all processes are running
-          pgrep -f gtm > /dev/null || { echo "GTM not running"; cat /var/log/opentenbase/gtm.log; exit 1; }
-          pgrep -f "postgres.*datanode" > /dev/null || { echo "Datanode not running"; cat /var/log/opentenbase/dn.log; exit 1; }
-          pgrep -f "postgres.*coordinator" > /dev/null || { echo "Coordinator not running"; cat /var/log/opentenbase/coord.log; exit 1; }
+          pgrep -f "postgres.*coordinator" > /dev/null || { echo "Coordinator not running"; cat /tmp/coord.log; exit 1; }
 
           echo "Cluster started successfully"
 
@@ -145,35 +134,29 @@ jobs:
         env:
           OTB_VERSION: ${{ inputs.version || '5.0' }}
         run: |
-          OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/lib"
-          PSQL="$OTB_BIN/../bin/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -X -q -v ON_ERROR_STOP=0"
+          OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
+          OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
+          PSQL="$OTB_BIN/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -X -q -v ON_ERROR_STOP=0"
+          run_as_otb() { cd / && sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_LIB" "$@"; }
 
-          # Register on Coordinator
-          sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-            $PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
-          sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-            $PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
+          # Register GTM
+          run_as_otb $PSQL -c "CREATE GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
+          run_as_otb $PSQL -c "ALTER GTM NODE gtm_master WITH (HOST='127.0.0.1', PORT=6666, PRIMARY);" 2>/dev/null || true
 
+          # Register Datanode
           if [ "$OTB_VERSION" = "5.0" ]; then
-            sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-              $PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, FORWARD=6670, PRIMARY, PREFERRED);" 2>/dev/null || true
-            sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-              $PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, FORWARD=6670, PRIMARY, PREFERRED);" 2>/dev/null || true
+            run_as_otb $PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, FORWARD=6670, PRIMARY, PREFERRED);" 2>/dev/null || true
+            run_as_otb $PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, FORWARD=6670, PRIMARY, PREFERRED);" 2>/dev/null || true
           else
-            sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-              $PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, PRIMARY, PREFERRED);" 2>/dev/null || true
-            sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-              $PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, PRIMARY, PREFERRED);" 2>/dev/null || true
+            run_as_otb $PSQL -c "CREATE NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, PRIMARY, PREFERRED);" 2>/dev/null || true
+            run_as_otb $PSQL -c "ALTER NODE dn1 WITH (TYPE='datanode', HOST='127.0.0.1', PORT=5433, PRIMARY, PREFERRED);" 2>/dev/null || true
           fi
 
-          sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-            $PSQL -c "SELECT pgxc_pool_reload();" 2>/dev/null || true
+          run_as_otb $PSQL -c "SELECT pgxc_pool_reload();"
 
           # Create node group and sharding
-          sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-            $PSQL -c "CREATE DEFAULT NODE GROUP default_group WITH (dn1);" 2>/dev/null || true
-          sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_BIN" \
-            $PSQL -c "CREATE SHARDING GROUP TO GROUP default_group;" 2>/dev/null || true
+          run_as_otb $PSQL -c "CREATE DEFAULT NODE GROUP default_group WITH (dn1);"
+          run_as_otb $PSQL -c "CREATE SHARDING GROUP TO GROUP default_group;"
 
           echo "Nodes registered"
 
@@ -184,8 +167,10 @@ jobs:
           CLIENTS: ${{ inputs.clients || '16' }}
         run: |
           OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
+          OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
           PSQL="$OTB_BIN/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres"
           PGBENCH="$OTB_BIN/pgbench -h 127.0.0.1 -p 5432 -U opentenbase -d postgres"
+          run_as_otb() { cd / && sudo -u opentenbase env LD_LIBRARY_PATH="$OTB_LIB" "$@"; }
 
           echo "=== Stress Test Configuration ==="
           echo "  Version: $OTB_VERSION"
@@ -195,71 +180,60 @@ jobs:
 
           # Create sharding table
           echo "=== Creating test table ==="
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -c "CREATE TABLE stress_test (id int PRIMARY KEY, val text) DISTRIBUTE BY SHARD(id);"
+          run_as_otb $PSQL -c "CREATE TABLE stress_test (id int PRIMARY KEY, val text) DISTRIBUTE BY SHARD(id);"
 
           # Insert initial data
           echo "=== Inserting initial data (10000 rows) ==="
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -c "INSERT INTO stress_test SELECT i, 'row_' || i FROM generate_series(1, 10000) i;"
+          run_as_otb $PSQL -c "INSERT INTO stress_test SELECT i, 'row_' || i FROM generate_series(1, 10000) i;"
 
-          COUNT=$(sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -t -A -c "SELECT count(*) FROM stress_test;")
+          COUNT=$(run_as_otb $PSQL -t -A -c "SELECT count(*) FROM stress_test;")
           echo "  Rows inserted: $COUNT"
 
           # Initialize pgbench
           echo ""
           echo "=== Initializing pgbench ==="
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PGBENCH -i -s 10 2>&1 || echo "pgbench init may have partial failures (expected for distributed DB)"
+          run_as_otb $PGBENCH -i -s 10 2>&1 || echo "pgbench init may have partial failures (expected for distributed DB)"
 
           # Run pgbench SELECT test
           echo ""
           echo "=== pgbench SELECT Test (${DURATION}s, ${CLIENTS} clients) ==="
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PGBENCH -c $CLIENTS -j 4 -T $DURATION -S 2>&1 | tee /tmp/pgbench-select.txt
+          run_as_otb $PGBENCH -c $CLIENTS -j 4 -T $DURATION -S 2>&1 | tee /tmp/pgbench-select.txt
 
           # Run pgbench mixed test
           echo ""
           echo "=== pgbench Mixed Read/Write Test (${DURATION}s, ${CLIENTS} clients) ==="
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PGBENCH -c $CLIENTS -j 4 -T $DURATION 2>&1 | tee /tmp/pgbench-mixed.txt
+          run_as_otb $PGBENCH -c $CLIENTS -j 4 -T $DURATION 2>&1 | tee /tmp/pgbench-mixed.txt
 
           # Custom high-concurrency INSERT test
           echo ""
           echo "=== High-Concurrency INSERT Test ==="
           for i in $(seq 1 $CLIENTS); do
-            sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-              $PSQL -c "INSERT INTO stress_test SELECT i + $((i * 100000)), 'concurrent_' || i FROM generate_series(1, 1000) i;" &
+            run_as_otb $PSQL -c "INSERT INTO stress_test SELECT i + $((i * 100000)), 'concurrent_' || i FROM generate_series(1, 1000) i;" &
           done
           wait
 
-          FINAL_COUNT=$(sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -t -A -c "SELECT count(*) FROM stress_test;")
+          FINAL_COUNT=$(run_as_otb $PSQL -t -A -c "SELECT count(*) FROM stress_test;")
           echo "  Final row count: $FINAL_COUNT"
 
           # Data consistency check
           echo ""
           echo "=== Data Consistency Check ==="
-          DUPES=$(sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -t -A -c "SELECT count(*) FROM (SELECT id, count(*) FROM stress_test GROUP BY id HAVING count(*) > 1) t;")
+          DUPES=$(run_as_otb $PSQL -t -A -c "SELECT count(*) FROM (SELECT id, count(*) FROM stress_test GROUP BY id HAVING count(*) > 1) t;")
           [ "$DUPES" = "0" ] && echo "  No duplicate IDs: PASS" || echo "  Duplicate IDs found: FAIL ($DUPES)"
 
           # Large batch INSERT test
           echo ""
           echo "=== Large Batch INSERT (100000 rows) ==="
           START=$(date +%s)
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -c "INSERT INTO stress_test SELECT i + 2000000, 'batch_' || i FROM generate_series(1, 100000) i;"
+          run_as_otb $PSQL -c "INSERT INTO stress_test SELECT i + 2000000, 'batch_' || i FROM generate_series(1, 100000) i;"
           END=$(date +%s)
           echo "  Duration: $((END - START))s"
 
-          # Complex JOIN query test
+          # Complex query test
           echo ""
           echo "=== Complex Query Test ==="
           START=$(date +%s)
-          sudo -u opentenbase env LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib" \
-            $PSQL -c "SELECT count(*), avg(id), min(id), max(id) FROM stress_test WHERE id > 100000;"
+          run_as_otb $PSQL -c "SELECT count(*), avg(id), min(id), max(id) FROM stress_test WHERE id > 100000;"
           END=$(date +%s)
           echo "  Duration: $((END - START))s"
 
@@ -282,6 +256,6 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          pkill -f "postgres.*coordinator" 2>/dev/null || true
-          pkill -f "postgres.*datanode" 2>/dev/null || true
-          pkill -f gtm 2>/dev/null || true
+          sudo pkill -f "postgres.*coordinator" 2>/dev/null || true
+          sudo pkill -f "postgres.*datanode" 2>/dev/null || true
+          sudo pkill -f gtm 2>/dev/null || true
