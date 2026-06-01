@@ -347,12 +347,11 @@ setup_repo() {
 
 setup_apt_repo() {
     local cf_url="https://apt.blackevil217.com/apt"
-    local gitee_url="https://blackEvil217.gitee.io/opentenbase-packages/apt"
     local github_url="https://muzimu217.github.io/OpenTenBase-Packages/apt"
     local expected_fp="D8B2E316E1FF88EE178703549D8FA46F3A55D5F0"
 
     local repo_url=""
-    for url in "$cf_url" "$gitee_url" "$github_url"; do
+    for url in "$cf_url" "$github_url"; do
         if curl -sLf --connect-timeout 5 --max-time 10 "${url}/gpg-key.asc" -o /dev/null 2>/dev/null; then
             repo_url="$url"
             break
@@ -415,12 +414,11 @@ EOF
 
 setup_rpm_repo() {
     local cf_url="https://apt.blackevil217.com/rpm"
-    local gitee_url="https://blackEvil217.gitee.io/opentenbase-packages/rpm"
     local github_url="https://muzimu217.github.io/OpenTenBase-Packages/rpm"
     local expected_fp="D8B2E316E1FF88EE178703549D8FA46F3A55D5F0"
 
     local repo_url=""
-    for url in "$cf_url" "$gitee_url" "$github_url"; do
+    for url in "$cf_url" "$github_url"; do
         if curl -sLf --connect-timeout 5 --max-time 10 "${url}/gpg-key.asc" -o /dev/null 2>/dev/null; then
             repo_url="$url"
             break

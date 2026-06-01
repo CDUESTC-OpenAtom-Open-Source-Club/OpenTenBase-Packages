@@ -126,9 +126,8 @@ Cloudflare CDN acceleration and Docker image publishing.
   - Workflow: `docker-publish.yml` (manual trigger or on release)
 
 ### Mirror Priority
-1. Cloudflare CDN (apt.blackevil217.com) — global acceleration, free forever
-2. Gitee (blackEvil217.gitee.io) — China users
-3. GitHub Pages (muzimu217.github.io) — direct fallback
+1. Cloudflare CDN (apt.blackevil217.com / rpm.blackevil217.com) — global acceleration, free forever
+2. GitHub Pages (muzimu217.github.io) — direct fallback
 
 ### Docker Usage
 ```bash
@@ -194,7 +193,6 @@ Multi-version coexistence release with expanded platform support.
 - `opentenbase-ctl` cluster management script (init/start/stop/status/restart/switch)
 - Versioned directory structure: `/usr/lib/opentenbase/{version}/`, `/etc/opentenbase/{version}/`
 - `opentenbase-switch-version` tool for switching active versions
-- Gitee mirror auto-detection for China users in setup scripts
 - Huawei Cloud EulerOS (hce) support in `setup-rpm.sh`
 
 ### CI/CD
@@ -227,7 +225,6 @@ Patch release with critical packaging fixes and full cross-distro CI verificatio
 - Move log functions before `detect_mirror` in `setup-apt.sh`
 
 ### Added
-- Gitee mirror auto-detection for China users in setup scripts
 - Huawei Cloud EulerOS (hce) support in `setup-rpm.sh`
 
 ### CI/CD
