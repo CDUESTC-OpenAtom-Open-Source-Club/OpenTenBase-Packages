@@ -49,8 +49,8 @@ sudo dnf install -y opentenbase
 sudo opentenbase-ctl init
 sudo opentenbase-ctl start
 
-# 4. 验证（RPM 包使用 psql）
-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
+# 4. 验证
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
 ```
 
 ## 方式三：Docker 部署
@@ -79,14 +79,10 @@ docker compose up -d --build
 
 ## 连接数据库
 
-安装后使用客户端工具连接数据库：
+安装后使用 `opentenbase-psql` 连接（不是系统自带的 `psql`）：
 
 ```bash
-# Ubuntu / Debian (DEB 包)
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
-
-# RHEL / CentOS / Rocky / Fedora (RPM 包)
-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
 ```
 
 ## 集群管理
@@ -102,7 +98,7 @@ sudo opentenbase-ctl restart   # 重启集群
 ## 创建分布式表
 
 ```sql
--- 连接到 Coordinator（DEB 用 opentenbase-psql，RPM 用 psql）
+-- 连接到 Coordinator
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
 
 -- 创建分片表
@@ -207,7 +203,7 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT ver
 curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-deb/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install -y opentenbase
 sudo opentenbase-ctl init && sudo opentenbase-ctl start
-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
 ```
 
 ### Docker

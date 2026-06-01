@@ -88,11 +88,7 @@ Datanode: Running
 ### 连接数据库
 
 ```bash
-# Ubuntu / Debian (DEB 包)
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase postgres
-
-# RHEL / CentOS / Rocky / Fedora (RPM 包)
-psql -h 127.0.0.1 -p 5432 -U opentenbase postgres
 ```
 
 **预期输出：**

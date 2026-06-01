@@ -114,8 +114,6 @@ opentenbase-ctl start
 opentenbase-ctl status
 
 # 4. 连接数据库
-# DEB (Ubuntu/Debian): opentenbase-psql
-# RPM (RHEL/CentOS/Rocky/Fedora): psql
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
 
 # 5. 停止集群
