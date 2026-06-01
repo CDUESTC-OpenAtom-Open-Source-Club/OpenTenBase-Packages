@@ -141,30 +141,22 @@ override_dh_installsystemd:
 	dh_installsystemd --no-enable --no-start
 
 override_dh_install:
-	# Build exclusion list based on what was actually built
-	EXTRA_EXCL=""; \
-	if [ ! -e debian/tmp$(PREFIX)/bin/opentenbase_ctl ]; then \
-	    EXTRA_EXCL="$$EXTRA_EXCL -Xopentenbase_ctl"; \
-	fi; \
-	if [ ! -e debian/tmp$(PREFIX)/bin/opentenbase_tool ]; then \
-	    EXTRA_EXCL="$$EXTRA_EXCL -Xopentenbase_tool"; \
-	fi; \
-	if [ ! -e debian/tmp$(PREFIX)/bin/pg_license ]; then \
-	    EXTRA_EXCL="$$EXTRA_EXCL -Xpg_license"; \
-	fi; \
+	# Remove unbuilt binaries from .install files before dh_install runs
+	for bin in opentenbase_ctl opentenbase_tool pg_license; do \
+	    if [ ! -e debian/tmp$(PREFIX)/bin/$$bin ]; then \
+	        sed -i "/$$bin/d" debian/*.install; \
+	    fi; \
+	done; \
 	# For v2.6.0 and v2.5.0, skip files that don't exist in older versions
 	if [ "$(OTB_VERSION)" != "5.0" ]; then \
 	    dh_install \
-	        -Xopentenbase_ctl \
-	        -Xopentenbase_tool \
-	        -Xpg_license \
 	        -Xopentenbase_ora.bki \
 	        -Xopentenbase_ora.description \
 	        -Xopentenbase_ora.shdescription \
 	        -Xsystem_views_opentenbase_ora.sql \
 	        -Xsystem_views_pg.sql; \
 	else \
-	    dh_install $$EXTRA_EXCL; \
+	    dh_install; \
 	fi
 
 override_dh_installdocs:
