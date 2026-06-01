@@ -71,8 +71,8 @@ jobs:
           echo "## Repository Deployed!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- APT: \`https://muzimu217.github.io/opentenbase-deb/apt\`" >> $GITHUB_STEP_SUMMARY
-          echo "- RPM: \`https://muzimu217.github.io/opentenbase-deb/rpm\`" >> $GITHUB_STEP_SUMMARY
+          echo "- APT: \`https://muzimu217.github.io/OpenTenBase-Packages/apt\`" >> $GITHUB_STEP_SUMMARY
+          echo "- RPM: \`https://muzimu217.github.io/OpenTenBase-Packages/rpm\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Install" >> $GITHUB_STEP_SUMMARY
           echo "**DEB:**" >> $GITHUB_STEP_SUMMARY

@@ -26,8 +26,8 @@ Thank you for your interest in contributing to OpenTenBase .deb packaging!
 
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/opentenbase-deb.git
-   cd opentenbase-deb
+   git clone https://github.com/YOUR_USERNAME/OpenTenBase-Packages.git
+   cd OpenTenBase-Packages
    ```
 
 3. **Create a feature branch**
@@ -84,7 +84,7 @@ git clone https://github.com/OpenTenBase/OpenTenBase.git
 cd OpenTenBase
 
 # Copy packaging files
-cp -r /path/to/opentenbase-deb/* ./
+cp -r /path/to/OpenTenBase-Packages/* ./
 
 # Build packages
 fakeroot debian/rules binary

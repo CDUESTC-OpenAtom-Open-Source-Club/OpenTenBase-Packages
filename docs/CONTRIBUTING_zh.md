@@ -26,8 +26,8 @@
 
 2. **克隆您的 fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/opentenbase-deb.git
-   cd opentenbase-deb
+   git clone https://github.com/YOUR_USERNAME/OpenTenBase-Packages.git
+   cd OpenTenBase-Packages
    ```
 
 3. **创建特性分支**
@@ -84,7 +84,7 @@ git clone https://github.com/OpenTenBase/OpenTenBase.git
 cd OpenTenBase
 
 # 复制打包文件
-cp -r /path/to/opentenbase-deb/* ./
+cp -r /path/to/OpenTenBase-Packages/* ./
 
 # 构建软件包
 fakeroot debian/rules binary

@@ -55,7 +55,7 @@ git clone https://github.com/YOUR_USERNAME/OpenTenBase.git opentenbase-source
 
 ```bash
 # 进入集群目录
-cd opentenbase-deb/docker/cluster
+cd OpenTenBase-Packages/docker/cluster
 
 # 设置源码目录路径
 export OPENTENBASE_SOURCE=/path/to/opentenbase-source
