@@ -317,6 +317,10 @@ jobs:
             fi
           done
 
+          # Copy scripts to source (required by debian/rules)
+          mkdir -p /tmp/source/OpenTenBase/scripts
+          cp opentenbase-pkg/scripts/*.sh /tmp/source/OpenTenBase/scripts/ 2>/dev/null || true
+
           bash opentenbase-pkg/scripts/build-deb.sh \
             --source-dir /tmp/source/OpenTenBase \
             --version "$VERSION" \
