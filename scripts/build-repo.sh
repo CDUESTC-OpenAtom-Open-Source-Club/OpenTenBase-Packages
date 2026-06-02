@@ -380,22 +380,22 @@ create_index_page() {
 
     <div class="section">
         <h2>DEB (Ubuntu / Debian)</h2>
-        <pre>curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+        <pre>curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update
 sudo apt install opentenbase</pre>
     </div>
 
     <div class="section">
         <h2>RPM (RHEL / CentOS / Fedora)</h2>
-        <pre>curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+        <pre>curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install opentenbase</pre>
     </div>
 
     <div class="section">
         <h2>Links</h2>
         <ul>
-            <li><a href="https://github.com/muzimu217/OpenTenBase-Packages">GitHub Repository</a></li>
-            <li><a href="https://github.com/muzimu217/OpenTenBase-Packages/releases">Releases</a></li>
+            <li><a href="https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages">GitHub Repository</a></li>
+            <li><a href="https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases">Releases</a></li>
             <li><a href="https://github.com/OpenTenBase/OpenTenBase">OpenTenBase Upstream</a></li>
         </ul>
     </div>
@@ -423,7 +423,7 @@ EOF
     <h1>OpenTenBase APT Repository</h1>
     <p>APT repository for Ubuntu and Debian.</p>
     <h2>Quick Install</h2>
-    <pre>curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+    <pre>curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update
 sudo apt install opentenbase</pre>
     <h2>Repository Structure</h2>
@@ -463,7 +463,7 @@ EOF
     <h1>OpenTenBase RPM Repository</h1>
     <p>RPM repository for RHEL, CentOS, Rocky, Alma, Fedora, and openEuler.</p>
     <h2>Quick Install</h2>
-    <pre>curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+    <pre>curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install opentenbase</pre>
     <h2>Repository Structure</h2>
     <ul>

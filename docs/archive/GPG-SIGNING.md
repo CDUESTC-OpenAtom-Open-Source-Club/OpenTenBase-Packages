@@ -109,11 +109,11 @@ and continue with unsigned packages.
 
 ```bash
 # From a release
-curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/latest/download/opentenbase-gpg-key.asc
+curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/latest/download/opentenbase-gpg-key.asc
 gpg --import opentenbase-gpg-key.asc
 
 # Or from the repository
-curl -sLO https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/opentenbase-packages-key.asc
+curl -sLO https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase-packages-key.asc
 gpg --import opentenbase-packages-key.asc
 ```
 

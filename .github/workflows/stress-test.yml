@@ -28,7 +28,7 @@ jobs:
           OTB_VERSION: ${{ inputs.version || '5.0' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG=$(curl -sL "https://api.github.com/repos/muzimu217/OpenTenBase-Packages/releases/latest" | jq -r '.tag_name')
+          RELEASE_TAG=$(curl -sL "https://api.github.com/repos/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/latest" | jq -r '.tag_name')
           mkdir -p /tmp/debs && cd /tmp/debs
           gh release download "$RELEASE_TAG" \
             --pattern "opentenbase_5.0*.deb" \
@@ -36,11 +36,11 @@ jobs:
             --pattern "opentenbase-client_5.0*.deb" \
             --pattern "opentenbase-contrib_5.0*.deb" \
             --pattern "libopentenbase-dev_5.0*.deb" \
-            --repo muzimu217/OpenTenBase-Packages || true
+            --repo CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages || true
           if [ $(ls *.deb 2>/dev/null | wc -l) -eq 0 ]; then
             gh release download "$RELEASE_TAG" \
               --pattern "*noble*.deb" \
-              --repo muzimu217/OpenTenBase-Packages || true
+              --repo CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages || true
           fi
           sudo dpkg --force-depends -i *.deb || true
           sudo ldconfig

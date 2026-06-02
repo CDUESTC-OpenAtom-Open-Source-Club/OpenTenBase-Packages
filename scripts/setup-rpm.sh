@@ -1,6 +1,6 @@
 #!/bin/bash
 # OpenTenBase RPM Repository Setup Script
-# Usage: curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+# Usage: curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 
 set -e
 
@@ -18,7 +18,7 @@ log_step()  { echo -e "${BLUE}[STEP]${NC} $1"; }
 # Auto-detect fastest mirror (Cloudflare CDN first, GitHub fallback)
 detect_mirror() {
     local cf_url="https://apt.blackevil217.com/rpm"
-    local github_url="https://muzimu217.github.io/OpenTenBase-Packages/rpm"
+    local github_url="https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/rpm"
 
     # Try Cloudflare CDN first (global acceleration)
     if curl -sLf --connect-timeout 5 --max-time 10 "${cf_url}/gpg-key.asc" -o /dev/null 2>/dev/null; then
@@ -105,7 +105,7 @@ add_gpg_key() {
     local imported=false
     local tmpkey
     tmpkey=$(mktemp /tmp/opentenbase-gpg-key-XXXXXX.asc)
-    for url in "$GPG_KEY_URL" "https://muzimu217.github.io/OpenTenBase-Packages/rpm/gpg-key.asc"; do
+    for url in "$GPG_KEY_URL" "https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/rpm/gpg-key.asc"; do
         # Always download first so the key can be verified against the pinned
         # fingerprint before it is imported into the rpm trust store.
         if curl -sL --connect-timeout 10 --max-time 30 "$url" -o "$tmpkey" 2>/dev/null && \

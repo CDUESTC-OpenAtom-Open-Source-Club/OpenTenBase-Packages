@@ -1,9 +1,9 @@
 # OpenTenBase Packages
 
-[![GitHub Stars](https://img.shields.io/github/stars/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/stargazers)
-[![GitHub Downloads](https://img.shields.io/github/downloads/muzimu217/OpenTenBase-Packages/total?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases)
-[![GitHub Release](https://img.shields.io/github/v/release/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases/latest)
-[![License](https://img.shields.io/github/license/muzimu217/OpenTenBase-Packages?style=flat-square)](https://github.com/muzimu217/OpenTenBase-Packages/blob/main/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/stargazers)
+[![GitHub Downloads](https://img.shields.io/github/downloads/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/total?style=flat-square&logo=github)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/latest)
+[![License](https://img.shields.io/github/license/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages?style=flat-square)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/blob/main/LICENSE)
 
 [English](README.md) | 中文
 
@@ -41,7 +41,7 @@
 ### APT 仓库（Ubuntu / Debian）— 推荐
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update
 sudo apt install opentenbase
 ```
@@ -49,14 +49,14 @@ sudo apt install opentenbase
 ### YUM/DNF 仓库（RHEL / CentOS / Fedora）
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install opentenbase
 ```
 
 ### 一键部署（交互式）
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
 ```
 
 ---
@@ -131,7 +131,7 @@ opentenbase-ctl stop
 
 ```bash
 # 下载部署脚本
-curl -sLO https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/docker/test-docker.sh
+curl -sLO https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/docker/test-docker.sh
 bash test-docker.sh
 
 # 启动集群
@@ -256,7 +256,7 @@ OpenTenBase 支持两种部署方式：
 ### 使用 Docker 构建（推荐）
 
 ```bash
-git clone https://github.com/muzimu217/OpenTenBase-Packages.git
+git clone https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages.git
 cd OpenTenBase-Packages
 
 # 构建所有发行版
@@ -329,7 +329,7 @@ OpenTenBase-Packages/
 | v5.0-p2 | 2026-05-28 | 50 | 修复 lib/postgresql 路径，覆盖 15 个发行版 |
 | v5.0 | 2026-05-18 | 7 | 首次发布 |
 
-详见 [GitHub Releases](https://github.com/muzimu217/OpenTenBase-Packages/releases)。
+详见 [GitHub Releases](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases)。
 
 ---
 
@@ -460,16 +460,16 @@ gh workflow run stress-test.yml
 
 | 资源 | 链接 |
 |------|------|
-| **本项目** | https://github.com/muzimu217/OpenTenBase-Packages |
+| **本项目** | https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages |
 | **上游仓库** | https://github.com/OpenTenBase/OpenTenBase |
 | **OpenTenBase 文档** | https://github.com/OpenTenBase/OpenTenBase/wiki |
-| **问题反馈** | [Issues](https://github.com/muzimu217/OpenTenBase-Packages/issues) |
+| **问题反馈** | [Issues](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues) |
 
 ---
 
 ## 数据统计
 
-[![Star History Chart](https://api.star-history.com/svg?repos=muzimu217/OpenTenBase-Packages&type=Date)](https://star-history.com/#muzimu217/OpenTenBase-Packages&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages&type=Date)](https://star-history.com/#CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages&Date)
 
 ---
 

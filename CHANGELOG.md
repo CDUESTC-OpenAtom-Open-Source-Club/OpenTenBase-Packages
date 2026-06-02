@@ -353,13 +353,13 @@ First release.
 
 ---
 
-[v5.0-p8]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-p8
-[v5.0-p4]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-p4
-[v5.0-p3]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-p3
-[v5.0-p2]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-p2
-[v5.0-multi16]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-multi16
-[v5.0-multi12]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-multi12
-[v5.0-multi9]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-multi9
-[v5.0-multi8]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-multi8
-[v5.0-1ubuntu1]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-1ubuntu1
-[v5.0]: https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0
+[v5.0-p8]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p8
+[v5.0-p4]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p4
+[v5.0-p3]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p3
+[v5.0-p2]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p2
+[v5.0-multi16]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-multi16
+[v5.0-multi12]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-multi12
+[v5.0-multi9]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-multi9
+[v5.0-multi8]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-multi8
+[v5.0-1ubuntu1]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-1ubuntu1
+[v5.0]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0

@@ -1,6 +1,6 @@
 #!/bin/bash
 # OpenTenBase APT 仓库一键安装脚本
-# Usage: curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+# Usage: curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 #
 # Options:
 #   --version VERSION   Install a specific version (5.0, 2.6.0, 2.5.0)
@@ -35,7 +35,7 @@ log_step() {
 # 配置 - Auto-detect fastest mirror
 detect_mirror() {
     local cf_url="https://apt.blackevil217.com/apt"
-    local github_url="https://muzimu217.github.io/OpenTenBase-Packages/apt"
+    local github_url="https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/apt"
 
     # Try Cloudflare CDN first (global acceleration)
     if curl -sLf --connect-timeout 5 --max-time 10 "${cf_url}/gpg-key.asc" -o /dev/null 2>/dev/null; then
@@ -58,7 +58,7 @@ fetch_from_mirror() {
         return 0
     fi
     # Fallback to GitHub
-    local github_url="https://muzimu217.github.io/OpenTenBase-Packages/apt${path}"
+    local github_url="https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/apt${path}"
     result=$(curl -sL --connect-timeout 10 --max-time 30 "$github_url" 2>/dev/null)
     if [ -n "$result" ] && ! echo "$result" | grep -q "404"; then
         echo "$result"
@@ -86,7 +86,7 @@ case "$REQUESTED_VERSION" in
 esac
 
 detect_mirror
-REPO_URL="https://github.com/muzimu217/OpenTenBase-Packages/releases/latest/download"
+REPO_URL="https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/latest/download"
 GPG_KEY_URL="${APT_REPO_URL}/gpg-key.asc"
 KEYRING_PATH="/usr/share/keyrings/opentenbase-archive-keyring.gpg"
 SOURCES_LIST="/etc/apt/sources.list.d/opentenbase.list"
@@ -220,7 +220,7 @@ add_gpg_key() {
     local success=false
     local tmpkey
     tmpkey=$(mktemp /tmp/opentenbase-gpg-key-XXXXXX.asc)
-    for url in "$GPG_KEY_URL" "https://muzimu217.github.io/OpenTenBase-Packages/apt/gpg-key.asc"; do
+    for url in "$GPG_KEY_URL" "https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/apt/gpg-key.asc"; do
         if curl -sL --connect-timeout 10 --max-time 30 "$url" -o "$tmpkey" 2>/dev/null && \
            [ -s "$tmpkey" ] && head -1 "$tmpkey" | grep -q "BEGIN PGP"; then
             # Pin the key: reject anything that does not match the expected

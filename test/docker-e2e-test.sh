@@ -58,7 +58,7 @@ test_ubuntu() {
 
     log_info "Running setup-apt.sh ..."
     if docker exec "$container" bash -c "
-        curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | bash
+        curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | bash
     " 2>&1; then
         record_result "Ubuntu 22.04" "setup-apt.sh" "PASS" "Repo configured"
     else
@@ -163,7 +163,7 @@ test_rocky() {
 
     log_info "Running setup-rpm.sh ..."
     if docker exec "$container" bash -c "
-        curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
+        curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
     " 2>&1; then
         record_result "Rocky 9" "setup-rpm.sh" "PASS" "Repo configured"
     else
@@ -267,7 +267,7 @@ test_openeuler() {
 
     log_info "Running setup-rpm.sh ..."
     if docker exec "$container" bash -c "
-        curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
+        curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
     " 2>&1; then
         record_result "openEuler 24.03" "setup-rpm.sh" "PASS" "Repo configured"
     else

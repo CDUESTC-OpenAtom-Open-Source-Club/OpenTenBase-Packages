@@ -8,7 +8,7 @@
 
 ### 报告问题
 
-1. 访问 [Issues 页面](https://github.com/muzimu217/OpenTenBase-Packages/issues)
+1. 访问 [Issues 页面](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues)
 2. 点击 "New Issue"
 3. 提供详细信息：
    - **Ubuntu 版本**：例如 Ubuntu 22.04、24.04
@@ -159,7 +159,7 @@ fakeroot debian/rules binary
 
 如果您对贡献有疑问：
 
-1. 检查现有的 [Issues](https://github.com/muzimu217/OpenTenBase-Packages/issues)
+1. 检查现有的 [Issues](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues)
 2. 创建新 issue 提出您的问题
 3. 在现有 issue 中参与讨论
 

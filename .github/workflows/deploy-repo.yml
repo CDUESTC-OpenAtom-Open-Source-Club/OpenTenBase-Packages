@@ -71,17 +71,17 @@ jobs:
           echo "## Repository Deployed!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- APT: \`https://muzimu217.github.io/OpenTenBase-Packages/apt\`" >> $GITHUB_STEP_SUMMARY
-          echo "- RPM: \`https://muzimu217.github.io/OpenTenBase-Packages/rpm\`" >> $GITHUB_STEP_SUMMARY
+          echo "- APT: \`https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/apt\`" >> $GITHUB_STEP_SUMMARY
+          echo "- RPM: \`https://cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/rpm\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Install" >> $GITHUB_STEP_SUMMARY
           echo "**DEB:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
+          echo "curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
           echo "sudo apt install opentenbase" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "**RPM:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
+          echo "curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
           echo "sudo dnf install opentenbase" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

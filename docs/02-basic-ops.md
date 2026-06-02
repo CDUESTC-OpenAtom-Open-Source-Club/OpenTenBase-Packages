@@ -507,4 +507,4 @@ SELECT count(*) FROM pg_stat_activity;
 
 - 🌐 [PostgreSQL 10 文档](https://www.postgresql.org/docs/10/)
 - 📖 [OpenTenBase 官方文档](https://github.com/OpenTenBase/OpenTenBase)
-- 💬 [问题反馈](https://github.com/muzimu217/OpenTenBase-Packages/issues)
+- 💬 [问题反馈](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues)

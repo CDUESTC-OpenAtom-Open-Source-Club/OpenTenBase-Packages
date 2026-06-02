@@ -228,5 +228,5 @@ jobs:
           fi
           echo "### Install" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "curl -sSL https://github.com/muzimu217/OpenTenBase-Packages/releases/download/${{ steps.version.outputs.tag }}/install.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
+          echo "curl -sSL https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/${{ steps.version.outputs.tag }}/install.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

@@ -373,8 +373,8 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 
 ## 更多信息
 
-- [GitHub 仓库](https://github.com/muzimu217/OpenTenBase-Packages)
-- [文档](https://github.com/muzimu217/OpenTenBase-Packages/blob/main/README.md)
+- [GitHub 仓库](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages)
+- [文档](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/blob/main/README.md)
 EOF
     
     log_info "README 文件已创建"

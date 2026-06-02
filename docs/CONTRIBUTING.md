@@ -8,7 +8,7 @@ Thank you for your interest in contributing to OpenTenBase .deb packaging!
 
 ### Reporting Issues
 
-1. Visit the [Issues page](https://github.com/muzimu217/OpenTenBase-Packages/issues)
+1. Visit the [Issues page](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues)
 2. Click "New Issue"
 3. Provide detailed information:
    - **Ubuntu version**: e.g., Ubuntu 22.04, 24.04
@@ -159,7 +159,7 @@ Please be respectful and inclusive in all interactions.
 
 If you have questions about contributing:
 
-1. Check existing [Issues](https://github.com/muzimu217/OpenTenBase-Packages/issues)
+1. Check existing [Issues](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues)
 2. Create a new issue with your question
 3. Join the discussion in existing issues
 

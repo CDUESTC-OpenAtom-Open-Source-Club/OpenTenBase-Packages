@@ -158,8 +158,8 @@ OpenTenBase-Packages/
 
 ## 参考链接
 
-- 仓库地址：https://github.com/muzimu217/OpenTenBase-Packages
-- 最新 Release：https://github.com/muzimu217/OpenTenBase-Packages/releases/tag/v5.0-p9
+- 仓库地址：https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages
+- 最新 Release：https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p9
 - 上游仓库：https://github.com/OpenTenBase/OpenTenBase
 
 **Update 2026-06-01:** Multi-version end-to-end verification completed on real ARM64 hardware (DevEnvVM, HCE 2.0, 4vCPUs, 8GB). All three versions (v5.0, v2.6.0, v2.5.0) verified: init → start → SQL query → stop → switch. Fixed max_pool_size >= max_connections and forward_port version-conditional issues.

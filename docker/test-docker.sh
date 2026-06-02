@@ -26,7 +26,7 @@ echo "检测到架构: $ARCH"
 
 # 设置下载链接和包名
 RELEASE_TAG="v5.0-multi13"
-BASE_URL="https://github.com/muzimu217/OpenTenBase-Packages/releases/download/${RELEASE_TAG}"
+BASE_URL="https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/${RELEASE_TAG}"
 
 # 根据架构选择 RPM 包
 if [ "$ARCH" = "aarch64" ]; then
@@ -78,7 +78,7 @@ if [ -z "$RPM_FILE" ]; then
     echo "  ${BASE_URL}"
     echo ""
     echo "可用的 x86_64 包:"
-    curl -sL "https://api.github.com/repos/muzimu217/OpenTenBase-Packages/releases/tags/${RELEASE_TAG}" | \
+    curl -sL "https://api.github.com/repos/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tags/${RELEASE_TAG}" | \
         grep -o '"name": "[^"]*rpm"' | grep -i "$ARCH" || echo "  (无)"
     exit 1
 fi

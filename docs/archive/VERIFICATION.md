@@ -39,7 +39,7 @@
 ### 步骤 1：下载安装包
 
 ```bash
-wget https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0/opentenbase-5.0-ubuntu24.04-amd64.tar.gz
+wget https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0/opentenbase-5.0-ubuntu24.04-amd64.tar.gz
 tar xzf opentenbase-5.0-ubuntu24.04-amd64.tar.gz
 ```
 
@@ -207,7 +207,7 @@ DROP TABLE t1;
 
 ```bash
 # 完整安装流程
-wget https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0/opentenbase-5.0-ubuntu24.04-amd64.tar.gz
+wget https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0/opentenbase-5.0-ubuntu24.04-amd64.tar.gz
 tar xzf opentenbase-5.0-ubuntu24.04-amd64.tar.gz
 apt update
 apt install -y ./*.deb

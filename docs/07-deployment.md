@@ -60,7 +60,7 @@ Docker 多节点不受影响，因为每个容器有独立 IP（172.20.0.x），
 
 ```bash
 # 克隆仓库
-git clone https://github.com/muzimu217/OpenTenBase-Packages.git
+git clone https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages.git
 cd OpenTenBase-Packages/docker/compose
 
 # 一键部署
@@ -167,7 +167,7 @@ max_connections = 100
 ### 一键安装
 
 ```bash
-curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/install.sh
+curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/install.sh
 sudo bash install.sh
 ```
 
@@ -175,10 +175,10 @@ sudo bash install.sh
 
 ```bash
 # 下载（以 Ubuntu 24.04 为例）
-wget https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase_5.0-1ubuntu1.noble_all.deb
-wget https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
-wget https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
-wget https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase_5.0-1ubuntu1.noble_all.deb
+wget https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
+wget https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
 
 # 安装
 sudo dpkg -i ./*.deb || sudo apt-get install -f -y

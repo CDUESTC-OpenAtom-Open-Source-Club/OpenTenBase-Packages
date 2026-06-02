@@ -9,7 +9,7 @@
 
 set -e
 
-REPO="muzimu217/OpenTenBase-Packages"
+REPO="CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages"
 UPSTREAM_REPO="OpenTenBase/OpenTenBase"
 DEFAULT_VERSION="5.0"
 DEFAULT_TAG="v5.0-multi10"

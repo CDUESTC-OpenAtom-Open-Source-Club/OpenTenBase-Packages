@@ -23,7 +23,7 @@
 
 ```bash
 # 1. 配置仓库
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 
 # 2. 安装
 sudo apt update && sudo apt install -y opentenbase
@@ -40,7 +40,7 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT ver
 
 ```bash
 # 1. 配置仓库
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 
 # 2. 安装
 sudo dnf install -y opentenbase
@@ -70,7 +70,7 @@ psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 Docker Compose 完整集群（GTM + Coordinator + 2 Datanode）：
 
 ```bash
-git clone https://github.com/muzimu217/OpenTenBase-Packages.git
+git clone https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages.git
 cd OpenTenBase-Packages/docker/compose
 docker compose up -d --build
 ```
@@ -219,7 +219,7 @@ vm.overcommit_ratio = 90
 ### APT (Ubuntu / Debian)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update && sudo apt install -y opentenbase
 sudo opentenbase-ctl init && sudo opentenbase-ctl start
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
@@ -228,7 +228,7 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT ver
 ### RPM (RHEL / CentOS / Rocky / Fedora)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install -y opentenbase
 sudo opentenbase-ctl init && sudo opentenbase-ctl start
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"

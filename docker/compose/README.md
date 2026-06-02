@@ -40,10 +40,10 @@ docker compose ps
 ```bash
 # Download .deb packages into the runtime directory
 cd ../runtime
-curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase_5.0-1ubuntu1.noble_all.deb
-curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
-curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
-curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
+curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase_5.0-1ubuntu1.noble_all.deb
+curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-server_5.0-1ubuntu1.noble_amd64.deb
+curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-client_5.0-1ubuntu1.noble_amd64.deb
+curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-multi10/opentenbase-contrib_5.0-1ubuntu1.noble_amd64.deb
 cd ../compose
 
 # Build and start

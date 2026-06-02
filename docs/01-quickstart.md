@@ -16,7 +16,7 @@
 
 ```bash
 # 1. 配置 APT 仓库（自动检测系统版本）
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 
 # 2. 安装
 sudo apt update && sudo apt install -y opentenbase
@@ -26,7 +26,7 @@ sudo apt update && sudo apt install -y opentenbase
 
 ```bash
 # 1. 配置 YUM/DNF 仓库
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 
 # 2. 安装
 sudo dnf install -y opentenbase
@@ -123,7 +123,7 @@ SELECT * FROM test;
 
 ## 手动安装（进阶）
 
-如果安装脚本不可用，可以从 [GitHub Releases](https://github.com/muzimu217/OpenTenBase-Packages/releases) 手动下载包：
+如果安装脚本不可用，可以从 [GitHub Releases](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases) 手动下载包：
 
 ```bash
 # DEB 手动安装
@@ -147,7 +147,7 @@ E: Unable to locate package opentenbase
 **解决方法：**
 ```bash
 # 确保已配置仓库
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update
 sudo apt install opentenbase
 ```
@@ -260,7 +260,7 @@ OpenTenBase 是一个分布式数据库，由三个核心组件组成：
 
 ## 资源链接
 
-- 🌐 [GitHub 仓库](https://github.com/muzimu217/OpenTenBase-Packages)
-- 📦 [最新 Release](https://github.com/muzimu217/OpenTenBase-Packages/releases)
+- 🌐 [GitHub 仓库](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages)
+- 📦 [最新 Release](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases)
 - 📖 [OpenTenBase 官方文档](https://github.com/OpenTenBase/OpenTenBase)
-- 💬 [问题反馈](https://github.com/muzimu217/OpenTenBase-Packages/issues)
+- 💬 [问题反馈](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues)

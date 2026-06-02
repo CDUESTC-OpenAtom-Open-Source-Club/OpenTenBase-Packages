@@ -123,7 +123,7 @@ create_release_notes() {
     echo "### One-click Install (Recommended)"
     echo ""
     echo '```bash'
-    echo "curl -sLO https://github.com/muzimu217/OpenTenBase-Packages/releases/download/$version/install.sh"
+    echo "curl -sLO https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/$version/install.sh"
     echo "sudo bash install.sh"
     echo '```'
     echo ""
@@ -302,7 +302,7 @@ main() {
     echo "3. 测试安装脚本"
     echo ""
     echo "CI 构建状态:"
-    echo "https://github.com/muzimu217/OpenTenBase-Packages/actions"
+    echo "https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/actions"
 }
 
 # 执行主函数

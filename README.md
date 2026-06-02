@@ -1,9 +1,9 @@
 # OpenTenBase Packages
 
-[![GitHub Stars](https://img.shields.io/github/stars/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/stargazers)
-[![GitHub Downloads](https://img.shields.io/github/downloads/muzimu217/OpenTenBase-Packages/total?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases)
-[![GitHub Release](https://img.shields.io/github/v/release/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases/latest)
-[![License](https://img.shields.io/github/license/muzimu217/OpenTenBase-Packages?style=flat-square)](https://github.com/muzimu217/OpenTenBase-Packages/blob/main/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/stargazers)
+[![GitHub Downloads](https://img.shields.io/github/downloads/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/total?style=flat-square&logo=github)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/latest)
+[![License](https://img.shields.io/github/license/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages?style=flat-square)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/blob/main/LICENSE)
 
 English | [中文](README_zh.md)
 
@@ -43,7 +43,7 @@ English | [中文](README_zh.md)
 ### APT Repository (Ubuntu / Debian) — Recommended
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update
 sudo apt install opentenbase
 ```
@@ -51,14 +51,14 @@ sudo apt install opentenbase
 ### YUM/DNF Repository (RHEL / CentOS / Fedora)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install opentenbase
 ```
 
 ### Manual Install
 
 ```bash
-# Download from releases: https://github.com/muzimu217/OpenTenBase-Packages/releases
+# Download from releases: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases
 # DEB: sudo apt install ./opentenbase_*.deb
 # RPM: sudo dnf install ./opentenbase-*.rpm
 ```
@@ -66,7 +66,7 @@ sudo dnf install opentenbase
 ### One-Click Deploy (Interactive)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
 ```
 
 ---
@@ -140,7 +140,7 @@ Deploy a complete OpenTenBase cluster (GTM + Coordinator + 2 Datanodes) with Doc
 
 ```bash
 # Download the deployment script
-curl -sLO https://raw.githubusercontent.com/muzimu217/OpenTenBase-Packages/main/docker/test-docker.sh
+curl -sLO https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/docker/test-docker.sh
 bash test-docker.sh
 
 # Start the cluster
@@ -260,7 +260,7 @@ OpenTenBase supports two deployment approaches:
 ### Docker Build (Recommended)
 
 ```bash
-git clone https://github.com/muzimu217/OpenTenBase-Packages.git
+git clone https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages.git
 cd OpenTenBase-Packages
 
 # Build for all distributions
@@ -333,7 +333,7 @@ OpenTenBase-Packages/
 | v5.0-p2 | 2026-05-28 | 50 | Fix lib/postgresql path, all 15 distros |
 | v5.0 | 2026-05-18 | 7 | First release |
 
-See [GitHub Releases](https://github.com/muzimu217/OpenTenBase-Packages/releases) for all releases.
+See [GitHub Releases](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases) for all releases.
 
 ---
 
@@ -466,16 +466,16 @@ Same as OpenTenBase — [Apache License 2.0](https://www.apache.org/licenses/LIC
 
 | Resource | Link |
 |----------|------|
-| **This project** | https://github.com/muzimu217/OpenTenBase-Packages |
+| **This project** | https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages |
 | **Upstream repo** | https://github.com/OpenTenBase/OpenTenBase |
 | **OpenTenBase docs** | https://github.com/OpenTenBase/OpenTenBase/wiki |
-| **Issue tracker** | [Issues](https://github.com/muzimu217/OpenTenBase-Packages/issues) |
+| **Issue tracker** | [Issues](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues) |
 
 ---
 
 ## Stats
 
-[![Star History Chart](https://api.star-history.com/svg?repos=muzimu217/OpenTenBase-Packages&type=Date)](https://star-history.com/#muzimu217/OpenTenBase-Packages&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages&type=Date)](https://star-history.com/#CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages&Date)
 
 ---
 
