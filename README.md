@@ -1,5 +1,10 @@
 # OpenTenBase Packages
 
+[![GitHub Stars](https://img.shields.io/github/stars/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/stargazers)
+[![GitHub Downloads](https://img.shields.io/github/downloads/muzimu217/OpenTenBase-Packages/total?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases/latest)
+[![License](https://img.shields.io/github/license/muzimu217/OpenTenBase-Packages?style=flat-square)](https://github.com/muzimu217/OpenTenBase-Packages/blob/main/LICENSE)
+
 English | [中文](README_zh.md)
 
 > **Official cross-platform package repository for OpenTenBase** — Enterprise-grade multi-format, multi-distro packaging and distribution for the OpenTenBase distributed SQL database.
@@ -465,6 +470,12 @@ Same as OpenTenBase — [Apache License 2.0](https://www.apache.org/licenses/LIC
 | **Upstream repo** | https://github.com/OpenTenBase/OpenTenBase |
 | **OpenTenBase docs** | https://github.com/OpenTenBase/OpenTenBase/wiki |
 | **Issue tracker** | [Issues](https://github.com/muzimu217/OpenTenBase-Packages/issues) |
+
+---
+
+## Stats
+
+[![Star History Chart](https://api.star-history.com/svg?repos=muzimu217/OpenTenBase-Packages&type=Date)](https://star-history.com/#muzimu217/OpenTenBase-Packages&Date)
 
 ---
 

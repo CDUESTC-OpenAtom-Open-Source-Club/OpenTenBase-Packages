@@ -1,5 +1,10 @@
 # OpenTenBase Packages
 
+[![GitHub Stars](https://img.shields.io/github/stars/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/stargazers)
+[![GitHub Downloads](https://img.shields.io/github/downloads/muzimu217/OpenTenBase-Packages/total?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/muzimu217/OpenTenBase-Packages?style=flat-square&logo=github)](https://github.com/muzimu217/OpenTenBase-Packages/releases/latest)
+[![License](https://img.shields.io/github/license/muzimu217/OpenTenBase-Packages?style=flat-square)](https://github.com/muzimu217/OpenTenBase-Packages/blob/main/LICENSE)
+
 [English](README.md) | 中文
 
 > **OpenTenBase 官方跨平台软件包仓库** — 为 OpenTenBase 分布式数据库提供企业级的多格式、多发行版打包与分发方案。
@@ -459,6 +464,12 @@ gh workflow run stress-test.yml
 | **上游仓库** | https://github.com/OpenTenBase/OpenTenBase |
 | **OpenTenBase 文档** | https://github.com/OpenTenBase/OpenTenBase/wiki |
 | **问题反馈** | [Issues](https://github.com/muzimu217/OpenTenBase-Packages/issues) |
+
+---
+
+## 数据统计
+
+[![Star History Chart](https://api.star-history.com/svg?repos=muzimu217/OpenTenBase-Packages&type=Date)](https://star-history.com/#muzimu217/OpenTenBase-Packages&Date)
 
 ---
 
