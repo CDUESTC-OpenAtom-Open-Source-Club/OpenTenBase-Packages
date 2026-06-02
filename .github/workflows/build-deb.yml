@@ -204,6 +204,127 @@ jobs:
           rm -rf /tmp/source
           apt-get clean
 
-  # NOTE: arm64 packages are built natively on ARM64 hardware
-  # and uploaded to GitHub releases manually. QEMU emulation is unreliable
-  # for compiling C/C++ projects with gcc. See scripts/build-arm64.sh
+  # ============================================================
+  # ARM64 DEB builds using native ARM64 runners
+  # ============================================================
+  build-deb-arm64:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          # v5.0 arm64
+          - version: '5.0'
+            distro: 'ubuntu-22.04'
+            container: 'ubuntu:22.04'
+            codename: 'jammy'
+          - version: '5.0'
+            distro: 'ubuntu-24.04'
+            container: 'ubuntu:24.04'
+            codename: 'noble'
+          - version: '5.0'
+            distro: 'debian-12'
+            container: 'debian:bookworm'
+            codename: 'bookworm'
+          - version: '5.0'
+            distro: 'debian-11'
+            container: 'debian:bullseye'
+            codename: 'bullseye'
+          # v2.6.0 arm64
+          - version: '2.6.0'
+            distro: 'ubuntu-22.04'
+            container: 'ubuntu:22.04'
+            codename: 'jammy'
+          - version: '2.6.0'
+            distro: 'ubuntu-24.04'
+            container: 'ubuntu:24.04'
+            codename: 'noble'
+          - version: '2.6.0'
+            distro: 'debian-12'
+            container: 'debian:bookworm'
+            codename: 'bookworm'
+          # v2.5.0 arm64
+          - version: '2.5.0'
+            distro: 'ubuntu-22.04'
+            container: 'ubuntu:22.04'
+            codename: 'jammy'
+          - version: '2.5.0'
+            distro: 'ubuntu-24.04'
+            container: 'ubuntu:24.04'
+            codename: 'noble'
+          - version: '2.5.0'
+            distro: 'debian-12'
+            container: 'debian:bookworm'
+            codename: 'bookworm'
+
+    name: ${{ matrix.distro }}-${{ matrix.version }}-arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y \
+            build-essential debhelper fakeroot quilt \
+            bison flex perl \
+            libreadline-dev zlib1g-dev libssl-dev libpam0g-dev \
+            libxml2-dev libldap2-dev uuid-dev \
+            libcurl4-openssl-dev liblz4-dev libzstd-dev \
+            libssh2-1-dev \
+            libatomic1 \
+            pkg-config libtool git ca-certificates curl
+          apt-get install -y libatomic-dev 2>/dev/null || true
+          for dir in /usr/lib/aarch64-linux-gnu; do
+            if [ -f "$dir/libatomic.so.1" ]; then
+              ln -sf libatomic.so.1 "$dir/libatomic.so"
+            fi
+          done
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          path: opentenbase-pkg
+
+      - name: Clone OpenTenBase source
+        run: |
+          mkdir -p /tmp/source
+          if [ ! -d /tmp/source/OpenTenBase ]; then
+            git clone --depth=1 --branch v${{ matrix.version }} \
+              https://github.com/OpenTenBase/OpenTenBase.git /tmp/source/OpenTenBase
+          fi
+
+      - name: Build DEB package
+        run: |
+          cd ${{ github.workspace }}/opentenbase-pkg
+          VERSION="${{ matrix.version }}"
+          CODENAME="${{ matrix.codename }}"
+
+          mkdir -p ${{ github.workspace }}/debs
+
+          bash scripts/build-deb.sh \
+            --source-dir /tmp/source/OpenTenBase \
+            --version "$VERSION" \
+            --codename "$CODENAME" \
+            --output-dir ${{ github.workspace }}/debs
+
+      - name: List built packages
+        run: |
+          echo "=== Built DEB packages ==="
+          ls -la ${{ github.workspace }}/debs/*.deb || echo "No packages found"
+
+      - name: Upload DEB packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: debs-${{ matrix.distro }}-${{ matrix.version }}-arm64
+          path: ${{ github.workspace }}/debs/*.deb
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf /tmp/source
+          apt-get clean

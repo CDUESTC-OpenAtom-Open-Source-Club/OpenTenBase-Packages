@@ -188,6 +188,7 @@ jobs:
       max-parallel: 3
       matrix:
         include:
+          # v5.0 aarch64
           - version: '5.0'
             distro: 'openeuler-22.03'
             container: 'openeuler/openeuler:22.03'
@@ -195,6 +196,26 @@ jobs:
             distro: 'rockylinux-9'
             container: 'rockylinux:9'
           - version: '5.0'
+            distro: 'almalinux-9'
+            container: 'almalinux:9'
+          # v2.6.0 aarch64
+          - version: '2.6.0'
+            distro: 'openeuler-22.03'
+            container: 'openeuler/openeuler:22.03'
+          - version: '2.6.0'
+            distro: 'rockylinux-9'
+            container: 'rockylinux:9'
+          - version: '2.6.0'
+            distro: 'almalinux-9'
+            container: 'almalinux:9'
+          # v2.5.0 aarch64
+          - version: '2.5.0'
+            distro: 'openeuler-22.03'
+            container: 'openeuler/openeuler:22.03'
+          - version: '2.5.0'
+            distro: 'rockylinux-9'
+            container: 'rockylinux:9'
+          - version: '2.5.0'
             distro: 'almalinux-9'
             container: 'almalinux:9'
 
