@@ -411,7 +411,7 @@ All 7 stress tests pass. Workflow: `.github/workflows/stress-test.yml`
 | RPM repomd (el9/x86_64) | `https://repo.blackevil217.com/rpm/el9/x86_64/repodata/repomd.xml` | ✅ 200 |
 | RPM repomd (el9/aarch64) | `https://repo.blackevil217.com/rpm/el9/aarch64/repodata/repomd.xml` | ✅ 200 |
 | RPM repomd (openeuler/x86_64) | `https://repo.blackevil217.com/rpm/openeuler/x86_64/repodata/repomd.xml` | ✅ 200 |
-| RPM repomd (openeuler/aarch64) | `https://repo.blackevil217.com/rpm/openeuler/aarch64/repodata/repomd.xml` | ❌ 404 |
+| RPM repomd (openeuler/aarch64) | `https://repo.blackevil217.com/rpm/openeuler/aarch64/repodata/repomd.xml` | ✅ 200 |
 | RPM GPG Key | `https://repo.blackevil217.com/rpm/gpg-key.asc` | ✅ 200 |
 
 ### aarch64 仓库可用性
@@ -421,7 +421,7 @@ All 7 stress tests pass. Workflow: `.github/workflows/stress-test.yml`
 | el9 (Rocky/Alma 9) | ✅ 可用 | 有 almalinux-9 和 rockylinux-9 aarch64 RPM |
 | el8 (Rocky/Alma 8) | ❌ 不可用 | release 中无 el8 aarch64 RPM |
 | fedora | ❌ 不可用 | release 中无 fedora aarch64 RPM |
-| openeuler | ❌ 不可用 | release 中无 openeuler aarch64 RPM |
+| openeuler | ✅ 可用 | 手动构建 openeuler-22.03 aarch64 RPM 并上传至 v5.0-p10 |
 
 **已修复**: `setup-rpm.sh` 和 `setup-cluster.sh` 已添加 aarch64 回退逻辑——当 aarch64 仓库不存在时，自动回退到 x86_64 仓库。
 
@@ -455,6 +455,18 @@ All 7 stress tests pass. Workflow: `.github/workflows/stress-test.yml`
 | 多版本组件 | ✅ | main=v5.0, v2.6=v2.6.0, v2.5=v2.5.0 |
 
 **注意**: 无法在现有 hdspace 服务器上测试 APT 安装（两台服务器均为 EulerOS/RPM 系统）。APT 仓库结构已通过 HTTP 验证，实际安装测试需在 Ubuntu/Debian 环境中进行。
+
+### openEuler aarch64 RPM 构建（2026-06-02）
+
+由于 CI 构建 openeuler aarch64 RPM 时上传环节反复失败，采用手动构建方案：
+
+1. 在华为云 hdspace devenv（EulerOS 2.0 aarch64）上本地构建
+2. 使用 `build-rpm.sh --source-dir /tmp/source/OpenTenBase --version 5.0`
+3. 重命名 RPM 为 `opentenbase-5.0-1.openeuler-22.03-5.0-aarch64.aarch64.rpm`
+4. 通过 expect 脚本 + base64 编码下载 RPM 到本地
+5. 上传至 v5.0-p10 release，触发 deploy-repo.yml 重建仓库
+
+构建日志：CI run 26832160260，成功生成 `openeuler/aarch64: 1 packages`
 
 ## 已知问题
 
