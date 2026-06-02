@@ -25,7 +25,7 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step()  { echo -e "${BLUE}[STEP]${NC} $1"; }
 
-REPO_OWNER="muzimu217"
+REPO_OWNER="CDUESTC-OpenAtom-Open-Source-Club"
 REPO_NAME="OpenTenBase-Packages"
 GPG_KEY_ID="${GPG_KEY_ID:-9D8FA46F3A55D5F0}"
 
@@ -80,33 +80,57 @@ download_release() {
     log_step "Downloading release $tag ..."
     mkdir -p "$outdir"
 
-    local api_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/tags/${tag}"
-    local auth_header=""
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-        auth_header="-H \"Authorization: token $GITHUB_TOKEN\""
-    fi
-    local urls
-    urls=$(eval curl -sL "$api_url" "$auth_header" | jq -r '.assets[].browser_download_url')
+    # Use gh CLI for reliable download (handles pagination, auth, retries)
+    if command -v gh &>/dev/null; then
+        log_info "Using gh CLI to download assets ..."
+        gh release download "$tag" \
+            --repo "${REPO_OWNER}/${REPO_NAME}" \
+            --dir "$outdir" \
+            --skip-existing 2>&1 || true
+        # Remove debuginfo/debugsource RPMs (too large for repo hosting)
+        find "$outdir" -name '*debuginfo*' -o -name '*debugsource*' | xargs rm -f 2>/dev/null || true
+        local count
+        count=$(find "$outdir" -type f | wc -l)
+        log_info "Downloaded $count assets"
+    else
+        # Fallback: use API with pagination
+        local page=1
+        local all_urls=""
+        while true; do
+            local api_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/tags/${tag}?per_page=100&page=${page}"
+            local curl_args=(-sL)
+            if [ -n "${GITHUB_TOKEN:-}" ]; then
+                curl_args+=(-H "Authorization: token $GITHUB_TOKEN")
+            fi
+            local page_urls
+            page_urls=$(curl "${curl_args[@]}" "$api_url" | jq -r '.assets[].browser_download_url // empty')
+            if [ -z "$page_urls" ]; then
+                break
+            fi
+            all_urls="${all_urls}${page_urls}"$'\n'
+            page=$((page + 1))
+        done
 
-    if [ -z "$urls" ]; then
-        log_error "No assets found for release $tag"
-        exit 1
-    fi
-
-    local count=0
-    while IFS= read -r url; do
-        local fname
-        fname=$(basename "$url")
-        # Skip debuginfo/debugsource RPMs (too large for repo hosting)
-        if echo "$fname" | grep -qE 'debuginfo|debugsource'; then
-            continue
+        if [ -z "$all_urls" ]; then
+            log_error "No assets found for release $tag"
+            exit 1
         fi
-        log_info "  $fname"
-        curl -sL "$url" -o "$outdir/$fname"
-        count=$((count + 1))
-    done <<< "$urls"
 
-    log_info "Downloaded $count assets"
+        local count=0
+        while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            local fname
+            fname=$(basename "$url")
+            if echo "$fname" | grep -qE 'debuginfo|debugsource'; then
+                continue
+            fi
+            log_info "  $fname"
+            curl -sL "$url" -o "$outdir/$fname"
+            count=$((count + 1))
+        done <<< "$all_urls"
+
+        log_info "Downloaded $count assets"
+    fi
 }
 
 # Build APT repository structure
@@ -546,10 +570,8 @@ fi
 # Create index page
 create_index_page "$OUTPUT_DIR"
 
-# Create CNAME file for custom domain (apt.blackevil217.com)
-# Both apt.blackevil217.com and rpm.blackevil217.com point to this Pages site
-echo "apt.blackevil217.com" > "$OUTPUT_DIR/CNAME"
-log_info "Created CNAME file for apt.blackevil217.com"
+# No CNAME file — custom domains (apt.blackevil217.com, rpm.blackevil217.com)
+# are configured via Cloudflare reverse proxy, not GitHub Pages CNAME.
 
 echo ""
 echo "========================================"
