@@ -305,10 +305,17 @@ jobs:
           mkdir -p ${{ github.workspace }}/debs
 
           # Copy debian directory and patches to source
-          # Use relative paths since we're in a container with different mount paths
           cp -r opentenbase-pkg/debian/ /tmp/source/OpenTenBase/debian/
           mkdir -p /tmp/source/OpenTenBase/debian/patches
           cp opentenbase-pkg/patches/*.patch /tmp/source/OpenTenBase/debian/patches/ 2>/dev/null || true
+
+          # Copy config files to source (required by debian/rules)
+          mkdir -p /tmp/source/OpenTenBase/config
+          for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template; do
+            if [ -f "opentenbase-pkg/config/$f" ]; then
+              cp "opentenbase-pkg/config/$f" /tmp/source/OpenTenBase/config/
+            fi
+          done
 
           bash opentenbase-pkg/scripts/build-deb.sh \
             --source-dir /tmp/source/OpenTenBase \
