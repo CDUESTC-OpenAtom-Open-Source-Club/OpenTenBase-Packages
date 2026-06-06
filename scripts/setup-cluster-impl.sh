@@ -237,28 +237,102 @@ check_memory() {
     if [[ "$avail_ram_mb" -lt 3000 ]]; then
         issues_found=$((issues_found + 1))
         log_error "OpenTenBase cluster (GTM + Coordinator + Datanode) requires at least 3GB RAM."
-        log_error "Current system has ${avail_ram_mb}MB. Deployment will likely fail (OOM)."
+        log_error "Current system has ${avail_ram_mb}MB. Cluster deployment will likely fail (OOM)."
         echo ""
-        echo -e "  ${CYAN}Suggested alternatives for ${avail_ram_mb}MB RAM:${NC}"
-        echo -e "  1. Use single-node mode instead (requires ~500MB):"
-        echo -e "     ${GREEN}sudo apt install opentenbase${NC}"
-        echo -e "     ${GREEN}opentenbase-ctl init --mode=single --port=5432${NC}"
-        echo -e "  2. Add swap space to reach 3GB:"
-        echo -e "     ${GREEN}sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile${NC}"
-        echo -e "     ${GREEN}sudo mkswap /swapfile && sudo swapon /swapfile${NC}"
-        echo -e "  3. Use a server with 4GB+ RAM"
+        echo -e "  ${CYAN}How would you like to proceed?${NC}"
+        echo -e "  ${GREEN}1)${NC} Single-node mode (~500MB RAM, recommended for this server)"
+        echo -e "  ${GREEN}2)${NC} Add 2G swap file and continue with cluster mode"
+        echo -e "  ${GREEN}3)${NC} Continue with cluster mode anyway (not recommended, OOM likely)"
+        echo -e "  ${GREEN}4)${NC} Abort"
         echo ""
-        if ask_yes_no "Continue anyway with cluster mode? (not recommended)" "n"; then
-            log_warn "Continuing with insufficient RAM — OOM is likely"
-        else
-            echo "Aborted. Use one of the alternatives above."
-            exit 1
-        fi
+
+        local choice
+        choice=$(ask "Your choice" "1")
+        case "$choice" in
+            1)
+                log_info "Switching to single-node mode..."
+                deploy_single_node
+                exit 0
+                ;;
+            2)
+                log_info "Adding 2G swap file..."
+                if fallocate -l 2G /swapfile 2>/dev/null && \
+                   chmod 600 /swapfile && \
+                   mkswap /swapfile >/dev/null 2>&1 && \
+                   swapon /swapfile; then
+                    log_ok "Swap file added and enabled"
+                    # Re-check RAM with swap
+                    local new_avail
+                    new_avail=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)
+                    local swap_mb
+                    swap_mb=$(awk '/SwapTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
+                    log_info "RAM: ${new_avail}MB + Swap: ${swap_mb}MB"
+                    issues_found=$((issues_found - 1))
+                else
+                    log_error "Failed to create swap file. Falling back to single-node mode."
+                    deploy_single_node
+                    exit 0
+                fi
+                ;;
+            3)
+                log_warn "Continuing with insufficient RAM — OOM is likely"
+                ;;
+            *)
+                echo "Aborted."
+                exit 1
+                ;;
+        esac
     elif [[ "$avail_ram_mb" -lt 4096 ]]; then
         log_warn "RAM is low (${avail_ram_mb}MB). Recommended: 4GB+. Cluster will use reduced settings."
     else
         echo -e "  ${GREEN}RAM OK${NC} for OpenTenBase cluster"
     fi
+}
+
+deploy_single_node() {
+    log_step "Setting up single-node OpenTenBase..."
+    cleanup_old
+    setup_repo
+    install_package
+
+    local port
+    port=$(ask "Single-node port" "5432")
+
+    log_step "Initializing single-node instance..."
+
+    if command -v opentenbase-ctl >/dev/null 2>&1; then
+        opentenbase-ctl init --mode=single --port="$port" || {
+            log_error "Single-node initialization failed"
+            exit 1
+        }
+    else
+        log_error "opentenbase-ctl not found after installation"
+        exit 1
+    fi
+
+    log_step "Starting single-node instance..."
+    if command -v systemctl >/dev/null 2>&1 && systemctl start opentenbase 2>/dev/null; then
+        log_ok "OpenTenBase started via systemd"
+    else
+        opentenbase-ctl start || {
+            log_error "Failed to start OpenTenBase"
+            exit 1
+        }
+    fi
+
+    echo ""
+    echo -e "${BOLD}========================================${NC}"
+    echo -e "${GREEN}  OpenTenBase Single-Node Ready!${NC}"
+    echo -e "${BOLD}========================================${NC}"
+    echo ""
+    echo -e "  Connect:"
+    echo -e "    ${GREEN}psql -h 127.0.0.1 -p ${port} -U opentenbase -d postgres${NC}"
+    echo ""
+    echo -e "  Manage:"
+    echo -e "    opentenbase-ctl status"
+    echo -e "    opentenbase-ctl stop"
+    echo -e "    opentenbase-ctl start"
+    echo ""
 }
 
 # ---------------------------------------------------------------------------
