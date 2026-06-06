@@ -328,6 +328,11 @@ check_memory() {
 
 deploy_single_node() {
     log_step "Setting up single-node OpenTenBase..."
+
+    # Single-node mode still starts GTM + Coordinator + Datanode (3 processes).
+    # Auto-add swap on low-RAM servers to prevent OOM.
+    ensure_swap_for_single_node
+
     cleanup_old
     setup_repo
     install_package
@@ -370,6 +375,64 @@ deploy_single_node() {
     echo -e "    opentenbase-ctl stop"
     echo -e "    opentenbase-ctl start"
     echo ""
+}
+
+# ---------------------------------------------------------------------------
+# Auto-add swap for low-RAM servers (single-node mode uses ~1.5GB for 3 processes)
+# ---------------------------------------------------------------------------
+ensure_swap_for_single_node() {
+    local avail_ram_mb
+    avail_ram_mb=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
+
+    # Only add swap if RAM < 3GB and no existing swap >= 1GB
+    if [[ "$avail_ram_mb" -ge 3000 ]]; then
+        return 0
+    fi
+
+    local swap_mb
+    swap_mb=$(awk '/SwapTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
+
+    if [[ "$swap_mb" -ge 1024 ]]; then
+        log_ok "Existing swap: ${swap_mb}MB — sufficient for single-node mode"
+        return 0
+    fi
+
+    log_info "Low RAM (${avail_ram_mb}MB) — auto-adding 2G swap for single-node mode..."
+
+    local swapfile="/swapfile"
+    # Use existing swapfile path if one is already in use
+    for sf in /swapfile /swapfile2; do
+        if [[ -f "$sf" ]] && swapon --show | grep -q "$sf"; then
+            swapfile="$sf"
+            break
+        fi
+        # Pick a path that doesn't exist yet
+        if [[ ! -f "$sf" ]]; then
+            swapfile="$sf"
+            break
+        fi
+    done
+
+    if fallocate -l 2G "$swapfile" 2>/dev/null; then
+        :
+    elif dd if=/dev/zero of="$swapfile" bs=1M count=2048 status=progress 2>/dev/null; then
+        :
+    else
+        log_error "Failed to create swap file"
+        exit 1
+    fi
+
+    chmod 600 "$swapfile"
+    mkswap "$swapfile" >/dev/null 2>&1
+    swapon "$swapfile"
+
+    # Add to fstab for persistence across reboots
+    if ! grep -q "$swapfile" /etc/fstab 2>/dev/null; then
+        echo "$swapfile none swap sw 0 0" >> /etc/fstab
+    fi
+
+    swap_mb=$(awk '/SwapTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
+    log_ok "Swap added: ${avail_ram_mb}MB RAM + ${swap_mb}MB swap"
 }
 
 # ---------------------------------------------------------------------------
