@@ -19,14 +19,14 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Reconnect stdin/stdout/stderr to terminal when running in a pipe
-# (e.g. curl | sudo bash). This allows interactive prompts to work.
-# Only redirect if /dev/tty can actually be opened (not in non-interactive SSH).
+# Reconnect stdin to terminal when running in a pipe (e.g. curl | sudo bash).
+# This allows interactive prompts (read) to receive user input.
+# Only stdin is redirected — stdout/stderr stay connected to the original
+# terminal so all output remains visible (important for Web SSH terminals).
 # ---------------------------------------------------------------------------
 if [[ ! -t 0 ]] && [[ -c /dev/tty ]]; then
-    # Test if /dev/tty is openable before committing to exec
     if ( : <>/dev/tty ) 2>/dev/null; then
-        exec 0</dev/tty 1>/dev/tty 2>&1
+        exec 0</dev/tty
     fi
 fi
 
