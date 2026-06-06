@@ -234,19 +234,36 @@ check_memory() {
         return 0
     fi
     echo -e "  Detected: ${CYAN}${avail_ram_mb}MB${NC} RAM"
-    if [[ "$avail_ram_mb" -lt 3000 ]]; then
+
+    local choice
+
+    if [[ "$avail_ram_mb" -lt 2000 ]]; then
+        # --- Tier 1: <2GB — cluster WILL OOM, only single-node or abort ---
         issues_found=$((issues_found + 1))
-        log_error "OpenTenBase cluster (GTM + Coordinator + Datanode) requires at least 3GB RAM."
-        log_error "Current system has ${avail_ram_mb}MB. Cluster deployment will likely fail (OOM)."
+        log_error "Insufficient RAM for cluster mode (${avail_ram_mb}MB). Minimum 3GB required."
+        echo ""
+        echo -e "  ${RED}Cluster mode is not available on this server.${NC}"
+        echo -e "  ${CYAN}How would you like to proceed?${NC}"
+        echo -e "  ${GREEN}1)${NC} Single-node mode (~500MB, recommended)"
+        echo -e "  ${GREEN}2)${NC} Abort"
+        echo ""
+        choice=$(ask "Your choice" "1")
+        case "$choice" in
+            1) log_info "Switching to single-node mode..."; deploy_single_node; exit 0 ;;
+            *) echo "Aborted."; exit 1 ;;
+        esac
+
+    elif [[ "$avail_ram_mb" -lt 3000 ]]; then
+        # --- Tier 2: 2-3GB — cluster risky, offer full menu ---
+        issues_found=$((issues_found + 1))
+        log_error "Cluster mode requires 3GB RAM. Current: ${avail_ram_mb}MB (OOM likely)."
         echo ""
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
-        echo -e "  ${GREEN}1)${NC} Single-node mode (~500MB RAM, recommended for this server)"
-        echo -e "  ${GREEN}2)${NC} Add 2G swap file and continue with cluster mode"
-        echo -e "  ${GREEN}3)${NC} Continue with cluster mode anyway (not recommended, OOM likely)"
+        echo -e "  ${GREEN}1)${NC} Single-node mode (~500MB, recommended)"
+        echo -e "  ${GREEN}2)${NC} Add 2G swap and continue with cluster mode"
+        echo -e "  ${GREEN}3)${NC} Continue with cluster mode anyway (not recommended)"
         echo -e "  ${GREEN}4)${NC} Abort"
         echo ""
-
-        local choice
         choice=$(ask "Your choice" "1")
         case "$choice" in
             1)
@@ -261,30 +278,38 @@ check_memory() {
                    mkswap /swapfile >/dev/null 2>&1 && \
                    swapon /swapfile; then
                     log_ok "Swap file added and enabled"
-                    # Re-check RAM with swap
-                    local new_avail
-                    new_avail=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)
                     local swap_mb
                     swap_mb=$(awk '/SwapTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
-                    log_info "RAM: ${new_avail}MB + Swap: ${swap_mb}MB"
+                    log_info "RAM: ${avail_ram_mb}MB + Swap: ${swap_mb}MB"
                     issues_found=$((issues_found - 1))
                 else
-                    log_error "Failed to create swap file. Falling back to single-node mode."
+                    log_error "Failed to create swap. Switching to single-node mode."
                     deploy_single_node
                     exit 0
                 fi
                 ;;
-            3)
-                log_warn "Continuing with insufficient RAM — OOM is likely"
-                ;;
-            *)
-                echo "Aborted."
-                exit 1
-                ;;
+            3) log_warn "Continuing with insufficient RAM — OOM is likely" ;;
+            *) echo "Aborted."; exit 1 ;;
         esac
+
     elif [[ "$avail_ram_mb" -lt 4096 ]]; then
-        log_warn "RAM is low (${avail_ram_mb}MB). Recommended: 4GB+. Cluster will use reduced settings."
+        # --- Tier 3: 3-4GB — cluster works with reduced settings ---
+        log_warn "RAM is low (${avail_ram_mb}MB). Cluster will use reduced settings."
+        echo ""
+        echo -e "  ${CYAN}How would you like to proceed?${NC}"
+        echo -e "  ${GREEN}1)${NC} Cluster mode with reduced settings (recommended)"
+        echo -e "  ${GREEN}2)${NC} Single-node mode instead"
+        echo -e "  ${GREEN}3)${NC} Abort"
+        echo ""
+        choice=$(ask "Your choice" "1")
+        case "$choice" in
+            1) log_info "Continuing with reduced cluster settings" ;;
+            2) log_info "Switching to single-node mode..."; deploy_single_node; exit 0 ;;
+            *) echo "Aborted."; exit 1 ;;
+        esac
+
     else
+        # --- Tier 4: ≥4GB — good to go ---
         echo -e "  ${GREEN}RAM OK${NC} for OpenTenBase cluster"
     fi
 }
