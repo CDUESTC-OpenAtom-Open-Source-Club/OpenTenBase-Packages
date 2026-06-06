@@ -250,19 +250,39 @@ EOF
 
         # Sign Release file
         if [ "$NO_SIGN" != "true" ] && command -v gpg &>/dev/null; then
+            # Verify the signing key is available
+            if ! gpg --list-secret-keys "$GPG_KEY_ID" &>/dev/null; then
+                log_error "GPG secret key $GPG_KEY_ID not found in keyring"
+                log_error "Set the GPG_PRIVATE_KEY secret in GitHub Settings -> Secrets"
+                log_error "Or run with --no-sign to skip signing"
+                exit 1
+            fi
+
             log_info "  Signing Release for $codename ..."
-            gpg --batch --yes --armor \
+            if ! gpg --batch --yes --armor \
                 --local-user "$GPG_KEY_ID" \
                 --detach-sign \
                 --output "$dist_dir/Release.gpg" \
-                "$dist_dir/Release" 2>/dev/null || log_warn "GPG signing failed for $codename"
+                "$dist_dir/Release"; then
+                log_error "Failed to create Release.gpg for $codename"
+                exit 1
+            fi
 
             # Create inline-signed InRelease
-            gpg --batch --yes --armor \
+            if ! gpg --batch --yes --armor \
                 --local-user "$GPG_KEY_ID" \
                 --clearsign \
                 --output "$dist_dir/InRelease" \
-                "$dist_dir/Release" 2>/dev/null || log_warn "InRelease signing failed for $codename"
+                "$dist_dir/Release"; then
+                log_error "Failed to create InRelease for $codename"
+                exit 1
+            fi
+
+            log_info "  Release signed successfully for $codename"
+        else
+            if [ "$NO_SIGN" != "true" ]; then
+                log_warn "GPG not available, repository will be unsigned"
+            fi
         fi
     done
 
