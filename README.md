@@ -480,6 +480,71 @@ gh workflow run stress-test.yml
 
 ---
 
+## Troubleshooting
+
+### `Unable to locate package opentenbase`
+
+**原因**：APT 源未更新或仓库未签名导致 `apt update` 跳过了 OpenTenBase 源。
+
+**解决**：
+
+```bash
+# 1. 重新运行安装脚本（会自动检测签名状态）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+
+# 2. 手动更新
+sudo apt update
+sudo apt install opentenbase
+```
+
+### `The repository '... noble Release' is not signed`
+
+**原因**：仓库缺少 GPG 签名文件（`Release.gpg` / `InRelease`）。脚本会自动回退到 `trusted=yes` 模式，无需手动处理。如果仍然报错，重新运行安装脚本即可。
+
+### `GPG 密钥下载失败`
+
+**原因**：网络环境无法访问 Cloudflare CDN 或 GitHub Pages。
+
+**解决**：
+
+```bash
+# 方法1：重试（网络波动可能导致临时失败）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+
+# 方法2：手动下载密钥并配置
+curl -sSL https://repo.blackevil217.com/apt/gpg-key.asc -o /tmp/key.asc
+sudo gpg --batch --dearmor -o /usr/share/keyrings/opentenbase-archive-keyring.gpg < /tmp/key.asc
+
+# 方法3：配置环境变量使用代理
+export https_proxy=http://your-proxy:port
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+```
+
+### `apt-get update` 报其他仓库 404 错误
+
+**原因**：系统其他第三方源失效（如 `dl.modular.com`），与 OpenTenBase 无关。
+
+**解决**：检查 `/etc/apt/sources.list.d/` 下的其他源文件，移除或禁用失效的源。
+
+### 安装后 `opentenbase-ctl: command not found`
+
+**原因**：安装未完成或 PATH 未包含 `/usr/bin`。
+
+**解决**：
+
+```bash
+# 检查是否安装成功
+dpkg -l | grep opentenbase
+
+# 重新安装
+sudo apt install --reinstall opentenbase
+
+# 检查文件是否存在
+ls -la /usr/bin/opentenbase-ctl
+```
+
+---
+
 ## Contributing
 
 Contributions are welcome — code, bug reports, and improvement suggestions!
