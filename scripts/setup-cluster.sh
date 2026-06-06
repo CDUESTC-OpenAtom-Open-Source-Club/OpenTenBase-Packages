@@ -178,7 +178,7 @@ check_broken_apt_sources() {
     while IFS= read -r url; do
         [[ -z "$url" ]] && continue
         local src_file
-        src_file=$(grep -rl "$url" /etc/apt/sources.list.d/ 2>/dev/null | head -1)
+        src_file=$(grep -rl "$url" /etc/apt/sources.list.d/ 2>/dev/null | head -1 || true)
         if [[ -n "$src_file" ]]; then
             broken_files+=("$src_file")
         fi
