@@ -278,50 +278,13 @@ readlink /etc/opentenbase/current
 
 ## Deployment Options
 
-OpenTenBase supports two deployment approaches:
+| Aspect | Pre-built Packages |
+|--------|-------------------|
+| **Deploy time** | ~2 minutes |
+| **Image size** | ~500 MB |
+| **Best for** | Production, quick testing, evaluation |
 
-| Aspect | Pre-built Packages | Source Build |
-|--------|-------------------|--------------|
-| **Deploy time** | ~2 minutes | 30-60 minutes (first time) |
-| **Customization** | Not supported | Full control (debug, cassert, etc.) |
-| **Best for** | Production, quick testing | Development, learning, contributing |
-| **Image size** | ~500 MB | ~2 GB |
-
-**Recommendation**: Use pre-built packages for production and quick evaluation. Use source builds for development, debugging, and contributing to the project. See [source-build-guide.md](docs/source-build-guide.md) for detailed source build instructions.
-
----
-
-## Build from Source
-
-### Docker Build (Recommended)
-
-```bash
-git clone https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages.git
-cd OpenTenBase-Packages
-
-# Build for all distributions
-./scripts/build-multi.sh --all
-
-# Build for Ubuntu 24.04 only
-./scripts/build-multi.sh -d ubuntu -v 24.04
-
-# Build RPM only
-./scripts/build-multi.sh --rpm
-```
-
-### Local Build
-
-```bash
-# Install build dependencies
-sudo apt install -y debhelper-compat bison flex perl libreadline-dev \
-    zlib1g-dev libssl-dev libxml2-dev libldap2-dev uuid-dev pkg-config
-
-# Build DEB packages
-./scripts/build-deb.sh
-
-# Build RPM packages
-./scripts/build-rpm.sh
-```
+> For developers who want to build from source, see [source-build-guide.md](docs/source-build-guide.md).
 
 ---
 
