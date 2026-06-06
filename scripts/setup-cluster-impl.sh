@@ -293,24 +293,36 @@ check_memory() {
         esac
 
     elif [[ "$avail_ram_mb" -lt 4096 ]]; then
-        # --- Tier 3: 3-4GB — cluster works with reduced settings ---
-        log_warn "RAM is low (${avail_ram_mb}MB). Cluster will use reduced settings."
+        # --- Tier 3: 3-4GB — cluster mode OK ---
+        log_ok "RAM meets cluster minimum (3GB+)"
         echo ""
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
-        echo -e "  ${GREEN}1)${NC} Cluster mode with reduced settings (recommended)"
+        echo -e "  ${GREEN}1)${NC} Cluster mode (recommended)"
         echo -e "  ${GREEN}2)${NC} Single-node mode instead"
         echo -e "  ${GREEN}3)${NC} Abort"
         echo ""
         choice=$(ask "Your choice" "1")
         case "$choice" in
-            1) log_info "Continuing with reduced cluster settings" ;;
+            1) log_info "Continuing with cluster mode" ;;
             2) log_info "Switching to single-node mode..."; deploy_single_node; exit 0 ;;
             *) echo "Aborted."; exit 1 ;;
         esac
 
     else
-        # --- Tier 4: ≥4GB — good to go ---
-        echo -e "  ${GREEN}RAM OK${NC} for OpenTenBase cluster"
+        # --- Tier 4: ≥4GB — recommended for cluster ---
+        log_ok "RAM meets recommended specs (4GB+)"
+        echo ""
+        echo -e "  ${CYAN}How would you like to proceed?${NC}"
+        echo -e "  ${GREEN}1)${NC} Cluster mode (recommended)"
+        echo -e "  ${GREEN}2)${NC} Single-node mode instead"
+        echo -e "  ${GREEN}3)${NC} Abort"
+        echo ""
+        choice=$(ask "Your choice" "1")
+        case "$choice" in
+            1) log_info "Continuing with cluster mode" ;;
+            2) log_info "Switching to single-node mode..."; deploy_single_node; exit 0 ;;
+            *) echo "Aborted."; exit 1 ;;
+        esac
     fi
 }
 
