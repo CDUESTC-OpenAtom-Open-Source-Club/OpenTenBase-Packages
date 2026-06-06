@@ -291,10 +291,16 @@ EOF
 update_package_list() {
     log_step "更新软件包列表..."
 
-    if apt-get update -qq 2>/dev/null; then
+    # Run apt-get update, but only check if OpenTenBase packages are available
+    # Other third-party repos may fail (e.g. dl.modular.com 404), which is not our fault
+    apt-get update -qq 2>/dev/null || true
+
+    # Verify OpenTenBase package is available
+    if apt-cache show opentenbase &>/dev/null; then
         log_info "软件包列表已更新"
     else
         log_warn "软件包列表更新失败，可能需要手动运行: apt-get update"
+        log_info "提示：如果其他第三方源报错（如 404），请先移除失效的源后重试"
     fi
 }
 
