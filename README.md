@@ -70,6 +70,8 @@ sudo dnf install opentenbase
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
 ```
 
+> **Note**: This command works interactively even in piped mode. The script automatically reconnects stdin to your terminal for prompts (port configuration, data directories, etc.).
+
 ---
 
 ## Mirror Acceleration (China-Optimized)
