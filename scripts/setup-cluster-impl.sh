@@ -244,7 +244,7 @@ check_memory() {
         echo ""
         echo -e "  ${RED}Cluster mode is not available on this server.${NC}"
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
-        echo -e "  ${GREEN}1)${NC} Single-node mode (~500MB, recommended)"
+        echo -e "  ${GREEN}1)${NC} Single-node mode (low memory, recommended)"
         echo -e "  ${GREEN}2)${NC} Abort"
         echo ""
         choice=$(ask "Your choice" "1")
@@ -259,7 +259,7 @@ check_memory() {
         log_error "Cluster mode requires 3GB RAM. Current: ${avail_ram_mb}MB (OOM likely)."
         echo ""
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
-        echo -e "  ${GREEN}1)${NC} Single-node mode (~500MB, recommended)"
+        echo -e "  ${GREEN}1)${NC} Single-node mode (low memory, recommended)"
         echo -e "  ${GREEN}2)${NC} Add 2G swap and continue with cluster mode"
         echo -e "  ${GREEN}3)${NC} Continue with cluster mode anyway (not recommended)"
         echo -e "  ${GREEN}4)${NC} Abort"
@@ -329,10 +329,6 @@ check_memory() {
 deploy_single_node() {
     log_step "Setting up single-node OpenTenBase..."
 
-    # Single-node mode still starts GTM + Coordinator + Datanode (3 processes).
-    # Auto-add swap on low-RAM servers to prevent OOM.
-    ensure_swap_for_single_node
-
     cleanup_old
     setup_repo
     install_package
@@ -351,6 +347,10 @@ deploy_single_node() {
         log_error "opentenbase-ctl not found after installation"
         exit 1
     fi
+
+    # Single-node mode starts GTM + Coordinator + Datanode (3 processes).
+    # Try swap first; if container blocks swapon, tune memory params instead.
+    ensure_swap_or_tune
 
     log_step "Starting single-node instance..."
     if command -v systemctl >/dev/null 2>&1 && systemctl start opentenbase 2>/dev/null; then
@@ -378,13 +378,13 @@ deploy_single_node() {
 }
 
 # ---------------------------------------------------------------------------
-# Auto-add swap for low-RAM servers (single-node mode uses ~1.5GB for 3 processes)
+# Ensure enough memory for single-node mode (3 processes ~ 1.5GB)
+# Strategy: try swap first; if container blocks swapon, tune PostgreSQL params
 # ---------------------------------------------------------------------------
-ensure_swap_for_single_node() {
+ensure_swap_or_tune() {
     local avail_ram_mb
     avail_ram_mb=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
 
-    # Only add swap if RAM < 3GB and no existing swap >= 1GB
     if [[ "$avail_ram_mb" -ge 3000 ]]; then
         return 0
     fi
@@ -397,42 +397,83 @@ ensure_swap_for_single_node() {
         return 0
     fi
 
-    log_info "Low RAM (${avail_ram_mb}MB) — auto-adding 2G swap for single-node mode..."
+    # --- Try adding swap (works on real VMs, fails in containers) ---
+    log_info "Low RAM (${avail_ram_mb}MB) — trying to add 2G swap..."
 
     local swapfile="/swapfile"
-    # Use existing swapfile path if one is already in use
     for sf in /swapfile /swapfile2; do
         if [[ -f "$sf" ]] && swapon --show | grep -q "$sf"; then
             swapfile="$sf"
             break
         fi
-        # Pick a path that doesn't exist yet
         if [[ ! -f "$sf" ]]; then
             swapfile="$sf"
             break
         fi
     done
 
-    if fallocate -l 2G "$swapfile" 2>/dev/null; then
-        :
-    elif dd if=/dev/zero of="$swapfile" bs=1M count=2048 status=progress 2>/dev/null; then
-        :
-    else
-        log_error "Failed to create swap file"
-        exit 1
+    if fallocate -l 2G "$swapfile" 2>/dev/null && \
+       chmod 600 "$swapfile" && \
+       mkswap "$swapfile" >/dev/null 2>&1 && \
+       swapon "$swapfile" 2>/dev/null; then
+        if ! grep -q "$swapfile" /etc/fstab 2>/dev/null; then
+            echo "$swapfile none swap sw 0 0" >> /etc/fstab
+        fi
+        swap_mb=$(awk '/SwapTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
+        log_ok "Swap added: ${avail_ram_mb}MB RAM + ${swap_mb}MB swap"
+        return 0
     fi
 
-    chmod 600 "$swapfile"
-    mkswap "$swapfile" >/dev/null 2>&1
-    swapon "$swapfile"
+    # --- swapon failed (container environment) — tune memory params ---
+    rm -f "$swapfile" 2>/dev/null
+    log_warn "swapon not permitted (container environment) — tuning memory parameters instead"
+    tune_low_memory
+}
 
-    # Add to fstab for persistence across reboots
-    if ! grep -q "$swapfile" /etc/fstab 2>/dev/null; then
-        echo "$swapfile none swap sw 0 0" >> /etc/fstab
+# ---------------------------------------------------------------------------
+# Patch postgresql.conf with low-memory settings for container / 2GB servers
+# Works in any environment — no special privileges needed beyond file write
+# ---------------------------------------------------------------------------
+tune_low_memory() {
+    # Enable memory overcommit — PostgreSQL fork() needs this
+    echo 1 > /proc/sys/vm/overcommit_memory 2>/dev/null || \
+        log_warn "Cannot set overcommit_memory (container restriction)"
+
+    local data_dir="${OT_DATA}/${DEFAULT_VERSION}"
+    local conf_files=()
+    for node in coord dn1; do
+        local conf="${data_dir}/${node}/postgresql.conf"
+        if [[ -f "$conf" ]]; then
+            conf_files+=("$conf")
+        fi
+    done
+
+    if [[ ${#conf_files[@]} -eq 0 ]]; then
+        log_warn "No postgresql.conf found to tune — skipping"
+        return 0
     fi
 
-    swap_mb=$(awk '/SwapTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
-    log_ok "Swap added: ${avail_ram_mb}MB RAM + ${swap_mb}MB swap"
+    log_info "Applying low-memory PostgreSQL settings..."
+
+    for conf in "${conf_files[@]}"; do
+        local node_name
+        node_name=$(basename "$(dirname "$conf")")
+        # Append overrides — PostgreSQL uses last value wins
+        cat >> "$conf" <<EOF
+
+# --- Low-memory overrides (auto-generated for ${avail_ram_mb:-low}MB RAM) ---
+shared_buffers = 32MB
+work_mem = 2MB
+maintenance_work_mem = 64MB
+effective_cache_size = 256MB
+max_connections = 20
+wal_buffers = 4MB
+bgwriter_delay = 200ms
+bgwriter_lru_maxpages = 100
+autovacuum_work_mem = 16MB
+EOF
+        log_ok "Tuned ${node_name}: shared_buffers=32MB, max_connections=20"
+    done
 }
 
 # ---------------------------------------------------------------------------
