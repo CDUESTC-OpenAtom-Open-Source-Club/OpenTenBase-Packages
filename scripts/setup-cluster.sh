@@ -25,7 +25,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 if [[ ! -t 0 ]] && [[ -c /dev/tty ]]; then
     # Test if /dev/tty is openable before committing to exec
-    if : <>/dev/tty 2>/dev/null; then
+    if ( : <>/dev/tty ) 2>/dev/null; then
         exec 0</dev/tty 1>/dev/tty 2>&1
     fi
 fi
@@ -165,7 +165,7 @@ check_broken_apt_sources() {
     # Find sources with "no longer has a Release file" or 404 errors
     local broken_sources
     broken_sources=$(echo "$update_output" | grep -oP '(?<=Err:)\d+\s+\Khttps?://[^\s]+' || true)
-    broken_sources+=$('\n')
+    broken_sources+=$'\n'
     broken_sources+=$(echo "$update_output" | grep -oP "The repository '([^']+)' no longer has a Release file" | grep -oP "(?<=')[^']+(?=')" || true)
 
     if [[ -z "$broken_sources" ]]; then
