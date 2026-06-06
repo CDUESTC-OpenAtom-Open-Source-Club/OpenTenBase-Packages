@@ -3,7 +3,7 @@
 # setup-cluster.sh — OpenTenBase Interactive One-Click Deployment
 # =============================================================================
 # Usage:
-#   curl -sSL <url>/setup-cluster.sh | sudo bash       # non-interactive defaults
+#   curl -sSL <url>/setup-cluster.sh | sudo bash       # interactive (auto-reconnects tty)
 #   sudo bash setup-cluster.sh                          # interactive mode
 #
 # This script handles the full deployment lifecycle:
@@ -17,6 +17,14 @@
 # =============================================================================
 
 set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Reconnect stdin to terminal when running in a pipe (e.g. curl | sudo bash)
+# This allows interactive prompts to work even in piped mode.
+# ---------------------------------------------------------------------------
+if [[ ! -t 0 && -t 1 ]]; then
+    exec 0</dev/tty
+fi
 
 # ---------------------------------------------------------------------------
 # Parse arguments
