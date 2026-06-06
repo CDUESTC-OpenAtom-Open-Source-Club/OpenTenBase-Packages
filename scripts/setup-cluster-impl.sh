@@ -467,6 +467,7 @@ work_mem = 2MB
 maintenance_work_mem = 64MB
 effective_cache_size = 256MB
 max_connections = 20
+max_wal_senders = 5
 wal_buffers = 4MB
 bgwriter_delay = 200ms
 bgwriter_lru_maxpages = 100
