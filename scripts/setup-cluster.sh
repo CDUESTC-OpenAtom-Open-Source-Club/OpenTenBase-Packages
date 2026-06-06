@@ -19,14 +19,16 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Reconnect stdin to terminal when running in a pipe (e.g. curl | sudo bash).
-# This allows interactive prompts (read) to receive user input.
-# Only stdin is redirected — stdout/stderr stay connected to the original
-# terminal so all output remains visible (important for Web SSH terminals).
+# Save terminal as fd 3 when running in a pipe (e.g. curl | sudo bash).
+# Using fd 3 instead of exec 0</dev/tty avoids stealing stdin from the pipe
+# before bash finishes reading the entire script (which causes hangs).
+# Interactive read prompts use <&3 to get user input from the terminal.
 # ---------------------------------------------------------------------------
+TTY_FD=""
 if [[ ! -t 0 ]] && [[ -c /dev/tty ]]; then
     if ( : <>/dev/tty ) 2>/dev/null; then
-        exec 0</dev/tty
+        exec 3</dev/tty
+        TTY_FD=3
     fi
 fi
 
@@ -94,9 +96,9 @@ ask() {
     local answer
     if [[ "$INTERACTIVE" == "true" ]]; then
         if [[ -n "$default" ]]; then
-            read -rp "$(echo -e "${CYAN}${prompt} [${default}]:${NC} ")" answer
+            read -rp "$(echo -e "${CYAN}${prompt} [${default}]:${NC} ")" answer <&"${TTY_FD:-0}"
         else
-            read -rp "$(echo -e "${CYAN}${prompt}:${NC} ")" answer
+            read -rp "$(echo -e "${CYAN}${prompt}:${NC} ")" answer <&"${TTY_FD:-0}"
         fi
         echo "${answer:-$default}"
     else
@@ -109,7 +111,7 @@ ask_yes_no() {
     local default="${2:-y}"
     local answer
     if [[ "$INTERACTIVE" == "true" ]]; then
-        read -rp "$(echo -e "${CYAN}${prompt} [${default}]:${NC} ")" answer
+        read -rp "$(echo -e "${CYAN}${prompt} [${default}]:${NC} ")" answer <&"${TTY_FD:-0}"
         answer="${answer:-$default}"
         [[ "$answer" =~ ^[Yy] ]]
     else
