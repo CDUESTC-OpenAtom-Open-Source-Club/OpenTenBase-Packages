@@ -125,8 +125,100 @@ check_root() {
 }
 
 # ---------------------------------------------------------------------------
-# Step 1.5: Check available memory
+# Step 1.5: Pre-flight environment checks
 # ---------------------------------------------------------------------------
+preflight_check() {
+    log_step "Running pre-flight environment checks..."
+
+    local issues_found=0
+
+    # Check 1: Broken third-party package sources
+    if [[ "$PKG_MGR" == "apt" ]]; then
+        check_broken_apt_sources
+    fi
+
+    # Check 2: Memory
+    check_memory
+
+    # Check 3: Disk space (need at least 2GB free)
+    check_disk_space
+
+    if [[ "$issues_found" -gt 0 ]]; then
+        echo ""
+        log_warn "Pre-flight detected ${issues_found} issue(s). Review above before continuing."
+        if ! ask_yes_no "Continue with deployment?" "y"; then
+            echo "Aborted."
+            exit 1
+        fi
+    fi
+}
+
+check_broken_apt_sources() {
+    # Test apt-get update to find broken third-party sources
+    local update_output
+    update_output=$(apt-get update 2>&1) || true
+
+    # Find sources with "no longer has a Release file" or 404 errors
+    local broken_sources
+    broken_sources=$(echo "$update_output" | grep -oP '(?<=Err:)\d+\s+\Khttps?://[^\s]+' || true)
+    broken_sources+=$('\n')
+    broken_sources+=$(echo "$update_output" | grep -oP "The repository '([^']+)' no longer has a Release file" | grep -oP "(?<=')[^']+(?=')" || true)
+
+    if [[ -z "$broken_sources" ]]; then
+        log_ok "No broken APT sources detected"
+        return 0
+    fi
+
+    # Map broken URLs back to source files
+    local broken_files=()
+    while IFS= read -r url; do
+        [[ -z "$url" ]] && continue
+        local src_file
+        src_file=$(grep -rl "$url" /etc/apt/sources.list.d/ 2>/dev/null | head -1)
+        if [[ -n "$src_file" ]]; then
+            broken_files+=("$src_file")
+        fi
+    done <<< "$broken_sources"
+
+    if [[ ${#broken_files[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    issues_found=$((issues_found + 1))
+    echo ""
+    log_warn "Found ${#broken_files[@]} broken third-party APT source(s):"
+    for f in "${broken_files[@]}"; do
+        echo -e "  ${YELLOW}• ${f}${NC}"
+    done
+    log_info "These are NOT OpenTenBase sources — they are pre-existing broken sources"
+    log_info "that will prevent 'apt-get update' from succeeding."
+    echo ""
+
+    if ask_yes_no "Disable broken sources? (recommended — they will be renamed to .disabled)" "y"; then
+        for f in "${broken_files[@]}"; do
+            mv "$f" "${f}.disabled" 2>/dev/null && \
+                log_ok "Disabled: ${f} → ${f}.disabled" || \
+                log_warn "Could not disable: ${f}"
+        done
+        log_info "Re-running apt-get update..."
+        apt-get update -qq 2>/dev/null || log_warn "apt-get update still has warnings"
+        log_ok "Broken sources disabled"
+    else
+        log_warn "Continuing with broken sources — 'apt install' may fail"
+    fi
+}
+
+check_disk_space() {
+    local free_gb
+    free_gb=$(df -BG / 2>/dev/null | awk 'NR==2 {print $4}' | tr -d 'G')
+    if [[ -n "$free_gb" ]] && [[ "$free_gb" -lt 2 ]]; then
+        issues_found=$((issues_found + 1))
+        log_error "Insufficient disk space: ${free_gb}GB free. OpenTenBase needs at least 2GB."
+    else
+        log_ok "Disk space: ${free_gb:-?}GB free"
+    fi
+}
+
 check_memory() {
     local avail_ram_mb
     avail_ram_mb=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo "0")
@@ -136,17 +228,23 @@ check_memory() {
     fi
     echo -e "  Detected: ${CYAN}${avail_ram_mb}MB${NC} RAM"
     if [[ "$avail_ram_mb" -lt 3000 ]]; then
-        log_error "OpenTenBase requires at least 3GB RAM for a single-machine cluster."
+        issues_found=$((issues_found + 1))
+        log_error "OpenTenBase cluster (GTM + Coordinator + Datanode) requires at least 3GB RAM."
         log_error "Current system has ${avail_ram_mb}MB. Deployment will likely fail (OOM)."
         echo ""
-        if [[ -t 0 ]]; then
-            read -rp "Continue anyway? (not recommended) [y/N]: " choice
-            case "$choice" in
-                y|Y) log_warn "Continuing with insufficient RAM..." ;;
-                *) echo "Aborted. Please use a server with 4GB+ RAM."; exit 1 ;;
-            esac
+        echo -e "  ${CYAN}Suggested alternatives for ${avail_ram_mb}MB RAM:${NC}"
+        echo -e "  1. Use single-node mode instead (requires ~500MB):"
+        echo -e "     ${GREEN}sudo apt install opentenbase${NC}"
+        echo -e "     ${GREEN}opentenbase-ctl init --mode=single --port=5432${NC}"
+        echo -e "  2. Add swap space to reach 3GB:"
+        echo -e "     ${GREEN}sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile${NC}"
+        echo -e "     ${GREEN}sudo mkswap /swapfile && sudo swapon /swapfile${NC}"
+        echo -e "  3. Use a server with 4GB+ RAM"
+        echo ""
+        if ask_yes_no "Continue anyway with cluster mode? (not recommended)" "n"; then
+            log_warn "Continuing with insufficient RAM — OOM is likely"
         else
-            log_error "Non-interactive mode: aborting due to insufficient RAM."
+            echo "Aborted. Use one of the alternatives above."
             exit 1
         fi
     elif [[ "$avail_ram_mb" -lt 4096 ]]; then
@@ -789,7 +887,7 @@ main() {
 
     check_root
     detect_os
-    check_memory
+    preflight_check
     cleanup_old
     setup_repo
     install_package
