@@ -19,11 +19,11 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Reconnect stdin to terminal when running in a pipe (e.g. curl | sudo bash)
+# Reconnect stdin/stderr to terminal when running in a pipe (e.g. curl | sudo bash)
 # This allows interactive prompts to work even in piped mode.
 # ---------------------------------------------------------------------------
-if [[ ! -t 0 && -t 1 ]]; then
-    exec 0</dev/tty
+if [[ ! -t 0 ]] && tty -s >/dev/null 2>&1; then
+    exec 0</dev/tty 1>/dev/tty 2>&1
 fi
 
 # ---------------------------------------------------------------------------
