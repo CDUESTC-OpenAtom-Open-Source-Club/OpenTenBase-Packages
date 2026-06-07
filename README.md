@@ -72,6 +72,16 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 
 > **Note**: This command works interactively even in piped mode. The script automatically reconnects stdin to your terminal for prompts (port configuration, data directories, etc.).
 
+### Uninstall
+
+```bash
+# Interactive uninstall (prompts before removing data)
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash
+
+# Full uninstall including data and logs (no prompts)
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash -s -- --purge --yes
+```
+
 ---
 
 ## Mirror Acceleration (China-Optimized)
