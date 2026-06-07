@@ -111,12 +111,16 @@ The installation scripts automatically detect and use the fastest available mirr
 
 | Resource | Minimum | Recommended | Notes |
 |----------|---------|-------------|-------|
-| **RAM** | 3 GB | 4 GB+ | OpenTenBase pooler cache requires ~1GB+ **non-swappable** shared memory per node. A single-machine cluster (GTM + Coordinator + Datanode) needs at least 3GB. |
+| **RAM** | 4 GB | 4 GB+ | OpenTenBase Coordinator requires ~4GB shared memory (SPM cache + connection pool + workfile manager). This is a hard requirement — cannot be reduced by tuning. |
 | **Disk** | 2 GB | 10 GB+ | Binary packages (~500MB) + data directory |
 | **CPU** | 1 core | 2+ cores | GTM thread count auto-detected from CPU cores |
 | **OS** | Ubuntu 20.04+, Debian 11+, RHEL 8+, Fedora 40+ | See platform matrix below | |
 
-> **Important**: The `opentenbase-ctl init` script automatically detects available RAM and tunes `max_connections`, `max_pool_size`, and `shared_buffers` accordingly. On servers with <4GB RAM, reduced settings are applied automatically. On servers with <3GB RAM, a warning is displayed as the cluster may fail to start due to OOM (Out of Memory).
+> **Important**:
+> - **2GB servers cannot run OpenTenBase** — Coordinator's shared memory (~4GB) exceeds available resources. This includes 2GB Cloud Studio containers.
+> - **Containers (Docker/K8s)** have a hard cgroup memory limit and cannot add swap. Use 4GB+ containers only.
+> - The setup script automatically detects memory and container environment, and will abort with clear guidance if requirements are not met.
+> - On real VMs with 3-4GB RAM, the script can add swap to supplement available memory.
 
 ---
 

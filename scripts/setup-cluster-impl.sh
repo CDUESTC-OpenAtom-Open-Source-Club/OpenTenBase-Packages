@@ -240,7 +240,7 @@ check_memory() {
     if [[ "$avail_ram_mb" -lt 2000 ]]; then
         # --- Tier 1: <2GB — cannot run OpenTenBase at all ---
         issues_found=$((issues_found + 1))
-        log_error "Insufficient RAM (${avail_ram_mb}MB). OpenTenBase needs at least 3GB."
+        log_error "Insufficient RAM (${avail_ram_mb}MB). OpenTenBase needs at least 4GB."
         echo ""
         echo -e "  ${RED}OpenTenBase cannot run on this server.${NC}"
         echo -e "  ${YELLOW}Even single-node mode requires ~4GB shared memory for the Coordinator.${NC}"
@@ -277,7 +277,7 @@ check_memory() {
 
         # Real VM: can add swap
         issues_found=$((issues_found + 1))
-        log_error "RAM ${avail_ram_mb}MB is below cluster minimum (3GB)."
+        log_error "RAM ${avail_ram_mb}MB is below recommended minimum (4GB)."
         echo ""
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
         echo -e "  ${GREEN}1)${NC} Single-node mode with auto swap (recommended)"
@@ -315,7 +315,7 @@ check_memory() {
 
     elif [[ "$avail_ram_mb" -lt 4096 ]]; then
         # --- Tier 3: 3-4GB — cluster mode OK ---
-        log_ok "RAM meets cluster minimum (3GB+)"
+        log_ok "RAM meets minimum requirement (3GB+)"
         echo ""
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
         echo -e "  ${GREEN}1)${NC} Cluster mode (recommended)"
