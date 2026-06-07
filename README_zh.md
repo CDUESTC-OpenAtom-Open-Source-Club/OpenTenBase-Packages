@@ -101,12 +101,16 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 
 | 资源 | 最低要求 | 推荐配置 | 说明 |
 |------|----------|----------|------|
-| **内存** | 3 GB | 4 GB+ | OpenTenBase 连接池缓存需要约 1GB+ **不可 swap** 的共享内存。单机集群（GTM + Coordinator + Datanode）至少需要 3GB。 |
+| **内存** | 4 GB | 4 GB+ | OpenTenBase Coordinator 需要 ~4GB 共享内存（SPM 缓存 + 连接池 + workfile 管理器）。这是硬性要求，无法通过参数调优降低。 |
 | **磁盘** | 2 GB | 10 GB+ | 二进制包（~500MB）+ 数据目录 |
 | **CPU** | 1 核 | 2+ 核 | GTM 线程数根据 CPU 核心数自动检测 |
 | **操作系统** | Ubuntu 20.04+, Debian 11+, RHEL 8+, Fedora 40+ | 见下方平台矩阵 | |
 
-> **重要说明**：`opentenbase-ctl init` 脚本会自动检测可用内存，并根据服务器配置调整 `max_connections`、`max_pool_size` 和 `shared_buffers` 参数。内存 <4GB 的服务器会自动使用精简配置，<3GB 的服务器会显示警告（集群可能因 OOM 无法启动）。
+> **重要说明**：
+> - **2GB 服务器无法运行 OpenTenBase** — Coordinator 共享内存需求（~4GB）超出可用资源。包括 2GB 的 Cloud Studio 容器。
+> - **容器环境（Docker/K8s）**有硬性 cgroup 内存限制且无法添加 swap，请使用 4GB+ 容器。
+> - 安装脚本会自动检测内存和容器环境，不满足要求时会中止并给出明确提示。
+> - 真实 VM 环境 3-4GB 内存时，脚本可自动添加 swap 补充内存。
 
 ---
 
