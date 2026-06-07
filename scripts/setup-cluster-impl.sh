@@ -238,28 +238,49 @@ check_memory() {
     local choice
 
     if [[ "$avail_ram_mb" -lt 2000 ]]; then
-        # --- Tier 1: <2GB — cluster WILL OOM, only single-node or abort ---
+        # --- Tier 1: <2GB — cannot run OpenTenBase at all ---
         issues_found=$((issues_found + 1))
-        log_error "Insufficient RAM for cluster mode (${avail_ram_mb}MB). Minimum 3GB required."
+        log_error "Insufficient RAM (${avail_ram_mb}MB). OpenTenBase needs at least 3GB."
         echo ""
-        echo -e "  ${RED}Cluster mode is not available on this server.${NC}"
-        echo -e "  ${CYAN}How would you like to proceed?${NC}"
-        echo -e "  ${GREEN}1)${NC} Single-node mode (low memory, recommended)"
-        echo -e "  ${GREEN}2)${NC} Abort"
+        echo -e "  ${RED}OpenTenBase cannot run on this server.${NC}"
+        echo -e "  ${YELLOW}Even single-node mode requires ~4GB shared memory for the Coordinator.${NC}"
         echo ""
-        choice=$(ask "Your choice" "1")
-        case "$choice" in
-            1) log_info "Switching to single-node mode..."; deploy_single_node; exit 0 ;;
-            *) echo "Aborted."; exit 1 ;;
-        esac
+        echo -e "  Options:"
+        echo -e "    • Use a server with 4GB+ RAM"
+        echo -e "    • Upgrade this server's memory allocation"
+        echo ""
+        echo "Aborted."
+        exit 1
 
     elif [[ "$avail_ram_mb" -lt 3000 ]]; then
-        # --- Tier 2: 2-3GB — cluster risky, offer full menu ---
+        # --- Tier 2: 2-3GB — check if container ---
+        local is_container=false
+        if [[ -f /.dockerenv ]] || grep -qE '(docker|lxc|kubepods)' /proc/1/cgroup 2>/dev/null; then
+            is_container=true
+        fi
+
+        if [[ "$is_container" == "true" ]]; then
+            # Container: no swapon, no swap — can't get enough memory
+            issues_found=$((issues_found + 1))
+            log_error "Container detected with ${avail_ram_mb}MB RAM."
+            echo ""
+            echo -e "  ${RED}OpenTenBase Coordinator needs ~4GB shared memory.${NC}"
+            echo -e "  ${YELLOW}Containers cannot add swap and have a hard memory limit.${NC}"
+            echo ""
+            echo -e "  Options:"
+            echo -e "    • Increase container memory to 4GB+"
+            echo -e "    • Use a real VM instead of a container"
+            echo ""
+            echo "Aborted."
+            exit 1
+        fi
+
+        # Real VM: can add swap
         issues_found=$((issues_found + 1))
-        log_error "Cluster mode requires 3GB RAM. Current: ${avail_ram_mb}MB (OOM likely)."
+        log_error "RAM ${avail_ram_mb}MB is below cluster minimum (3GB)."
         echo ""
         echo -e "  ${CYAN}How would you like to proceed?${NC}"
-        echo -e "  ${GREEN}1)${NC} Single-node mode (low memory, recommended)"
+        echo -e "  ${GREEN}1)${NC} Single-node mode with auto swap (recommended)"
         echo -e "  ${GREEN}2)${NC} Add 2G swap and continue with cluster mode"
         echo -e "  ${GREEN}3)${NC} Continue with cluster mode anyway (not recommended)"
         echo -e "  ${GREEN}4)${NC} Abort"
@@ -468,6 +489,7 @@ maintenance_work_mem = 64MB
 effective_cache_size = 256MB
 max_connections = 20
 max_wal_senders = 5
+max_pool_size = 10
 wal_buffers = 4MB
 bgwriter_delay = 200ms
 bgwriter_lru_maxpages = 100
