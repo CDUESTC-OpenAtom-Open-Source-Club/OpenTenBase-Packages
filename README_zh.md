@@ -62,6 +62,16 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 
 > **说明**：此命令在管道模式下也能正常交互。脚本会自动将 stdin 重连到终端，支持端口配置、数据目录等交互式提示。
 
+### 卸载
+
+```bash
+# 交互式卸载（删除前会逐一确认）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash
+
+# 完全卸载（包括数据和日志，无需确认）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash -s -- --purge --yes
+```
+
 ---
 
 ## 国内镜像加速
