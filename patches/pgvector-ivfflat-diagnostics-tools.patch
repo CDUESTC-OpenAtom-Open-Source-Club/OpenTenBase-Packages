@@ -1,0 +1,201 @@
+diff --git a/contrib/pgvector/bench/ivfflat_diagnostics.sql b/contrib/pgvector/bench/ivfflat_diagnostics.sql
+new file mode 100644
+index 0000000..92d600b
+--- /dev/null
++++ b/contrib/pgvector/bench/ivfflat_diagnostics.sql
+@@ -0,0 +1,195 @@
++\set ON_ERROR_STOP on
++
++CREATE SCHEMA IF NOT EXISTS pgvector_bench;
++
++CREATE OR REPLACE FUNCTION pgvector_bench.parse_memory_mb(value text)
++RETURNS numeric
++LANGUAGE plpgsql
++AS $$
++DECLARE
++    cleaned text;
++    amount numeric;
++    unit text;
++BEGIN
++    IF value IS NULL OR btrim(value) = '' THEN
++        RETURN NULL;
++    END IF;
++
++    cleaned := lower(regexp_replace(btrim(value), '\s+', '', 'g'));
++    amount := substring(cleaned from '^[0-9]+[.]?[0-9]*')::numeric;
++    unit := regexp_replace(cleaned, '^[0-9]+[.]?[0-9]*', '');
++
++    IF unit IN ('', 'mb') THEN
++        RETURN amount;
++    ELSIF unit IN ('kB', 'kb') THEN
++        RETURN amount / 1024.0;
++    ELSIF unit = 'gb' THEN
++        RETURN amount * 1024.0;
++    ELSIF unit = 'tb' THEN
++        RETURN amount * 1024.0 * 1024.0;
++    ELSE
++        RAISE EXCEPTION 'unsupported memory unit in %', value;
++    END IF;
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION pgvector_bench.estimate_ivfflat_build_memory_mb(
++    row_count bigint,
++    dims integer,
++    lists integer
++)
++RETURNS numeric
++LANGUAGE plpgsql
++AS $$
++DECLARE
++    vector_mb numeric;
++    centroid_mb numeric;
++    overhead_mb numeric;
++BEGIN
++    IF row_count <= 0 THEN
++        RAISE EXCEPTION 'row_count must be positive';
++    END IF;
++    IF dims <= 0 THEN
++        RAISE EXCEPTION 'dims must be positive';
++    END IF;
++    IF lists <= 0 THEN
++        RAISE EXCEPTION 'lists must be positive';
++    END IF;
++
++    vector_mb := row_count::numeric * dims * 4 / 1024 / 1024;
++    centroid_mb := lists::numeric * dims * 4 / 1024 / 1024;
++    overhead_mb := GREATEST(32, vector_mb * 3.0 + lists::numeric * 0.05);
++    RETURN CEIL(vector_mb + centroid_mb + overhead_mb);
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION pgvector_bench.recommend_ivfflat_lists(
++    row_count bigint,
++    dims integer DEFAULT 128
++)
++RETURNS integer
++LANGUAGE plpgsql
++AS $$
++DECLARE
++    factor numeric;
++BEGIN
++    IF row_count <= 0 THEN
++        RAISE EXCEPTION 'row_count must be positive';
++    END IF;
++    IF dims <= 0 THEN
++        RAISE EXCEPTION 'dims must be positive';
++    END IF;
++
++    factor := CASE WHEN dims >= 128 THEN 3.2 ELSE 2.0 END;
++    RETURN GREATEST(10, LEAST(4096, (ROUND((SQRT(row_count::numeric) * factor) / 50.0) * 50)::integer));
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION pgvector_bench.diagnose_ivfflat_build(
++    row_count bigint,
++    dims integer,
++    lists integer DEFAULT NULL,
++    probes integer DEFAULT NULL,
++    target_recall numeric DEFAULT 0.90,
++    maintenance_work_mem text DEFAULT NULL
++)
++RETURNS TABLE (
++    check_name text,
++    status text,
++    detail text,
++    recommendation text
++)
++LANGUAGE plpgsql
++AS $$
++DECLARE
++    effective_lists integer;
++    effective_probes integer;
++    estimated_mem_mb numeric;
++    configured_mem_mb numeric;
++    probe_ratio numeric;
++BEGIN
++    IF target_recall <= 0 OR target_recall > 1 THEN
++        RAISE EXCEPTION 'target_recall must be in (0, 1]';
++    END IF;
++
++    effective_lists := COALESCE(lists, pgvector_bench.recommend_ivfflat_lists(row_count, dims));
++    effective_probes := COALESCE(probes, CEIL(effective_lists * CASE
++        WHEN target_recall >= 0.99 THEN 1.00
++        WHEN target_recall >= 0.95 THEN 0.75
++        WHEN target_recall >= 0.90 THEN 0.50
++        WHEN target_recall >= 0.80 THEN 0.30
++        ELSE 0.15
++    END)::integer);
++    effective_probes := GREATEST(1, LEAST(effective_lists, effective_probes));
++    estimated_mem_mb := pgvector_bench.estimate_ivfflat_build_memory_mb(row_count, dims, effective_lists);
++    configured_mem_mb := COALESCE(
++        pgvector_bench.parse_memory_mb(maintenance_work_mem),
++        pgvector_bench.parse_memory_mb(current_setting('maintenance_work_mem'))
++    );
++    probe_ratio := effective_probes::numeric / effective_lists;
++
++    check_name := 'lists';
++    status := CASE
++        WHEN lists IS NULL THEN 'info'
++        WHEN effective_lists < 10 THEN 'risk'
++        WHEN effective_lists > row_count THEN 'risk'
++        ELSE 'ok'
++    END;
++    detail := format('rows=%s dims=%s lists=%s recommended_lists=%s', row_count, dims, COALESCE(lists, effective_lists), pgvector_bench.recommend_ivfflat_lists(row_count, dims));
++    recommendation := CASE
++        WHEN lists IS NULL THEN format('start with lists=%s and validate recall/latency with benchmark', effective_lists)
++        WHEN effective_lists > row_count THEN 'lists should not exceed row count'
++        ELSE 'lists is within the basic heuristic range; validate with workload data'
++    END;
++    RETURN NEXT;
++
++    check_name := 'maintenance_work_mem';
++    status := CASE
++        WHEN configured_mem_mb < estimated_mem_mb THEN 'risk'
++        WHEN configured_mem_mb < estimated_mem_mb * 1.25 THEN 'warn'
++        ELSE 'ok'
++    END;
++    detail := format('estimated_build_memory=%sMB configured_maintenance_work_mem=%sMB', estimated_mem_mb, ROUND(configured_mem_mb, 2));
++    recommendation := CASE
++        WHEN configured_mem_mb < estimated_mem_mb THEN format('increase maintenance_work_mem to at least %sMB or reduce lists/rows per build', estimated_mem_mb)
++        WHEN configured_mem_mb < estimated_mem_mb * 1.25 THEN 'configuration is close to the estimated requirement; keep headroom for concurrent work'
++        ELSE 'memory setting has basic headroom for this index build'
++    END;
++    RETURN NEXT;
++
++    check_name := 'probes';
++    status := CASE
++        WHEN probe_ratio < 0.05 AND target_recall >= 0.90 THEN 'risk'
++        WHEN probe_ratio < 0.10 AND target_recall >= 0.90 THEN 'warn'
++        WHEN effective_probes = effective_lists THEN 'warn'
++        ELSE 'ok'
++    END;
++    detail := format('probes=%s lists=%s probe_ratio=%s target_recall=%s', effective_probes, effective_lists, ROUND(probe_ratio, 4), target_recall);
++    recommendation := CASE
++        WHEN probe_ratio < 0.10 AND target_recall >= 0.90 THEN 'low probes may cause poor recall; benchmark higher probes such as lists*0.3, lists*0.5, and lists'
++        WHEN effective_probes = effective_lists THEN 'probes equals lists; recall should be high but latency may exceed exact scan'
++        ELSE 'probe ratio is plausible; validate using recall@k benchmark'
++    END;
++    RETURN NEXT;
++
++    check_name := 'benchmark_required';
++    status := 'info';
++    detail := 'IVFFlat quality depends on data distribution, metric, topk, and query workload';
++    recommendation := 'run bench/run_ivfflat_benchmark.sh with representative data and save CSV plus EXPLAIN plan evidence';
++    RETURN NEXT;
++END;
++$$;
++
++CREATE OR REPLACE VIEW pgvector_bench.ivfflat_index_inventory AS
++SELECT
++    ns.nspname AS schema_name,
++    tbl.relname AS table_name,
++    idx.relname AS index_name,
++    pg_relation_size(idx.oid) AS index_bytes,
++    pg_get_indexdef(idx.oid) AS index_definition,
++    CASE WHEN pg_get_indexdef(idx.oid) ILIKE '%USING ivfflat%' THEN 'ivfflat' ELSE 'other' END AS index_kind
++FROM pg_class idx
++JOIN pg_index i ON i.indexrelid = idx.oid
++JOIN pg_class tbl ON tbl.oid = i.indrelid
++JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
++WHERE pg_get_indexdef(idx.oid) ILIKE '%USING ivfflat%';
