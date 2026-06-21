@@ -52,3 +52,50 @@ Output summary:
   benchmark_required   | info
   ivfflat_index_inventory returned 0 rows in the local PostgreSQL validation
   database because pgvector IVFFlat indexes were not present there.
+
+OpenTenBase remote validation:
+  Environment:
+    Host: mdnzwy.fkpw3ukb.ssh.cloudstudio.work
+    OpenTenBase cluster: gtm/dn1/coord RUNNING
+    Filesystem after validation: overlay 31G total, 28G available
+
+  SQL file:
+    /workspace/OpenTenBase/contrib/pgvector/bench/ivfflat_diagnostics.sql
+
+  Memory parser and estimator:
+    SELECT
+      pgvector_bench.parse_memory_mb('512MB'),
+      pgvector_bench.parse_memory_mb('1GB'),
+      pgvector_bench.recommend_ivfflat_lists(100000,128),
+      pgvector_bench.estimate_ivfflat_build_memory_mb(100000,128,1000);
+
+  Output:
+    512|1024.0|1000|246
+
+  Low-memory, low-probes diagnostic:
+    SELECT check_name, status, detail, recommendation
+    FROM pgvector_bench.diagnose_ivfflat_build(100000,128,1000,10,0.90,'64MB');
+
+  Output:
+    lists|ok|rows=100000 dims=128 lists=1000 recommended_lists=1000|lists is within the basic heuristic range; validate with workload data
+    maintenance_work_mem|risk|estimated_build_memory=246MB configured_maintenance_work_mem=64.00MB|increase maintenance_work_mem to at least 246MB or reduce lists/rows per build
+    probes|risk|probes=10 lists=1000 probe_ratio=0.0100 target_recall=0.90|low probes may cause poor recall; benchmark higher probes such as lists*0.3, lists*0.5, and lists
+    benchmark_required|info|IVFFlat quality depends on data distribution, metric, topk, and query workload|run bench/run_ivfflat_benchmark.sh with representative data and save CSV plus EXPLAIN plan evidence
+
+  Higher-memory, higher-probes diagnostic:
+    SELECT check_name, status, detail, recommendation
+    FROM pgvector_bench.diagnose_ivfflat_build(100000,128,1000,500,0.90,'512MB');
+
+  Output:
+    lists|ok|rows=100000 dims=128 lists=1000 recommended_lists=1000|lists is within the basic heuristic range; validate with workload data
+    maintenance_work_mem|ok|estimated_build_memory=246MB configured_maintenance_work_mem=512.00MB|memory setting has basic headroom for this index build
+    probes|ok|probes=500 lists=1000 probe_ratio=0.5000 target_recall=0.90|probe ratio is plausible; validate using recall@k benchmark
+    benchmark_required|info|IVFFlat quality depends on data distribution, metric, topk, and query workload|run bench/run_ivfflat_benchmark.sh with representative data and save CSV plus EXPLAIN plan evidence
+
+  IVFFlat inventory:
+    SELECT schema_name, table_name, index_name, index_kind
+    FROM pgvector_bench.ivfflat_index_inventory
+    LIMIT 5;
+
+  Output:
+    pgvector_bench|items|items_embedding_ivfflat_idx|ivfflat

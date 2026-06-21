@@ -166,20 +166,17 @@ PostgreSQL 14.22 (Homebrew) on aarch64-apple-darwin24.6.0
 - `diagnose_ivfflat_build(100000,128,1000,500,0.90,'512MB')` 返回 `maintenance_work_mem = ok` 和 `probes = ok`。
 - `scripts/pgvector-index-diagnostics.sh` 已串联加载 SQL、执行诊断和查询索引清单。
 
-远程 OpenTenBase 验证状态：
+远程 OpenTenBase 已完成实库验证：
 
-- 远程 CloudStudio SSH 当前直接断开，暂时无法补充分布式 OpenTenBase 实测输出。
-- 由于诊断 SQL 主要为标准 SQL/PLpgSQL 逻辑，本地 PostgreSQL 已覆盖语法和主要函数行为。
-- `ivfflat_index_inventory` 的 OpenTenBase 实库索引清单仍需在远程恢复后补测。
-
-远程恢复后的补测命令：
-
-1. 加载 `ivfflat_diagnostics.sql`。
-2. 验证低内存场景返回 `risk`。
-3. 验证高 probes 场景返回 `warn/ok`。
-4. 查询 `ivfflat_index_inventory`，确认能列出现有 IVFFlat 索引。
-
-如果远程环境临时不可用，应保留 SQL、命令和预期输出，待环境恢复后补充实测结果，不应伪造验证数据。
+- CloudStudio 远程集群已启动，`gtm/dn1/coord` 均为 `RUNNING`。
+- `ivfflat_diagnostics.sql` 已加载到 OpenTenBase。
+- `parse_memory_mb('512MB') = 512`，`parse_memory_mb('1GB') = 1024.0`。
+- `recommend_ivfflat_lists(100000,128) = 1000`。
+- `estimate_ivfflat_build_memory_mb(100000,128,1000) = 246`。
+- `diagnose_ivfflat_build(100000,128,1000,10,0.90,'64MB')` 返回 `maintenance_work_mem = risk` 和 `probes = risk`。
+- `diagnose_ivfflat_build(100000,128,1000,500,0.90,'512MB')` 返回 `maintenance_work_mem = ok` 和 `probes = ok`。
+- `ivfflat_index_inventory` 能识别远程库中的 `pgvector_bench.items_embedding_ivfflat_idx`，类型为 `ivfflat`。
+- 验证后磁盘正常，根分区约 28GB 可用，`dn1.log` 和 `coord.log` 均保持在 KB 级。
 
 ## 8. 后续增强
 
