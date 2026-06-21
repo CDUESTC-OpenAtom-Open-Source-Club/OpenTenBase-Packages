@@ -232,6 +232,8 @@ pgxc_node_name = 'dn1'
 log_directory = '${log}'
 log_filename = 'dn1.log'
 logging_collector = on
+log_rotation_size = '100MB'
+log_truncate_on_rotation = on
 # -- memory auto-tuned for ${avail_ram_mb}MB RAM --
 max_connections = ${mem_max_conn}
 shared_buffers = ${mem_shared_buf}
@@ -271,6 +273,8 @@ pgxc_node_name = 'coord'
 log_directory = '${log}'
 log_filename = 'coord.log'
 logging_collector = on
+log_rotation_size = '100MB'
+log_truncate_on_rotation = on
 # -- memory auto-tuned for ${avail_ram_mb}MB RAM --
 max_connections = ${mem_max_conn}
 max_pool_size = ${mem_max_pool}

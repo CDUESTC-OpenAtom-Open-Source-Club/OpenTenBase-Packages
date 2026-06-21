@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-label="IVFFlat P95 Latency vs Probes">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="86" y="34" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#111827">IVFFlat P95 Latency vs Probes</text>
+<text x="86" y="54" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">rows=100000, dims=128, topk=10, lists=1000, queries=30</text>
+<line x1="86" y1="482.0" x2="926" y2="482.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="486.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">0</text>
+<line x1="86" y1="422.3" x2="926" y2="422.3" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="426.3" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">10</text>
+<line x1="86" y1="362.6" x2="926" y2="362.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="366.6" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">20</text>
+<line x1="86" y1="302.9" x2="926" y2="302.9" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="306.9" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">30</text>
+<line x1="86" y1="243.1" x2="926" y2="243.1" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="247.1" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">40</text>
+<line x1="86" y1="183.4" x2="926" y2="183.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="187.4" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">50</text>
+<line x1="86" y1="123.7" x2="926" y2="123.7" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="127.7" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">60</text>
+<line x1="86" y1="64.0" x2="926" y2="64.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="68.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">70</text>
+<line x1="86.0" y1="64" x2="86.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="86.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">1</text>
+<line x1="281.7" y1="64" x2="281.7" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="281.7" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">5</text>
+<line x1="366.0" y1="64" x2="366.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="366.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">10</text>
+<line x1="561.7" y1="64" x2="561.7" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="561.7" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">50</text>
+<line x1="646.0" y1="64" x2="646.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="646.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">100</text>
+<line x1="841.7" y1="64" x2="841.7" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="841.7" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">500</text>
+<line x1="926.0" y1="64" x2="926.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="926.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">1000</text>
+<line x1="86" y1="482" x2="926" y2="482" stroke="#374151" stroke-width="1.2"/>
+<line x1="86" y1="64" x2="86" y2="482" stroke="#374151" stroke-width="1.2"/>
+<text x="506.0" y="538" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#111827">IVFFlat probes (log scale)</text>
+<text x="20" y="273.0" transform="rotate(-90 20 273.0)" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#111827">P95 latency (ms)</text>
+<polyline points="86.0,394.5 281.7,401.1 366.0,401.4 561.7,302.6 646.0,343.1 841.7,225.0 926.0,130.5" fill="none" stroke="#2563eb" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.0" cy="394.5" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="281.7" cy="401.1" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="366.0" cy="401.4" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="561.7" cy="302.6" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="646.0" cy="343.1" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="841.7" cy="225.0" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="926.0" cy="130.5" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<polyline points="86.0,402.7 281.7,405.6 366.0,396.0 561.7,304.3 646.0,273.9 841.7,210.2 926.0,126.7" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.0" cy="402.7" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="281.7" cy="405.6" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="366.0" cy="396.0" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="561.7" cy="304.3" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="646.0" cy="273.9" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="841.7" cy="210.2" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="926.0" cy="126.7" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<polyline points="86.0,403.0 281.7,404.9 366.0,402.6 561.7,386.3 646.0,256.1 841.7,197.8 926.0,127.1" fill="none" stroke="#16a34a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.0" cy="403.0" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="281.7" cy="404.9" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="366.0" cy="402.6" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="561.7" cy="386.3" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="646.0" cy="256.1" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="841.7" cy="197.8" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="926.0" cy="127.1" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<line x1="716" y1="76" x2="744" y2="76" stroke="#2563eb" stroke-width="3"/>
+<circle cx="730" cy="76" r="4" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+<text x="754" y="80" font-family="Arial, sans-serif" font-size="13" fill="#111827">L2</text>
+<line x1="716" y1="100" x2="744" y2="100" stroke="#dc2626" stroke-width="3"/>
+<circle cx="730" cy="100" r="4" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+<text x="754" y="104" font-family="Arial, sans-serif" font-size="13" fill="#111827">Inner Product</text>
+<line x1="716" y1="124" x2="744" y2="124" stroke="#16a34a" stroke-width="3"/>
+<circle cx="730" cy="124" r="4" fill="#fff" stroke="#16a34a" stroke-width="2"/>
+<text x="754" y="128" font-family="Arial, sans-serif" font-size="13" fill="#111827">Cosine</text>
+</svg>

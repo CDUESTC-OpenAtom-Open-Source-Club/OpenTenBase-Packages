@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-label="IVFFlat Recall vs Probes">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="86" y="34" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#111827">IVFFlat Recall vs Probes</text>
+<text x="86" y="54" font-family="Arial, sans-serif" font-size="13" fill="#6b7280">rows=100000, dims=128, topk=10, lists=1000, queries=30</text>
+<line x1="86" y1="482.0" x2="926" y2="482.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="486.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">0.0</text>
+<line x1="86" y1="398.4" x2="926" y2="398.4" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="402.4" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">0.2</text>
+<line x1="86" y1="314.8" x2="926" y2="314.8" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="318.8" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">0.4</text>
+<line x1="86" y1="231.2" x2="926" y2="231.2" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="235.2" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">0.6</text>
+<line x1="86" y1="147.6" x2="926" y2="147.6" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="151.6" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">0.8</text>
+<line x1="86" y1="64.0" x2="926" y2="64.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="74" y="68.0" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">1.0</text>
+<line x1="86.0" y1="64" x2="86.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="86.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">1</text>
+<line x1="281.7" y1="64" x2="281.7" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="281.7" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">5</text>
+<line x1="366.0" y1="64" x2="366.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="366.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">10</text>
+<line x1="561.7" y1="64" x2="561.7" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="561.7" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">50</text>
+<line x1="646.0" y1="64" x2="646.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="646.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">100</text>
+<line x1="841.7" y1="64" x2="841.7" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="841.7" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">500</text>
+<line x1="926.0" y1="64" x2="926.0" y2="482" stroke="#f3f4f6" stroke-width="1"/>
+<text x="926.0" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#4b5563">1000</text>
+<line x1="86" y1="482" x2="926" y2="482" stroke="#374151" stroke-width="1.2"/>
+<line x1="86" y1="64" x2="86" y2="482" stroke="#374151" stroke-width="1.2"/>
+<text x="506.0" y="538" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#111827">IVFFlat probes (log scale)</text>
+<text x="20" y="273.0" transform="rotate(-90 20 273.0)" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#111827">recall@10</text>
+<polyline points="86.0,468.1 281.7,444.4 366.0,416.5 561.7,331.5 646.0,280.0 841.7,91.9 926.0,64.0" fill="none" stroke="#2563eb" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.0" cy="468.1" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="281.7" cy="444.4" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="366.0" cy="416.5" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="561.7" cy="331.5" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="646.0" cy="280.0" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="841.7" cy="91.9" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<circle cx="926.0" cy="64.0" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<polyline points="86.0,477.8 281.7,472.3 366.0,466.7 561.7,402.6 646.0,348.2 841.7,122.5 926.0,64.0" fill="none" stroke="#dc2626" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.0" cy="477.8" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="281.7" cy="472.3" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="366.0" cy="466.7" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="561.7" cy="402.6" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="646.0" cy="348.2" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="841.7" cy="122.5" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<circle cx="926.0" cy="64.0" r="4.5" fill="#ffffff" stroke="#dc2626" stroke-width="2"/>
+<polyline points="86.0,476.4 281.7,459.7 366.0,445.8 561.7,355.2 646.0,284.2 841.7,89.1 926.0,64.0" fill="none" stroke="#16a34a" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.0" cy="476.4" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="281.7" cy="459.7" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="366.0" cy="445.8" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="561.7" cy="355.2" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="646.0" cy="284.2" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="841.7" cy="89.1" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<circle cx="926.0" cy="64.0" r="4.5" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+<line x1="716" y1="76" x2="744" y2="76" stroke="#2563eb" stroke-width="3"/>
+<circle cx="730" cy="76" r="4" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+<text x="754" y="80" font-family="Arial, sans-serif" font-size="13" fill="#111827">L2</text>
+<line x1="716" y1="100" x2="744" y2="100" stroke="#dc2626" stroke-width="3"/>
+<circle cx="730" cy="100" r="4" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+<text x="754" y="104" font-family="Arial, sans-serif" font-size="13" fill="#111827">Inner Product</text>
+<line x1="716" y1="124" x2="744" y2="124" stroke="#16a34a" stroke-width="3"/>
+<circle cx="730" cy="124" r="4" fill="#fff" stroke="#16a34a" stroke-width="2"/>
+<text x="754" y="128" font-family="Arial, sans-serif" font-size="13" fill="#111827">Cosine</text>
+</svg>

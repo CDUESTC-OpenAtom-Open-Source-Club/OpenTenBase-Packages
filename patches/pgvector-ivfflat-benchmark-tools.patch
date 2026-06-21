@@ -1,0 +1,602 @@
+diff --git a/contrib/pgvector/bench/README.md b/contrib/pgvector/bench/README.md
+new file mode 100644
+index 0000000..19dc9f2
+--- /dev/null
++++ b/contrib/pgvector/bench/README.md
+@@ -0,0 +1,137 @@
++# pgvector IVFFlat Benchmark
++
++This directory contains a reproducible benchmark harness for pgvector IVFFlat
++query performance. It measures the latency and recall trade-off for L2, inner
++product, and cosine distance with different `lists` and `probes` settings.
++
++The benchmark is intentionally separate from regression tests. It is designed
++for development and tuning, where results depend on hardware, data size, and
++runtime settings.
++
++## Requirements
++
++- A running OpenTenBase/PostgreSQL-compatible instance
++- `psql` in `PATH`
++- The `vector` extension installed and available in the target database
++
++## Quick Start
++
++Run all three vector metrics with the default settings:
++
++```bash
++cd contrib/pgvector
++bench/run_ivfflat_benchmark.sh
++```
++
++Run a smaller smoke benchmark:
++
++```bash
++ROWS=1000 DIMS=32 QUERIES=5 LISTS=10 PROBES_LIST="1 4 10" \
++  bench/run_ivfflat_benchmark.sh
++```
++
++Run only cosine distance:
++
++```bash
++METRICS=cosine ROWS=100000 DIMS=384 LISTS=100 PROBES_LIST="1 4 10 32 100" \
++  bench/run_ivfflat_benchmark.sh
++```
++
++Load the recommendation helper:
++
++```bash
++psql -d postgres -f bench/ivfflat_recommendation.sql
++```
++
++Recommend an initial IVFFlat setting for a target recall:
++
++```sql
++SELECT *
++FROM pgvector_bench.recommend_ivfflat_params(
++  row_count => 100000,
++  dims => 128,
++  target_recall => 0.90,
++  metric => 'cosine'
++);
++```
++
++The script generates deterministic CSV data files, loads them with server-side
++`COPY`, runs exact and IVFFlat queries from the client, and writes a CSV report
++to:
++
++```text
++bench/results/ivfflat_benchmark_<timestamp>.csv
++```
++
++It also writes an `EXPLAIN` report for each metric to:
++
++```text
++bench/results/ivfflat_benchmark_<timestamp>_plans.txt
++```
++
++## Environment Variables
++
++| Variable | Default | Description |
++| --- | --- | --- |
++| `DBNAME` | `postgres` | Database name |
++| `PGHOST` | unset | Passed through to `psql` |
++| `PGPORT` | unset | Passed through to `psql` |
++| `PGUSER` | unset | Passed through to `psql` |
++| `ROWS` | `10000` | Number of vectors in the benchmark table |
++| `DIMS` | `128` | Vector dimensions |
++| `QUERIES` | `20` | Number of query vectors |
++| `TOPK` | `10` | Number of nearest neighbors |
++| `LISTS` | `100` | IVFFlat list count |
++| `PROBES_LIST` | `1 4 10 32 100` | Probe values to test |
++| `METRICS` | `l2 ip cosine` | Distance metrics to run |
++| `MAINTENANCE_WORK_MEM` | `512MB` | Session memory used while building IVFFlat indexes |
++| `OUTPUT` | auto-generated | CSV output path |
++| `PLAN_OUTPUT` | derived from `OUTPUT` | EXPLAIN plan output path |
++
++## Metrics
++
++The report contains:
++
++- `avg_latency_ms`: average query latency across query vectors
++- `p95_latency_ms`: p95 query latency across query vectors
++- `recall_at_k`: average overlap between exact top-k results and IVFFlat top-k
++- `exact_avg_latency_ms`: average exact scan latency with index scans disabled
++
++Recall is calculated as:
++
++```text
++recall@k = |exact_top_k intersect index_top_k| / k
++```
++
++## Parameter Recommendation
++
++`ivfflat_recommendation.sql` creates two objects:
++
++- `pgvector_bench.ivfflat_benchmark_observations`: measured benchmark
++  observations that can seed recommendations.
++- `pgvector_bench.recommend_ivfflat_params(...)`: returns recommended
++  `lists`, `probes`, expected recall/latency when measured data exists,
++  suggested `maintenance_work_mem`, and a risk label.
++
++The helper uses measured observations first. If no observation matches the
++requested `row_count`, `dims`, `metric`, and `lists`, it falls back to a
++conservative heuristic and returns `recommendation_source = 'heuristic'`.
++Heuristic results are starting points, not production guarantees.
++
++## Notes
++
++- Exact results are collected with index scans disabled, so they are not
++  affected by approximate index scans. The exact baseline is still collected
++  after index creation; the planner is constrained for correctness comparison.
++- The plan report captures one indexed query per metric and should show an
++  `Index Scan` using `items_embedding_ivfflat_idx`.
++- Benchmark queries order only by the vector distance expression. Adding a
++  secondary sort key such as `id` can prevent IVFFlat from being selected.
++- The script recreates the `pgvector_bench` schema in the target database.
++- For cosine distance, zero vectors are avoided because they are not indexed.
++- Large `ROWS` and `LISTS` values may need a larger `MAINTENANCE_WORK_MEM`
++  during index creation.
++- The benchmark is client-driven to avoid OpenTenBase pull-up function limits
++  for DML statements in distributed execution.
++- Use this benchmark to compare commits, parameter settings, and hardware. Do
++  not use a single run as a universal performance claim.
+diff --git a/contrib/pgvector/bench/ivfflat_benchmark.sql b/contrib/pgvector/bench/ivfflat_benchmark.sql
+new file mode 100644
+index 0000000..5198cbb
+--- /dev/null
++++ b/contrib/pgvector/bench/ivfflat_benchmark.sql
+@@ -0,0 +1,24 @@
++\set ON_ERROR_STOP on
++
++DROP SCHEMA IF EXISTS pgvector_bench CASCADE;
++CREATE SCHEMA pgvector_bench;
++SET search_path = pgvector_bench, public;
++SET maintenance_work_mem = :'maintenance_work_mem';
++
++CREATE EXTENSION IF NOT EXISTS vector;
++
++CREATE TABLE items (
++    id integer PRIMARY KEY,
++    embedding vector(:dims)
++);
++
++COPY items(id, embedding) FROM '__ITEMS_FILE__' WITH (FORMAT csv);
++
++ANALYZE items;
++
++CREATE INDEX items_embedding_ivfflat_idx
++ON items
++USING ivfflat (embedding :opclass)
++WITH (lists = :lists);
++
++ANALYZE items;
+diff --git a/contrib/pgvector/bench/ivfflat_recommendation.sql b/contrib/pgvector/bench/ivfflat_recommendation.sql
+new file mode 100644
+index 0000000..e2f4267
+--- /dev/null
++++ b/contrib/pgvector/bench/ivfflat_recommendation.sql
+@@ -0,0 +1,151 @@
++\set ON_ERROR_STOP on
++
++CREATE SCHEMA IF NOT EXISTS pgvector_bench;
++
++CREATE TABLE IF NOT EXISTS pgvector_bench.ivfflat_benchmark_observations (
++    source text NOT NULL,
++    metric text NOT NULL,
++    rows bigint NOT NULL,
++    dims integer NOT NULL,
++    topk integer NOT NULL,
++    lists integer NOT NULL,
++    probes integer NOT NULL,
++    avg_latency_ms numeric NOT NULL,
++    p95_latency_ms numeric NOT NULL,
++    recall_at_k numeric NOT NULL,
++    exact_avg_latency_ms numeric NOT NULL
++);
++
++DELETE FROM pgvector_bench.ivfflat_benchmark_observations
++WHERE source = 'opentenbase_100k_128d_20260621';
++
++INSERT INTO pgvector_bench.ivfflat_benchmark_observations
++    (source, metric, rows, dims, topk, lists, probes, avg_latency_ms, p95_latency_ms, recall_at_k, exact_avg_latency_ms)
++VALUES
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 1, 13.170, 14.657, 0.0333, 41.951),
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 5, 12.563, 13.554, 0.0900, 41.951),
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 10, 12.593, 13.493, 0.1567, 41.951),
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 50, 16.681, 30.044, 0.3600, 41.951),
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 100, 18.920, 23.268, 0.4833, 41.951),
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 500, 41.396, 43.030, 0.9333, 41.951),
++    ('opentenbase_100k_128d_20260621', 'l2', 100000, 128, 10, 1000, 1000, 56.440, 58.867, 1.0000, 41.951),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 1, 12.398, 13.287, 0.0100, 40.791),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 5, 12.333, 12.793, 0.0233, 40.791),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 10, 13.102, 14.404, 0.0367, 40.791),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 50, 17.204, 29.752, 0.1900, 40.791),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 100, 20.818, 34.842, 0.3200, 40.791),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 500, 44.110, 45.518, 0.8600, 40.791),
++    ('opentenbase_100k_128d_20260621', 'ip', 100000, 128, 10, 1000, 1000, 57.330, 59.492, 1.0000, 40.791),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 1, 12.292, 13.238, 0.0133, 42.526),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 5, 12.331, 12.919, 0.0533, 42.526),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 10, 12.626, 13.300, 0.0867, 42.526),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 50, 15.399, 16.031, 0.3033, 42.526),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 100, 21.845, 37.830, 0.4733, 42.526),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 500, 46.164, 47.589, 0.9400, 42.526),
++    ('opentenbase_100k_128d_20260621', 'cosine', 100000, 128, 10, 1000, 1000, 57.717, 59.441, 1.0000, 42.526);
++
++CREATE OR REPLACE FUNCTION pgvector_bench.recommend_ivfflat_params(
++    row_count bigint,
++    dims integer,
++    target_recall numeric DEFAULT 0.90,
++    metric text DEFAULT 'l2',
++    list_count integer DEFAULT NULL
++)
++RETURNS TABLE (
++    recommended_lists integer,
++    recommended_probes integer,
++    estimated_recall numeric,
++    expected_avg_latency_ms numeric,
++    maintenance_work_mem text,
++    recommendation_source text,
++    risk_level text,
++    rationale text
++)
++LANGUAGE plpgsql
++AS $$
++DECLARE
++    effective_lists integer;
++    probe_ratio numeric;
++    metric_factor numeric;
++    measured record;
++BEGIN
++    IF row_count <= 0 THEN
++        RAISE EXCEPTION 'row_count must be positive';
++    END IF;
++    IF dims <= 0 THEN
++        RAISE EXCEPTION 'dims must be positive';
++    END IF;
++    IF target_recall <= 0 OR target_recall > 1 THEN
++        RAISE EXCEPTION 'target_recall must be in (0, 1]';
++    END IF;
++    IF metric NOT IN ('l2', 'ip', 'cosine') THEN
++        RAISE EXCEPTION 'metric must be one of: l2, ip, cosine';
++    END IF;
++
++    effective_lists := COALESCE(
++        list_count,
++        GREATEST(10, LEAST(4096, (ROUND((SQRT(row_count::numeric) * CASE WHEN dims >= 128 THEN 3.2 ELSE 2.0 END) / 50.0) * 50)::integer))
++    );
++
++    SELECT *
++    INTO measured
++    FROM pgvector_bench.ivfflat_benchmark_observations o
++    WHERE o.metric = recommend_ivfflat_params.metric
++      AND o.rows = row_count
++      AND o.dims = recommend_ivfflat_params.dims
++      AND o.lists = effective_lists
++      AND o.recall_at_k >= target_recall
++    ORDER BY o.avg_latency_ms ASC, o.probes ASC
++    LIMIT 1;
++
++    IF FOUND THEN
++        recommended_lists := measured.lists;
++        recommended_probes := measured.probes;
++        estimated_recall := measured.recall_at_k;
++        expected_avg_latency_ms := measured.avg_latency_ms;
++        maintenance_work_mem := CASE
++            WHEN row_count * dims >= 51200000 THEN '1GB'
++            WHEN row_count * dims >= 6400000 THEN '512MB'
++            ELSE '128MB'
++        END;
++        recommendation_source := measured.source;
++        risk_level := CASE
++            WHEN measured.recall_at_k >= 0.95 THEN 'low'
++            WHEN measured.recall_at_k >= 0.90 THEN 'medium'
++            ELSE 'high'
++        END;
++        rationale := 'selected from measured OpenTenBase benchmark observations with the lowest average latency meeting target_recall';
++        RETURN NEXT;
++        RETURN;
++    END IF;
++
++    probe_ratio := CASE
++        WHEN target_recall >= 0.99 THEN 1.00
++        WHEN target_recall >= 0.95 THEN 0.75
++        WHEN target_recall >= 0.90 THEN 0.50
++        WHEN target_recall >= 0.80 THEN 0.30
++        ELSE 0.15
++    END;
++    metric_factor := CASE
++        WHEN metric = 'ip' THEN 1.15
++        ELSE 1.00
++    END;
++
++    recommended_lists := effective_lists;
++    recommended_probes := GREATEST(1, LEAST(effective_lists, CEIL(effective_lists * probe_ratio * metric_factor)::integer));
++    estimated_recall := NULL;
++    expected_avg_latency_ms := NULL;
++    maintenance_work_mem := CASE
++        WHEN row_count * dims >= 51200000 THEN '1GB'
++        WHEN row_count * dims >= 6400000 THEN '512MB'
++        ELSE '128MB'
++    END;
++    recommendation_source := 'heuristic';
++    risk_level := CASE
++        WHEN target_recall >= 0.95 THEN 'medium'
++        ELSE 'low'
++    END;
++    rationale := 'heuristic recommendation; run bench/run_ivfflat_benchmark.sh on representative data to validate recall and latency before production use';
++    RETURN NEXT;
++END;
++$$;
+diff --git a/contrib/pgvector/bench/run_ivfflat_benchmark.sh b/contrib/pgvector/bench/run_ivfflat_benchmark.sh
+new file mode 100644
+index 0000000..ea1b715
+--- /dev/null
++++ b/contrib/pgvector/bench/run_ivfflat_benchmark.sh
+@@ -0,0 +1,266 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++SQL_FILE="${SCRIPT_DIR}/ivfflat_benchmark.sql"
++RESULT_DIR="${SCRIPT_DIR}/results"
++
++DBNAME="${DBNAME:-postgres}"
++ROWS="${ROWS:-10000}"
++DIMS="${DIMS:-128}"
++QUERIES="${QUERIES:-20}"
++TOPK="${TOPK:-10}"
++LISTS="${LISTS:-100}"
++PROBES_LIST="${PROBES_LIST:-1 4 10 32 100}"
++METRICS="${METRICS:-l2 ip cosine}"
++MAINTENANCE_WORK_MEM="${MAINTENANCE_WORK_MEM:-512MB}"
++OUTPUT="${OUTPUT:-${RESULT_DIR}/ivfflat_benchmark_$(date +%Y%m%d_%H%M%S).csv}"
++PLAN_OUTPUT="${PLAN_OUTPUT:-${OUTPUT%.csv}_plans.txt}"
++
++mkdir -p "$RESULT_DIR"
++TMP_DIR="$(mktemp -d)"
++ITEMS_FILE="${TMP_DIR}/items.csv"
++QUERIES_FILE="${TMP_DIR}/queries.csv"
++RUN_SQL_FILE="${TMP_DIR}/ivfflat_benchmark.sql"
++trap 'rm -rf "$TMP_DIR"' EXIT
++
++psql_cmd() {
++	psql -X -qAt -d "$DBNAME" "$@"
++}
++
++generate_vectors() {
++	local count="$1"
++	local dim="$2"
++	local seed="$3"
++	local output_file="$4"
++
++	awk -v count="$count" -v dim="$dim" -v seed="$seed" '
++		BEGIN {
++			srand(seed)
++			for (i = 1; i <= count; i++) {
++				printf "%d,\"[", i
++				for (j = 1; j <= dim; j++) {
++					if (j > 1)
++						printf ","
++					printf "%.8f", rand() + 0.000001
++				}
++				printf "]\"\n"
++			}
++		}
++	' > "$output_file"
++}
++
++metric_operator() {
++	case "$1" in
++		l2) echo "<->" ;;
++		ip) echo "<#>" ;;
++		cosine) echo "<=>" ;;
++		*) echo "unsupported metric: $1" >&2; return 1 ;;
++	esac
++}
++
++metric_opclass() {
++	case "$1" in
++		l2) echo "vector_l2_ops" ;;
++		ip) echo "vector_ip_ops" ;;
++		cosine) echo "vector_cosine_ops" ;;
++		*) echo "unsupported metric: $1" >&2; return 1 ;;
++	esac
++}
++
++write_header() {
++	printf '%s\n' "metric,rows,dims,queries,topk,lists,probes,avg_latency_ms,p95_latency_ms,recall_at_k,exact_avg_latency_ms" > "$OUTPUT"
++	{
++		printf 'pgvector IVFFlat benchmark plans\n'
++		printf 'rows=%s dims=%s queries=%s topk=%s lists=%s maintenance_work_mem=%s probes="%s" metrics="%s"\n\n' \
++			"$ROWS" "$DIMS" "$QUERIES" "$TOPK" "$LISTS" "$MAINTENANCE_WORK_MEM" "$PROBES_LIST" "$METRICS"
++	} > "$PLAN_OUTPUT"
++}
++
++setup_metric() {
++	local metric="$1"
++	local opclass
++	opclass="$(metric_opclass "$metric")"
++
++	sed \
++		-e "s#__ITEMS_FILE__#${ITEMS_FILE}#g" \
++		"$SQL_FILE" > "$RUN_SQL_FILE"
++
++	psql -X -q -d "$DBNAME" \
++		-v dims="$DIMS" \
++		-v lists="$LISTS" \
++		-v opclass="$opclass" \
++		-v maintenance_work_mem="$MAINTENANCE_WORK_MEM" \
++		-f "$RUN_SQL_FILE" >/dev/null
++}
++
++capture_plan() {
++	local metric="$1"
++	local operator="$2"
++	local opclass
++	local first_probes
++	local qid
++	local vector
++
++	opclass="$(metric_opclass "$metric")"
++	first_probes="$(printf '%s\n' $PROBES_LIST | head -n 1)"
++	IFS=, read -r qid vector < "$QUERIES_FILE"
++	vector="${vector#\"}"
++	vector="${vector%\"}"
++
++	{
++		printf '== metric=%s opclass=%s operator=%s lists=%s probes=%s query_id=%s ==\n' \
++			"$metric" "$opclass" "$operator" "$LISTS" "$first_probes" "$qid"
++		psql -X -q -d "$DBNAME" -v ON_ERROR_STOP=1 -c \
++			"SET enable_seqscan = off; SET ivfflat.probes = ${first_probes}; EXPLAIN (COSTS OFF) SELECT id FROM pgvector_bench.items ORDER BY embedding ${operator} '${vector}' LIMIT ${TOPK};"
++		printf '\n'
++	} >> "$PLAN_OUTPUT"
++}
++
++ids_for_query() {
++	local operator="$1"
++	local vector="$2"
++	local mode="$3"
++	local probes="${4:-}"
++	local settings
++
++	if [ "$mode" = "exact" ]; then
++		settings="SET enable_indexscan = off; SET enable_bitmapscan = off; SET enable_seqscan = on;"
++	else
++		settings="SET enable_seqscan = off; SET ivfflat.probes = ${probes};"
++	fi
++
++	psql_cmd -c "${settings} SELECT id FROM pgvector_bench.items ORDER BY embedding ${operator} '${vector}' LIMIT ${TOPK};" |
++		awk 'NF { print $1 }'
++}
++
++measure_query() {
++	local operator="$1"
++	local vector="$2"
++	local mode="$3"
++	local probes="${4:-}"
++	local output_file="$5"
++	local started_at finished_at elapsed_ns
++
++	started_at="$(date +%s%N)"
++	ids_for_query "$operator" "$vector" "$mode" "$probes" > "$output_file"
++	finished_at="$(date +%s%N)"
++	elapsed_ns=$((finished_at - started_at))
++	awk -v ns="$elapsed_ns" 'BEGIN { printf "%.3f", ns / 1000000.0 }'
++}
++
++recall_for_ids() {
++	local exact_file="$1"
++	local approx_file="$2"
++
++	awk -v k="$TOPK" '
++		NR == FNR {
++			exact[$1] = 1
++			next
++		}
++		($1 in exact) {
++			hits++
++		}
++		END {
++			printf "%.6f", hits / k
++		}
++	' "$exact_file" "$approx_file"
++}
++
++summarize_values() {
++	local values_file="$1"
++
++	awk '
++		{ values[++n] = $1; sum += $1 }
++		END {
++			if (n == 0) {
++				printf "0.000,0.000"
++				exit
++			}
++			for (i = 1; i <= n; i++) {
++				for (j = i + 1; j <= n; j++) {
++					if (values[i] > values[j]) {
++						tmp = values[i]; values[i] = values[j]; values[j] = tmp
++					}
++				}
++			}
++			p95_index = int(n * 0.95)
++			if (p95_index < 1)
++				p95_index = 1
++			if (p95_index < n && p95_index / n < 0.95)
++				p95_index++
++			printf "%.3f,%.3f", sum / n, values[p95_index]
++		}
++	' "$values_file"
++}
++
++run_probe_case() {
++	local metric="$1"
++	local probes="$2"
++	local operator="$3"
++	local exact_latencies="${TMP_DIR}/${metric}_exact.lat"
++	local approx_latencies="${TMP_DIR}/${metric}_${probes}_approx.lat"
++	local recalls="${TMP_DIR}/${metric}_${probes}.recall"
++	local approx_ids="${TMP_DIR}/approx.ids"
++
++	: > "$approx_latencies"
++	: > "$recalls"
++
++	echo "==> metric=${metric} rows=${ROWS} dims=${DIMS} lists=${LISTS} probes=${probes}"
++
++	while IFS=, read -r qid vector; do
++		vector="${vector#\"}"
++		vector="${vector%\"}"
++
++		measure_query "$operator" "$vector" approx "$probes" "$approx_ids" >> "$approx_latencies"
++		printf '\n' >> "$approx_latencies"
++		recall_for_ids "${TMP_DIR}/${metric}_exact_${qid}.ids" "$approx_ids" >> "$recalls"
++		printf '\n' >> "$recalls"
++	done < "$QUERIES_FILE"
++
++	local approx_summary exact_summary recall_avg
++	approx_summary="$(summarize_values "$approx_latencies")"
++	exact_summary="$(summarize_values "$exact_latencies")"
++	recall_avg="$(awk '{ sum += $1; n++ } END { if (n == 0) printf "0.0000"; else printf "%.4f", sum / n }' "$recalls")"
++
++	printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
++		"$metric" "$ROWS" "$DIMS" "$QUERIES" "$TOPK" "$LISTS" "$probes" "$approx_summary" "$recall_avg" "$(echo "$exact_summary" | cut -d, -f1)" >> "$OUTPUT"
++}
++
++prepare_exact_results() {
++	local metric="$1"
++	local operator="$2"
++	local exact_latencies="${TMP_DIR}/${metric}_exact.lat"
++
++	: > "$exact_latencies"
++
++	echo "==> metric=${metric} rows=${ROWS} dims=${DIMS} exact baseline"
++
++	while IFS=, read -r qid vector; do
++		vector="${vector#\"}"
++		vector="${vector%\"}"
++
++		measure_query "$operator" "$vector" exact "" "${TMP_DIR}/${metric}_exact_${qid}.ids" >> "$exact_latencies"
++		printf '\n' >> "$exact_latencies"
++	done < "$QUERIES_FILE"
++}
++
++write_header
++generate_vectors "$ROWS" "$DIMS" 17 "$ITEMS_FILE"
++generate_vectors "$QUERIES" "$DIMS" 97 "$QUERIES_FILE"
++chmod 755 "$TMP_DIR"
++chmod 644 "$ITEMS_FILE" "$QUERIES_FILE"
++
++for metric in $METRICS; do
++	operator="$(metric_operator "$metric")"
++	setup_metric "$metric"
++	capture_plan "$metric" "$operator"
++	prepare_exact_results "$metric" "$operator"
++
++	for probes in $PROBES_LIST; do
++		run_probe_case "$metric" "$probes" "$operator"
++	done
++done
++
++echo "Benchmark report: $OUTPUT"
++echo "Plan report: $PLAN_OUTPUT"
