@@ -76,8 +76,32 @@ cmd_init() {
         # Override port
         sed -i "s/^port =.*/port = $GTM_PORT/" "$GTM_PGDATA/gtm.conf"
         sed -i "s/^nodename =.*/nodename = 'gtm_master'/" "$GTM_PGDATA/gtm.conf"
-        # 注意：不追加 gtm_thread_count，该参数不被 GTM 二进制识别，会导致配置解析失败
-        # 如果遇到 "binding threads failed" 错误，请手动编辑 gtm.conf 设置线程数
+        # Build CPU-affinity shim for low-core machines (<= 2 cores).
+        # GTM's bind_service_threads() loops from cpu=2 to nproc-1; when nproc<=2
+        # the loop body never executes, leaving an empty cpu_set_t.  This causes
+        # pthread_setaffinity_np to return EINVAL and GTM crashes at startup.
+        # The shim overrides pthread_setaffinity_np to a no-op.
+        local _cpu_cores
+        _cpu_cores=$(nproc 2>/dev/null || echo "2")
+        if [ "$_cpu_cores" -le 2 ] && command -v gcc >/dev/null 2>&1; then
+            local _shim="${OTB_HOME}/lib/noaffinity.so"
+            if [ ! -f "$_shim" ]; then
+                mkdir -p "${OTB_HOME}/lib"
+                local _src
+                _src=$(mktemp /tmp/noaffinity_XXXXXX.c)
+                cat > "$_src" <<'SHIMC'
+#define _GNU_SOURCE
+#include <sched.h>
+#include <pthread.h>
+int pthread_setaffinity_np(pthread_t t, size_t s, const cpu_set_t *c) { return 0; }
+SHIMC
+                if gcc -shared -fPIC -o "$_shim" "$_src" 2>/dev/null; then
+                    chmod 755 "$_shim"
+                    echo ">> Built CPU-affinity shim for ${_cpu_cores}-core machine"
+                fi
+                rm -f "$_src"
+            fi
+        fi
     else
         echo ">> gtm already initialised, skipping"
     fi
@@ -167,7 +191,13 @@ start_gtm() {
         return 0
     fi
     echo "  starting gtm"
-    run_as_otb "$OTB_BIN/gtm_ctl" -Z gtm -D "$GTM_PGDATA" -l "$GTM_LOG" start
+    local _shim="${OTB_HOME}/lib/noaffinity.so"
+    if [ -f "$_shim" ]; then
+        echo "  (using CPU-affinity shim: $(nproc) cores)"
+        LD_PRELOAD="$_shim" run_as_otb "$OTB_BIN/gtm_ctl" -Z gtm -D "$GTM_PGDATA" -l "$GTM_LOG" start
+    else
+        run_as_otb "$OTB_BIN/gtm_ctl" -Z gtm -D "$GTM_PGDATA" -l "$GTM_LOG" start
+    fi
     wait_for_port "$GTM_PORT" || { echo "gtm port $GTM_PORT not listening"; return 1; }
 }
 

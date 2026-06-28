@@ -237,11 +237,10 @@ cmd_init() {
         fi
     done
 
-    # Detect CPU cores and set GTM thread count
+    # Detect CPU cores
     local cpu_cores
     cpu_cores=$(nproc 2>/dev/null || echo "2")
-    local gtm_threads=$((cpu_cores < 4 ? cpu_cores : 4))
-    log_info "Detected ${cpu_cores} CPU cores, GTM threads: ${gtm_threads}"
+    log_info "Detected ${cpu_cores} CPU cores"
 
     # Detect available RAM and auto-tune memory settings
     # OpenTenBase pooler cache requires ~1GB+ non-swappable shared memory per node
@@ -281,6 +280,38 @@ cmd_init() {
     # Configure GTM
     sed -i "s/^port =.*/port = ${GTM_PORT}/" "${data}/gtm/gtm.conf"
     sed -i "s/^nodename =.*/nodename = 'gtm_master'/" "${data}/gtm/gtm.conf"
+
+    # Build CPU-affinity shim for low-core machines (<= 2 cores).
+    # GTM's bind_service_threads() loops from cpu=2 to nproc-1; when nproc<=2
+    # the loop body never executes, leaving an empty cpu_set_t.  Passing an
+    # empty set to pthread_setaffinity_np returns EINVAL (22), which GTM
+    # treats as FATAL during startup and exits immediately.
+    # The shim overrides pthread_setaffinity_np to a no-op so GTM starts
+    # without CPU pinning — acceptable for dev/test on small VMs.
+    if [[ "$cpu_cores" -le 2 ]]; then
+        local shim="${OT_BASE}/${ver}/lib/noaffinity.so"
+        if [[ ! -f "$shim" ]] && command -v gcc >/dev/null 2>&1; then
+            mkdir -p "${OT_BASE}/${ver}/lib"
+            local _src
+            _src=$(mktemp /tmp/noaffinity_XXXXXX.c)
+            cat > "$_src" <<'SHIMC'
+#define _GNU_SOURCE
+#include <sched.h>
+#include <pthread.h>
+int pthread_setaffinity_np(pthread_t t, size_t s, const cpu_set_t *c) { return 0; }
+SHIMC
+            if gcc -shared -fPIC -o "$shim" "$_src" 2>/dev/null; then
+                chmod 755 "$shim"
+                log_ok "Built CPU-affinity shim for ${cpu_cores}-core machine"
+            else
+                log_warn "Failed to build affinity shim; GTM may crash on this ${cpu_cores}-core machine"
+            fi
+            rm -f "$_src"
+        elif [[ ! -f "$shim" ]]; then
+            log_warn "${cpu_cores} CPU cores detected but gcc not available to build affinity shim"
+            log_warn "GTM may fail with 'binding threads failed' error"
+        fi
+    fi
 
     # Initialize Datanode (with --master_gtm_* flags for GTM connection)
     log_info "Initializing Datanode..."
@@ -505,7 +536,13 @@ cmd_start() {
     # Start GTM
     if ! check_port "$GTM_PORT"; then
         log_info "Starting GTM..."
-        as_svc "$svc_user" "${bin}/gtm_ctl start -D ${data}/gtm -Z gtm -l ${log}/gtm.log" || {
+        local _preload=""
+        local _shim="${OT_BASE}/${ver}/lib/noaffinity.so"
+        if [[ -f "$_shim" ]]; then
+            log_info "Using CPU-affinity shim ($(nproc 2>/dev/null || echo '?') cores)"
+            _preload="LD_PRELOAD=${_shim} "
+        fi
+        as_svc "$svc_user" "${_preload}${bin}/gtm_ctl start -D ${data}/gtm -Z gtm -l ${log}/gtm.log" || {
             log_error "GTM start failed"
             exit 1
         }
