@@ -107,6 +107,7 @@ override_dh_auto_install:
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) install
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) -C contrib install
 	# Create opentenbase-ctl symlink → official opentenbase_ctl binary
+	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/bin/opentenbase_ctl $(DESTDIR)/usr/bin/opentenbase-ctl
 	install -D -m 0755 scripts/switch-version.sh $(DESTDIR)/usr/bin/opentenbase-switch-version
 	# Select version-specific config template if available, otherwise use default

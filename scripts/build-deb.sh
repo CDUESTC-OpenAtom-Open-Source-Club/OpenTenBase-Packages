@@ -102,15 +102,12 @@ install_dependencies() {
     apt-get install -y libpqxx-dev 2>/dev/null || log_warn "libpqxx-dev not available"
     apt-get install -y libcli11-dev 2>/dev/null || log_warn "libcli11-dev not available"
 
-    # IMPORTANT: Prevent linker from picking up system libpq instead of
-    # OpenTenBase's private libpq (which has PQconnectdbParallel, etc.).
-    # Only remove the .so symlink — NOT the entire libpq-dev package,
-    # because removing libpq-dev cascades to removing libpqxx-dev (which
-    # depends on libpq-dev), losing the headers needed for opentenbase_ctl.
-    rm -f "$LIBDIR/libpq.so" 2>/dev/null || true
-    # Also remove libpq pkg-config/cmake files to prevent accidental linkage
-    rm -f /usr/lib/*/pkgconfig/libpq.pc 2>/dev/null || true
-    rm -rf /usr/lib/*/cmake/libpq 2>/dev/null || true
+    # NOTE: Do NOT remove system libpq.so or libpq-dev.
+    # Removing libpq-dev cascades to removing libpqxx-dev (which depends on it),
+    # losing the headers needed for opentenbase_ctl. Removing just the .so
+    # symlink causes the opentenbase_ctl linker step to fail (-lpq not found).
+    # OpenTenBase builds its own internal libpq and links against it directly;
+    # the -rpath in LDFLAGS ensures the correct libpq is found at runtime.
 
     # Update shared library cache
     ldconfig
