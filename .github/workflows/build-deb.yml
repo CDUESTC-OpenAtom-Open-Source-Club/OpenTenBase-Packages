@@ -93,6 +93,19 @@ jobs:
           # opentenbase_ctl build deps (may not be available on older distros)
           apt-get install -y libcli11-dev 2>/dev/null || echo "WARNING: libcli11-dev not available"
           apt-get install -y libpqxx-dev 2>/dev/null || echo "WARNING: libpqxx-dev not available"
+          # Build libpqxx from source if headers not found
+          if ! test -f /usr/include/pqxx/pqxx; then
+            apt-get install -y libpq-dev cmake
+            cd /tmp
+            curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.6.0.tar.gz -o libpqxx.tar.gz
+            tar xzf libpqxx.tar.gz
+            cd libpqxx-7.6.0
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=OFF -DSKIP_DOCKER_TESTS=ON
+            cmake --build build -j$(nproc)
+            cmake --install build
+            cd /tmp && rm -rf libpqxx*
+            ldconfig
+          fi
 
       - name: Checkout packaging repo
         uses: actions/checkout@v4
@@ -282,6 +295,19 @@ jobs:
           # opentenbase_ctl build deps (may not be available on older distros)
           apt-get install -y libcli11-dev 2>/dev/null || echo "WARNING: libcli11-dev not available"
           apt-get install -y libpqxx-dev 2>/dev/null || echo "WARNING: libpqxx-dev not available"
+          # Build libpqxx from source if headers not found
+          if ! test -f /usr/include/pqxx/pqxx; then
+            apt-get install -y libpq-dev cmake
+            cd /tmp
+            curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.6.0.tar.gz -o libpqxx.tar.gz
+            tar xzf libpqxx.tar.gz
+            cd libpqxx-7.6.0
+            cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DBUILD_TEST=OFF -DSKIP_DOCKER_TESTS=ON
+            cmake --build build -j$(nproc)
+            cmake --install build
+            cd /tmp && rm -rf libpqxx*
+            ldconfig
+          fi
           for dir in /usr/lib/aarch64-linux-gnu; do
             if [ -f "$dir/libatomic.so.1" ]; then
               ln -sf libatomic.so.1 "$dir/libatomic.so"
