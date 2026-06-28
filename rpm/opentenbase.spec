@@ -433,10 +433,14 @@ sed -i '/pgsql-http/d' contrib/Makefile
 %endif
 
 # Skip opentenbase_ctl for older versions (2.x) — not in upstream contrib/
+# Also skip if build deps (libssh2, cli11, libpqxx) are not available
 if [ "$(cat /tmp/otb_version 2>/dev/null || echo '%{otb_ver}')" != "5.0" ]; then
     sed -i '/opentenbase_ai/s/ *\\$//' contrib/Makefile
     sed -i '/opentenbase_ctl/d' contrib/Makefile
     echo "NOTE: opentenbase_ctl not available in this version, skipping"
+elif [ "$LIBSSH2_FOUND" = "0" ] || [ "$CLI11_FOUND" = "0" ] || [ "$PQXX_FOUND" = "0" ]; then
+    sed -i '/opentenbase_ctl/d' contrib/Makefile
+    echo "WARNING: opentenbase_ctl build deps not found (libssh2=$LIBSSH2_FOUND cli11=$CLI11_FOUND pqxx=$PQXX_FOUND), skipping"
 fi
 
 make -C contrib -j$(nproc)
