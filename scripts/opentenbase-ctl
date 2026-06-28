@@ -24,6 +24,7 @@
 # Exit codes:
 #   0 - Success
 #   1 - Error
+#   2 - Soft failure: port not ready but process is alive (still starting)
 # =============================================================================
 
 set -euo pipefail
@@ -137,6 +138,82 @@ wait_for_port() {
         sleep 1
         elapsed=$((elapsed + 1))
     done
+}
+
+# ---------------------------------------------------------------------------
+# Process alive check
+# ---------------------------------------------------------------------------
+# Checks whether a cluster component process is still running by matching
+# its data directory path in the process command line.  This is used after
+# wait_for_port times out: gtm_ctl/pg_ctl are daemonising, so the parent
+# returns immediately while the child continues initialising in the
+# background.  A surviving process means startup is slow, not failed.
+#
+# Arguments:
+#   $1 - component type: "gtm" | "coordinator" | "datanode"
+#   $2 - data directory of the versioned cluster (e.g. /var/lib/opentenbase/5.0)
+# Returns:
+#   0 - process is alive
+#   1 - process not found
+# ---------------------------------------------------------------------------
+check_proc_alive() {
+    local comp="$1"
+    local data_dir="$2"
+    local pattern=""
+
+    case "$comp" in
+        gtm)
+            pattern="gtm -D ${data_dir}/gtm"
+            ;;
+        coordinator)
+            pattern="postgres.*-D ${data_dir}/coord"
+            ;;
+        datanode)
+            pattern="postgres.*-D ${data_dir}/dn1"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    # pgrep -f matches the full command line; the data-dir path is unique
+    # enough to distinguish multiple nodes on the same host.
+    pgrep -f "$pattern" >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# wait_for_port_or_proc — wait for port, fall back to process check on timeout
+# ---------------------------------------------------------------------------
+# Behaves like wait_for_port but, on timeout, calls check_proc_alive to
+# distinguish a slow-but-live daemon from a genuinely dead one.
+#
+# Arguments:
+#   $1 - port number
+#   $2 - timeout in seconds
+#   $3 - component type (passed to check_proc_alive)
+#   $4 - data directory (passed to check_proc_alive)
+# Returns:
+#   0 - port is listening (success)
+#   2 - port not ready but process is alive (soft failure / still starting)
+#   1 - port not ready and process is gone (hard failure)
+# ---------------------------------------------------------------------------
+wait_for_port_or_proc() {
+    local port="$1"
+    local timeout="$2"
+    local comp="$3"
+    local data_dir="$4"
+
+    if wait_for_port "$port" "$timeout"; then
+        return 0
+    fi
+
+    # Port did not come up within timeout — is the process still alive?
+    if check_proc_alive "$comp" "$data_dir"; then
+        log_warn "${comp} process is running but port ${port} is not ready after ${timeout}s"
+        log_warn "The daemon may still be initialising. Check logs and retry shortly."
+        return 2
+    fi
+    return 1
 }
 
 # ---------------------------------------------------------------------------
@@ -432,10 +509,17 @@ cmd_start() {
             log_error "GTM start failed"
             exit 1
         }
-        if ! wait_for_port "$GTM_PORT" "$STARTUP_TIMEOUT"; then
-            log_error "GTM not listening on port ${GTM_PORT} within ${STARTUP_TIMEOUT}s"
+        set +e
+        wait_for_port_or_proc "$GTM_PORT" "$STARTUP_TIMEOUT" "gtm" "$data"
+        local _rc=$?
+        set -e
+        if [[ $_rc -eq 1 ]]; then
+            log_error "GTM not listening on port ${GTM_PORT} within ${STARTUP_TIMEOUT}s and process is not running"
             tail -10 "${log}/gtm.log" 2>/dev/null || true
             exit 1
+        elif [[ $_rc -eq 2 ]]; then
+            log_warn "GTM process is alive but port ${GTM_PORT} is not ready yet"
+            log_warn "Continuing — the cluster may need more time to fully initialise"
         fi
         log_ok "GTM started (port ${GTM_PORT})"
     else
@@ -449,10 +533,17 @@ cmd_start() {
             log_error "Datanode start failed"
             exit 1
         }
-        if ! wait_for_port "$DN_PORT" "$STARTUP_TIMEOUT"; then
-            log_error "Datanode not listening on port ${DN_PORT} within ${STARTUP_TIMEOUT}s"
+        set +e
+        wait_for_port_or_proc "$DN_PORT" "$STARTUP_TIMEOUT" "datanode" "$data"
+        local _rc=$?
+        set -e
+        if [[ $_rc -eq 1 ]]; then
+            log_error "Datanode not listening on port ${DN_PORT} within ${STARTUP_TIMEOUT}s and process is not running"
             tail -10 "${log}/dn1.log" 2>/dev/null || true
             exit 1
+        elif [[ $_rc -eq 2 ]]; then
+            log_warn "Datanode process is alive but port ${DN_PORT} is not ready yet"
+            log_warn "Continuing — the cluster may need more time to fully initialise"
         fi
         log_ok "Datanode started (port ${DN_PORT})"
     else
@@ -466,10 +557,17 @@ cmd_start() {
             log_error "Coordinator start failed"
             exit 1
         }
-        if ! wait_for_port "$COORD_PORT" "$STARTUP_TIMEOUT"; then
-            log_error "Coordinator not listening on port ${COORD_PORT} within ${STARTUP_TIMEOUT}s"
+        set +e
+        wait_for_port_or_proc "$COORD_PORT" "$STARTUP_TIMEOUT" "coordinator" "$data"
+        local _rc=$?
+        set -e
+        if [[ $_rc -eq 1 ]]; then
+            log_error "Coordinator not listening on port ${COORD_PORT} within ${STARTUP_TIMEOUT}s and process is not running"
             tail -10 "${log}/coord.log" 2>/dev/null || true
             exit 1
+        elif [[ $_rc -eq 2 ]]; then
+            log_warn "Coordinator process is alive but port ${COORD_PORT} is not ready yet"
+            log_warn "Continuing — the cluster may need more time to fully initialise"
         fi
         log_ok "Coordinator started (port ${COORD_PORT})"
     else
@@ -517,6 +615,7 @@ cmd_stop() {
 cmd_status() {
     local ver="$1"
     local bin="${OT_BASE}/${ver}/bin"
+    local data="${OT_DATA}/${ver}"
 
     echo ""
     echo -e "${BOLD}OpenTenBase Cluster Status${NC}"
@@ -528,22 +627,34 @@ cmd_status() {
 
     local all_running=true
 
+    # GTM
     if check_port "$GTM_PORT"; then
         printf "  %-20s %-10s ${GREEN}%-10s${NC}\n" "GTM" "$GTM_PORT" "RUNNING"
+    elif check_proc_alive "gtm" "$data"; then
+        printf "  %-20s %-10s ${YELLOW}%-10s${NC}\n" "GTM" "$GTM_PORT" "STARTING"
+        all_running=false
     else
         printf "  %-20s %-10s ${RED}%-10s${NC}\n" "GTM" "$GTM_PORT" "STOPPED"
         all_running=false
     fi
 
+    # Coordinator
     if check_port "$COORD_PORT"; then
         printf "  %-20s %-10s ${GREEN}%-10s${NC}\n" "Coordinator" "$COORD_PORT" "RUNNING"
+    elif check_proc_alive "coordinator" "$data"; then
+        printf "  %-20s %-10s ${YELLOW}%-10s${NC}\n" "Coordinator" "$COORD_PORT" "STARTING"
+        all_running=false
     else
         printf "  %-20s %-10s ${RED}%-10s${NC}\n" "Coordinator" "$COORD_PORT" "STOPPED"
         all_running=false
     fi
 
+    # Datanode
     if check_port "$DN_PORT"; then
         printf "  %-20s %-10s ${GREEN}%-10s${NC}\n" "Datanode" "$DN_PORT" "RUNNING"
+    elif check_proc_alive "datanode" "$data"; then
+        printf "  %-20s %-10s ${YELLOW}%-10s${NC}\n" "Datanode" "$DN_PORT" "STARTING"
+        all_running=false
     else
         printf "  %-20s %-10s ${RED}%-10s${NC}\n" "Datanode" "$DN_PORT" "STOPPED"
         all_running=false
