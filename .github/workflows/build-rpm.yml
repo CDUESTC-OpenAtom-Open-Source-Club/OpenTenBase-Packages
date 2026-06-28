@@ -119,6 +119,12 @@ jobs:
               echo "WARNING: $pkg not available — opentenbase_ctl will be skipped"
             fi
           done
+          # Install CLI11 single-header if cli11-devel not available
+          if ! test -f /usr/include/CLI/CLI.hpp; then
+            mkdir -p /usr/include/CLI
+            curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
+            echo "Installed CLI11 single-header v2.4.2"
+          fi
           echo "OTB_CTL_DEPS=$OTB_CTL_DEPS" >> "$GITHUB_ENV"
           # Build libpqxx 7.9.2 from source if not in repos (not available in EPEL 9)
           # (7.6.0 is incompatible with CMake 3.31 — uses removed cmake_determine_compile_features)
@@ -316,6 +322,12 @@ jobs:
               # opentenbase_ctl build deps (libssh2-devel in CRB, cli11/libpqxx in EPEL)
               dnf install -y libssh2-devel 2>/dev/null || true
               dnf install -y cli11-devel 2>/dev/null || true
+              # Install CLI11 single-header if cli11-devel not available
+              if ! test -f /usr/include/CLI/CLI.hpp; then
+                mkdir -p /usr/include/CLI
+                curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
+                echo "Installed CLI11 single-header v2.4.2"
+              fi
               dnf install -y libpqxx-devel 2>/dev/null || true
               # Build libpqxx 7.9.2 from source if not in repos (not available in EPEL 9)
               # (7.6.0 is incompatible with CMake 3.31 — uses removed cmake_determine_compile_features)

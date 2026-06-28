@@ -92,6 +92,12 @@ jobs:
           apt-get install -y libossp-uuid-dev 2>/dev/null || true
           # opentenbase_ctl build deps (may not be available on older distros)
           apt-get install -y libcli11-dev 2>/dev/null || echo "WARNING: libcli11-dev not available"
+          # Install CLI11 single-header if libcli11-dev not available (Ubuntu 20.04, Debian 11)
+          if ! test -f /usr/include/CLI/CLI.hpp; then
+            mkdir -p /usr/include/CLI
+            curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
+            echo "Installed CLI11 single-header v2.4.2"
+          fi
           apt-get install -y libpqxx-dev 2>/dev/null || echo "WARNING: libpqxx-dev not available"
           # Build libpqxx 7.9.2 from source if headers not found
           # (7.6.0 is incompatible with CMake 3.31 — uses removed cmake_determine_compile_features)
@@ -295,6 +301,12 @@ jobs:
           apt-get install -y libatomic-dev 2>/dev/null || true
           # opentenbase_ctl build deps (may not be available on older distros)
           apt-get install -y libcli11-dev 2>/dev/null || echo "WARNING: libcli11-dev not available"
+          # Install CLI11 single-header if libcli11-dev not available (Ubuntu 20.04, Debian 11)
+          if ! test -f /usr/include/CLI/CLI.hpp; then
+            mkdir -p /usr/include/CLI
+            curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
+            echo "Installed CLI11 single-header v2.4.2"
+          fi
           apt-get install -y libpqxx-dev 2>/dev/null || echo "WARNING: libpqxx-dev not available"
           # Build libpqxx 7.9.2 from source if headers not found
           # (7.6.0 is incompatible with CMake 3.31 — uses removed cmake_determine_compile_features)
