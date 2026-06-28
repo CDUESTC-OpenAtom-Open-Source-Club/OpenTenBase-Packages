@@ -93,10 +93,9 @@ override_dh_auto_build:
 	# Exclude uuid-ossp from contrib build (needs md5.h removed in OpenSSL 3.0)
 	# We use --with-uuid=e2fs so uuid-ossp is not needed
 	sed -i 's/ uuid-ossp//' contrib/Makefile
-	# Skip opentenbase_ctl if libssh2, CLI11, or libpqxx is not available
-	if ! dpkg -s libssh2-1-dev >/dev/null 2>&1 || \
-	   ! [ -f /usr/include/CLI/CLI.hpp ] || \
-	   ! [ -f /usr/include/pqxx/pqxx ]; then \
+	# For v5.0+, opentenbase_ctl is required (build deps declared in control)
+	# For older versions (2.x), contrib/opentenbase_ctl does not exist upstream
+	if [ "$(OTB_VERSION)" != "5.0" ]; then \
 	    sed -i 's/ opentenbase_ctl//' contrib/Makefile; \
 	fi
 	$(MAKE) -j$(JOBS) -C contrib all
@@ -104,7 +103,8 @@ override_dh_auto_build:
 override_dh_auto_install:
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) install
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) -C contrib install
-	install -D -m 0755 config/opentenbase-ctl $(DESTDIR)/usr/bin/opentenbase-ctl
+	# Create opentenbase-ctl symlink → official opentenbase_ctl binary
+	ln -sf $(PREFIX)/bin/opentenbase_ctl $(DESTDIR)/usr/bin/opentenbase-ctl
 	install -D -m 0755 scripts/switch-version.sh $(DESTDIR)/usr/bin/opentenbase-switch-version
 	# Select version-specific config template if available, otherwise use default
 	if [ -f config/$(OTB_VERSION)/opentenbase.conf ]; then \
@@ -116,6 +116,10 @@ override_dh_auto_install:
 	install -D -m 0644 config/postgresql.conf.coord.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/postgresql.conf.coord.template
 	install -D -m 0644 config/postgresql.conf.dn.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/postgresql.conf.dn.template
 	install -D -m 0644 config/pg_hba.conf.template $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/pg_hba.conf.template
+	# Install opentenbase_ctl config template
+	if [ -f config/opentenbase_config.ini.example ]; then \
+	    install -D -m 0644 config/opentenbase_config.ini.example $(DESTDIR)/etc/opentenbase/$(OTB_VERSION)/opentenbase_config.ini.example; \
+	fi
 	# Install raw SGML doc sources into doc package staging area
 	mkdir -p $(DESTDIR)/usr/share/doc/opentenbase/sgml
 	if [ -d doc/src/sgml ]; then \

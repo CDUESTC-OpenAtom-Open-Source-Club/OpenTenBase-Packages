@@ -90,8 +90,9 @@ jobs:
           echo "=== Testing -latomic ==="
           echo 'int main(){}' | gcc -x c - -latomic -o /dev/null 2>&1 || echo "WARNING: -latomic linking test failed"
           apt-get install -y libossp-uuid-dev 2>/dev/null || true
-          apt-get install -y libcli11-dev 2>/dev/null || true
-          apt-get install -y libpqxx-dev 2>/dev/null || true
+          # opentenbase_ctl build deps (required for v5.0)
+          apt-get install -y libcli11-dev
+          apt-get install -y libpqxx-dev
 
       - name: Checkout packaging repo
         uses: actions/checkout@v4
@@ -278,6 +279,8 @@ jobs:
             libatomic1 \
             pkg-config libtool git ca-certificates curl
           apt-get install -y libatomic-dev 2>/dev/null || true
+          # opentenbase_ctl build deps (required for v5.0)
+          apt-get install -y libcli11-dev libpqxx-dev
           for dir in /usr/lib/aarch64-linux-gnu; do
             if [ -f "$dir/libatomic.so.1" ]; then
               ln -sf libatomic.so.1 "$dir/libatomic.so"

@@ -1,0 +1,30 @@
+# OpenTenBase single-node local deployment config
+# Usage: opentenbase_ctl install -c opentenbase_config.ini
+#
+# Copy this file, edit paths/ports/user, then run:
+#   cp /etc/opentenbase/5.0/opentenbase_config.ini.example ./opentenbase_config.ini
+#   vim opentenbase_config.ini
+#   opentenbase_ctl install -c opentenbase_config.ini
+
+[instance]
+name=opentenbase01
+type=distributed
+package=/usr/lib/opentenbase/5.0
+
+[gtm]
+master=127.0.0.1
+
+[coordinators]
+master=127.0.0.1
+nodes-per-server=1
+
+[datanodes]
+master=127.0.0.1
+nodes-per-server=1
+
+[server]
+ssh-user=opentenbase
+ssh-port=22
+
+[log]
+level=INFO

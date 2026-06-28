@@ -54,10 +54,10 @@ usr/lib/opentenbase/5.0/share/postgresql/timezone/*
 usr/lib/opentenbase/5.0/share/postgresql/timezonesets/*
 usr/lib/opentenbase/5.0/share/postgresql/tsearch_data/*
 usr/lib/opentenbase/5.0/share/postgresql/userlist.txt
-usr/bin/opentenbase-ctl
 usr/bin/opentenbase-switch-version
 etc/opentenbase/5.0/opentenbase.conf
 etc/opentenbase/5.0/gtm.conf.template
 etc/opentenbase/5.0/postgresql.conf.coord.template
 etc/opentenbase/5.0/postgresql.conf.dn.template
 etc/opentenbase/5.0/pg_hba.conf.template
+etc/opentenbase/5.0/opentenbase_config.ini.example

@@ -9,9 +9,8 @@ Type=oneshot
 RemainAfterExit=yes
 User=root
 EnvironmentFile=-/etc/default/opentenbase
-ExecStart=/usr/bin/opentenbase-ctl start
-ExecStop=/usr/bin/opentenbase-ctl stop
-ExecReload=/usr/bin/opentenbase-ctl reload
+ExecStart=/usr/bin/opentenbase-ctl start ${OTB_CONFIG_ARGS}
+ExecStop=/usr/bin/opentenbase-ctl stop ${OTB_CONFIG_ARGS}
 TimeoutStartSec=300
 TimeoutStopSec=120
 
