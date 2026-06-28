@@ -22,10 +22,9 @@ Build-Depends:
  gettext,
  docbook-xsl,
  xsltproc,
- pkg-config,
- libssh2-1-dev,
- libcli11-dev,
- libpqxx-dev
+ pkg-config
+# opentenbase_ctl build deps installed via CI, not hardcoded here
+# (libcli11-dev not available on Ubuntu 20.04; libpqxx-dev missing on some ARM64)
 Standards-Version: 4.6.2
 Homepage: https://www.opentenbase.org/
 Vcs-Git: https://github.com/OpenTenBase/OpenTenBase.git

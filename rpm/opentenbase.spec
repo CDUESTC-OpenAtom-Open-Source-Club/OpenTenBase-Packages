@@ -25,7 +25,8 @@ BuildRequires:  gcc gcc-c++ make bison flex perl
 BuildRequires:  readline-devel zlib-devel openssl-devel pam-devel
 BuildRequires:  libxml2-devel openldap-devel libuuid-devel
 BuildRequires:  libcurl-devel lz4-devel
-BuildRequires:  libssh2-devel cli11-devel libpqxx-devel
+# opentenbase_ctl build deps installed via CI, not hardcoded here
+# (libssh2-devel in CRB, cli11-devel/libpqxx-devel in EPEL — not always available)
 BuildRequires:  pkg-config libtool
 
 Requires:       openssl-libs readline zlib libxml2 openldap libuuid libcurl lz4-libs
