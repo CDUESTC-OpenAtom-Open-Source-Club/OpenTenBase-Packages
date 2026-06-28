@@ -618,16 +618,16 @@ sign_downloaded_packages() {
         fi
     fi
 
-    # Sign DEB packages with dpkg-sig
+    # Sign DEB packages with debsigs
     if [ "$deb_count" -gt 0 ]; then
-        if command -v dpkg-sig &>/dev/null; then
+        if command -v debsigs &>/dev/null; then
             find "$dir" -name '*.deb' -print0 | while IFS= read -r -d '' deb; do
-                dpkg-sig --sign builder -k "$GPG_KEY_ID" "$deb" 2>/dev/null \
+                debsigs --sign=origin -k "$GPG_KEY_ID" "$deb" 2>/dev/null \
                     && log_info "  Signed: $(basename "$deb")" \
                     || log_warn "  Sign failed: $(basename "$deb")"
             done
         else
-            log_warn "dpkg-sig not available, DEB packages will be unsigned"
+            log_warn "debsigs not available, DEB packages will be unsigned"
         fi
     fi
 
