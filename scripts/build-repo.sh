@@ -578,6 +578,64 @@ DOWNLOAD_DIR=$(mktemp -d)
 trap 'rm -rf "$DOWNLOAD_DIR"' EXIT
 download_release "$TAG" "$DOWNLOAD_DIR"
 
+# Sign downloaded packages (package-level GPG signature, not just repo metadata)
+# This is required for gpgcheck=1 in the repo config to work — without package
+# signatures, dnf/apt reject installation even though repomd.xml is signed.
+sign_downloaded_packages() {
+    local dir="$1"
+
+    if [ "$NO_SIGN" = "true" ]; then
+        log_warn "Skipping package signing (--no-sign)"
+        return 0
+    fi
+
+    if ! command -v gpg &>/dev/null; then
+        log_warn "gpg not available, packages will be unsigned"
+        return 0
+    fi
+
+    # Verify the signing key is available
+    if ! gpg --list-secret-keys "$GPG_KEY_ID" &>/dev/null; then
+        log_warn "GPG key $GPG_KEY_ID not in keyring, packages will be unsigned"
+        return 0
+    fi
+
+    local rpm_count deb_count
+    rpm_count=$(find "$dir" -name '*.rpm' 2>/dev/null | wc -l)
+    deb_count=$(find "$dir" -name '*.deb' 2>/dev/null | wc -l)
+    log_info "Signing $rpm_count RPM + $deb_count DEB packages ..."
+
+    # Sign RPM packages with rpmsign
+    if [ "$rpm_count" -gt 0 ]; then
+        if command -v rpmsign &>/dev/null; then
+            find "$dir" -name '*.rpm' -print0 | while IFS= read -r -d '' rpm; do
+                rpmsign --addsign --define "_gpg_name $GPG_KEY_ID" "$rpm" 2>/dev/null \
+                    && log_info "  Signed: $(basename "$rpm")" \
+                    || log_warn "  Sign failed: $(basename "$rpm")"
+            done
+        else
+            log_warn "rpmsign not available, RPM packages will be unsigned"
+        fi
+    fi
+
+    # Sign DEB packages with dpkg-sig
+    if [ "$deb_count" -gt 0 ]; then
+        if command -v dpkg-sig &>/dev/null; then
+            find "$dir" -name '*.deb' -print0 | while IFS= read -r -d '' deb; do
+                dpkg-sig --sign builder -k "$GPG_KEY_ID" "$deb" 2>/dev/null \
+                    && log_info "  Signed: $(basename "$deb")" \
+                    || log_warn "  Sign failed: $(basename "$deb")"
+            done
+        else
+            log_warn "dpkg-sig not available, DEB packages will be unsigned"
+        fi
+    fi
+
+    log_info "Package signing complete"
+}
+
+sign_downloaded_packages "$DOWNLOAD_DIR"
+
 # Build repos
 if [ "$BUILD_APT" = "true" ]; then
     build_apt_repo "$DOWNLOAD_DIR" "$OUTPUT_DIR"
