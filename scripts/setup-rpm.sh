@@ -70,7 +70,11 @@ detect_os() {
     . /etc/os-release
 
     case "$ID" in
-        rocky|almalinux|centos|rhel)
+        rocky|almalinux|centos|rhel|opencloudos|anolis|tencentos)
+            # RHEL-compatible distros. The last three (OpenCloudOS, Anolis OS,
+            # TencentOS) are RHEL 8/9 compatible but their ID was missing from
+            # the original whitelist, causing a hard exit on otherwise working
+            # systems. They use the same el8/el9 repo subdirectory.
             case "$VERSION_ID" in
                 8*|9*)
                     REPO_SUBDIR="el${VERSION_ID%%.*}"
@@ -88,9 +92,22 @@ detect_os() {
             REPO_SUBDIR="openeuler"
             ;;
         *)
-            log_error "Unsupported distribution: $ID"
-            echo "Supported: Rocky Linux 8/9, AlmaLinux 8/9, CentOS Stream 8/9, Fedora 40+, openEuler 22.03+, Huawei Cloud EulerOS"
-            exit 1
+            # Fallback for unknown IDs whose /etc/os-release exposes an
+            # ID_LIKE indicating RHEL/fedora lineage (e.g. future distros).
+            # This avoids a hard exit on RHEL-compatible systems we have not
+            # explicitly listed above.
+            if echo "$ID_LIKE" | grep -qiE "rhel|fedora|centos"; then
+                case "$VERSION_ID" in
+                    8*) REPO_SUBDIR="el8" ;;
+                    9*) REPO_SUBDIR="el9" ;;
+                    *)  log_warn "$ID $VERSION_ID untested (ID_LIKE=$ID_LIKE), using el9 repo"; REPO_SUBDIR="el9" ;;
+                esac
+                log_warn "$ID is not in the tested list but ID_LIKE=$ID_LIKE; using $REPO_SUBDIR repo (untested)"
+            else
+                log_error "Unsupported distribution: $ID"
+                echo "Supported: Rocky Linux 8/9, AlmaLinux 8/9, CentOS Stream 8/9, Fedora 40+, openEuler 22.03+, Huawei Cloud EulerOS, OpenCloudOS 8/9, Anolis OS 8/9"
+                exit 1
+            fi
             ;;
     esac
 
