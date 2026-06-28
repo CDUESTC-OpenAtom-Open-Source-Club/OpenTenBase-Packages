@@ -161,7 +161,6 @@ override_dh_install:
 	# Remove opentenbase-ctl symlink from .install if opentenbase_ctl wasn't built
 	if [ ! -e debian/tmp$(PREFIX)/bin/opentenbase_ctl ]; then \
 	    sed -i '/opentenbase-ctl/d' debian/*.install; \
-	    sed -i '/opentenbase_config/d' debian/*.install; \
 	fi
 	# For v2.6.0 and v2.5.0, skip files that don't exist in older versions
 	if [ "$(OTB_VERSION)" != "5.0" ]; then \
