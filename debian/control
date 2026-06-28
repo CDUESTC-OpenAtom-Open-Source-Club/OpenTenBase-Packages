@@ -23,6 +23,7 @@ Build-Depends:
  docbook-xsl,
  xsltproc,
  pkg-config,
+ libssh2-1-dev,
  libcli11-dev,
  libpqxx-dev
 Standards-Version: 4.6.2

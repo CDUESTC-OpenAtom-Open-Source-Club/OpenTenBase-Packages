@@ -5,9 +5,8 @@ Summary:        OpenTenBase distributed database system
 License:        BSD
 URL:            https://github.com/OpenTenBase/OpenTenBase
 Source0:        opentenbase-%{version}-%{_arch}.tar.gz
-Source1:        opentenbase-ctl
-Source2:        pg_hba.conf.template
-Source3:        opentenbase-psql
+Source1:        pg_hba.conf.template
+Source2:        opentenbase-psql
 
 %define otb_ver %{version}
 %define otb_prefix /usr/lib/opentenbase/%{otb_ver}
@@ -26,10 +25,8 @@ BuildRequires:  gcc gcc-c++ make bison flex perl
 BuildRequires:  readline-devel zlib-devel openssl-devel pam-devel
 BuildRequires:  libxml2-devel openldap-devel libuuid-devel
 BuildRequires:  libcurl-devel lz4-devel
+BuildRequires:  libssh2-devel cli11-devel libpqxx-devel
 BuildRequires:  pkg-config libtool
-
-# Optional: may not be available in all repos (CRB/PowerTools)
-# BuildRequires:  zstd-devel libssh2-devel
 
 Requires:       openssl-libs readline zlib libxml2 openldap libuuid libcurl lz4-libs
 
@@ -435,13 +432,11 @@ sed -i 's/^ALWAYS_SUBDIRS += uuid-ossp/# ALWAYS_SUBDIRS += uuid-ossp/' contrib/M
 sed -i '/pgsql-http/d' contrib/Makefile
 %endif
 
-# Skip opentenbase_ctl if any dependency is missing
-if [ "$LIBSSH2_FOUND" = "0" ] || [ "$CLI11_FOUND" = "0" ] || [ "$PQXX_FOUND" = "0" ]; then
-    # opentenbase_ctl is the last entry in the SUBDIRS continuation list in contrib/Makefile
-    # Remove trailing backslash from previous entry first, then delete the line
+# Skip opentenbase_ctl for older versions (2.x) — not in upstream contrib/
+if [ "$(cat /tmp/otb_version 2>/dev/null || echo '%{otb_ver}')" != "5.0" ]; then
     sed -i '/opentenbase_ai/s/ *\\$//' contrib/Makefile
     sed -i '/opentenbase_ctl/d' contrib/Makefile
-    echo "NOTE: libssh2 ($LIBSSH2_FOUND) or CLI11 ($CLI11_FOUND) or pqxx ($PQXX_FOUND) not found, skipping opentenbase_ctl"
+    echo "NOTE: opentenbase_ctl not available in this version, skipping"
 fi
 
 make -C contrib -j$(nproc)
@@ -468,15 +463,44 @@ for f in %{buildroot}%{otb_prefix}/bin/*; do
     ln -s %{otb_prefix}/bin/"$bname" %{buildroot}/usr/bin/"$bname"
 done
 
-# Install opentenbase-ctl management script
-install -m 755 %{SOURCE1} %{buildroot}/usr/bin/opentenbase-ctl
+# Create opentenbase-ctl symlink → official opentenbase_ctl binary
+ln -s %{otb_prefix}/bin/opentenbase_ctl %{buildroot}/usr/bin/opentenbase-ctl
 
 # Install opentenbase-psql wrapper
-install -m 755 %{SOURCE3} %{buildroot}/usr/bin/opentenbase-psql
+install -m 755 %{SOURCE2} %{buildroot}/usr/bin/opentenbase-psql
 
 # Install pg_hba.conf template
 mkdir -p %{buildroot}/etc/opentenbase/%{otb_ver}
-install -m 644 %{SOURCE2} %{buildroot}/etc/opentenbase/%{otb_ver}/pg_hba.conf.template
+install -m 644 %{SOURCE1} %{buildroot}/etc/opentenbase/%{otb_ver}/pg_hba.conf.template
+
+# Install opentenbase_ctl config template
+cat > %{buildroot}/etc/opentenbase/%{otb_ver}/opentenbase_config.ini.example << 'INIEOF'
+# OpenTenBase single-node local deployment config
+# Usage: opentenbase_ctl install -c opentenbase_config.ini
+
+[instance]
+name=opentenbase01
+type=distributed
+package=%{otb_prefix}
+
+[gtm]
+master=127.0.0.1
+
+[coordinators]
+master=127.0.0.1
+nodes-per-server=1
+
+[datanodes]
+master=127.0.0.1
+nodes-per-server=1
+
+[server]
+ssh-user=opentenbase
+ssh-port=22
+
+[log]
+level=INFO
+INIEOF
 
 # Install switch-version script
 cat > %{buildroot}/usr/bin/opentenbase-switch-version << 'SWITCHSCRIPT'
@@ -610,6 +634,7 @@ CONF
 %dir /var/run/opentenbase
 %config(noreplace) /etc/opentenbase/%{otb_ver}/opentenbase.conf
 /etc/opentenbase/%{otb_ver}/pg_hba.conf.template
+/etc/opentenbase/%{otb_ver}/opentenbase_config.ini.example
 
 %post
 ldconfig
