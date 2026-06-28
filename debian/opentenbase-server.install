@@ -24,6 +24,7 @@ usr/lib/opentenbase/5.0/bin/confmod
 usr/lib/opentenbase/5.0/bin/pg_dump_security
 usr/lib/opentenbase/5.0/bin/pg_license
 usr/lib/opentenbase/5.0/lib/libpq.so*
+usr/lib/opentenbase/5.0/lib/libpqxx.so*
 usr/lib/opentenbase/5.0/lib/libpgtypes.so*
 usr/lib/opentenbase/5.0/lib/libecpg.so*
 usr/lib/opentenbase/5.0/lib/libecpg_compat.so*

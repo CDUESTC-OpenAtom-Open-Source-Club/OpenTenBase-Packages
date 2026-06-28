@@ -461,6 +461,15 @@ cd "$SRCDIR"
 make DESTDIR=%{buildroot} install
 make DESTDIR=%{buildroot} -C contrib install
 
+# Bundle libpqxx.so into OpenTenBase lib dir (rpath already set to find it here)
+for libpath in /usr/lib64/libpqxx.so /usr/lib/libpqxx.so /usr/local/lib/libpqxx.so; do
+    if [ -f "$libpath" ]; then
+        cp -L "$libpath" %{buildroot}%{otb_prefix}/lib/
+        echo "Bundled $libpath into package"
+        break
+    fi
+done
+
 # Create symlinks in /usr/bin
 mkdir -p %{buildroot}/usr/bin
 for f in %{buildroot}%{otb_prefix}/bin/*; do

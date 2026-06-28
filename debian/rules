@@ -112,6 +112,15 @@ override_dh_auto_install:
 	# Create opentenbase-ctl symlink → official opentenbase_ctl binary
 	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/bin/opentenbase_ctl $(DESTDIR)/usr/bin/opentenbase-ctl
+	# Bundle libpqxx.so into OpenTenBase lib dir (rpath already set to find it here)
+	# This ensures opentenbase_ctl can find libpqxx at runtime without system package
+	for libpath in /usr/lib/libpqxx.so /usr/lib/x86_64-linux-gnu/libpqxx.so /usr/lib/aarch64-linux-gnu/libpqxx.so /usr/local/lib/libpqxx.so; do \
+	    if [ -f "$$libpath" ]; then \
+	        cp -L "$$libpath" $(DESTDIR)$(PREFIX)/lib/; \
+	        echo "Bundled $$libpath into package"; \
+	        break; \
+	    fi; \
+	done
 	install -D -m 0755 scripts/switch-version.sh $(DESTDIR)/usr/bin/opentenbase-switch-version
 	# Select version-specific config template if available, otherwise use default
 	if [ -f config/$(OTB_VERSION)/opentenbase.conf ]; then \

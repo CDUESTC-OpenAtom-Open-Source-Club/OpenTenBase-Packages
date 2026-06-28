@@ -196,6 +196,7 @@ jobs:
               libxml2 libreadline8 \
               libpam0g liblz4-1 libzstd1 libcurl4 \
               libsasl2-2 openssh-server openssh-client \
+              && (apt-get install -y libpqxx-dev 2>/dev/null || true) \
               && (apt-get install -y libssl1.1 2>/dev/null || apt-get install -y libssl3 2>/dev/null || true) \
               && (apt-get install -y libldap-2.4-2 2>/dev/null || apt-get install -y libldap-2.5-0 2>/dev/null || apt-get install -y libldap-common 2>/dev/null || true) \
               && rm -rf /var/lib/apt/lists/*
