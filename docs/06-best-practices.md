@@ -20,7 +20,9 @@
 
 **注意事项：**
 - GTM 线程数不能超过 CPU 核心数，避免 `binding threads failed` 错误
-- 使用 `nproc` 检查核心数，动态配置 `thread_count`（注意：`gtm_thread_count` 不是合法参数）
+- 在 ≤2 核的机器上，GTM 的 `bind_service_threads()` 会生成空 cpuset 导致 `pthread_setaffinity_np` 返回 EINVAL
+- `opentenbase-ctl` 会自动检测并编译 CPU-affinity shim（`noaffinity.so`）来绕过此问题
+- 使用 `nproc` 检查核心数
 
 ```bash
 # 检测 CPU 核心数
