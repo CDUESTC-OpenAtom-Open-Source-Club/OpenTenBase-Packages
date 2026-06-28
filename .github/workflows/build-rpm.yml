@@ -100,8 +100,26 @@ jobs:
             libcurl-devel lz4-devel \
             pkg-config libtool rpm-build rpmlint git
           dnf install -y zstd-devel 2>/dev/null || true
-          # opentenbase_ctl build deps (required for v5.0)
-          dnf install -y libssh2-devel cli11-devel libpqxx-devel
+          # Install EPEL for RHEL-family distros (provides cli11-devel, libpqxx-devel)
+          if grep -qiE 'centos|rocky|almalinux|fedora' /etc/os-release 2>/dev/null; then
+            REL=$(rpm -q --queryformat '%{VERSION}' -f /etc/redhat-release 2>/dev/null | cut -d. -f1)
+            if [ "$REL" = "8" ]; then
+              dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm" 2>/dev/null || true
+            elif [ "$REL" = "9" ]; then
+              dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm" 2>/dev/null || true
+            fi
+          fi
+          # opentenbase_ctl build deps (libssh2-devel in CRB, cli11/libpqxx in EPEL)
+          OTB_CTL_DEPS=""
+          for pkg in libssh2-devel cli11-devel libpqxx-devel; do
+            if dnf install -y "$pkg" 2>/dev/null; then
+              echo "Installed $pkg"
+              OTB_CTL_DEPS="$OTB_CTL_DEPS $pkg"
+            else
+              echo "WARNING: $pkg not available — opentenbase_ctl will be skipped"
+            fi
+          done
+          echo "OTB_CTL_DEPS=$OTB_CTL_DEPS" >> "$GITHUB_ENV"
           dnf install -y libatomic 2>/dev/null || true
           for dir in /usr/lib64 /usr/lib; do
             if [ -f "$dir/libatomic.so.1" ] && [ ! -f "$dir/libatomic.so" ]; then
@@ -272,8 +290,26 @@ jobs:
 
               # Install optional dependencies (may not be available on all arches)
               dnf install -y zstd-devel 2>/dev/null || true
-              # opentenbase_ctl build deps (required for v5.0)
-              dnf install -y libssh2-devel cli11-devel libpqxx-devel 2>/dev/null || true
+              # Install EPEL for RHEL-family distros (provides cli11-devel, libpqxx-devel)
+              if grep -qiE 'centos|rocky|almalinux|fedora' /etc/os-release 2>/dev/null; then
+                REL=$(rpm -q --queryformat "%{VERSION}" -f /etc/redhat-release 2>/dev/null | cut -d. -f1)
+                if [ "$REL" = "8" ]; then
+                  dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm" 2>/dev/null || true
+                elif [ "$REL" = "9" ]; then
+                  dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm" 2>/dev/null || true
+                fi
+              fi
+              # opentenbase_ctl build deps (libssh2-devel in CRB, cli11/libpqxx in EPEL)
+              OTB_CTL_DEPS=""
+              for pkg in libssh2-devel cli11-devel libpqxx-devel; do
+                if dnf install -y "$pkg" 2>/dev/null; then
+                  echo "Installed $pkg"
+                  OTB_CTL_DEPS="$OTB_CTL_DEPS $pkg"
+                else
+                  echo "WARNING: $pkg not available — opentenbase_ctl will be skipped"
+                fi
+              done
+              echo "OTB_CTL_DEPS=$OTB_CTL_DEPS"
 
               # Fix libatomic symlink if needed
               for dir in /usr/lib64 /usr/lib; do
