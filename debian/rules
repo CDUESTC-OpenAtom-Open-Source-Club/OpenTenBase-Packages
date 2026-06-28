@@ -100,6 +100,9 @@ override_dh_auto_build:
 	elif [ ! -f /usr/include/pqxx/pqxx ] && [ ! -f /usr/local/include/pqxx/pqxx ]; then \
 	    echo "WARNING: libpqxx headers not found, skipping opentenbase_ctl"; \
 	    sed -i 's/ opentenbase_ctl//' contrib/Makefile; \
+	elif [ ! -f /usr/include/CLI/CLI.hpp ] && [ ! -f /usr/local/include/CLI/CLI.hpp ]; then \
+	    echo "WARNING: CLI11 headers not found, skipping opentenbase_ctl"; \
+	    sed -i 's/ opentenbase_ctl//' contrib/Makefile; \
 	fi
 	$(MAKE) -j$(JOBS) -C contrib all
 

@@ -102,6 +102,32 @@ install_dependencies() {
     apt-get install -y libpqxx-dev 2>/dev/null || log_warn "libpqxx-dev not available"
     apt-get install -y libcli11-dev 2>/dev/null || log_warn "libcli11-dev not available"
 
+    # Install CLI11 single-header if libcli11-dev not available (Ubuntu 20.04, Debian 11)
+    if [ ! -f /usr/include/CLI/CLI.hpp ]; then
+        log_info "Installing CLI11 single-header v2.4.2..."
+        apt-get install -y -qq curl 2>/dev/null || true
+        mkdir -p /usr/include/CLI
+        curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
+        log_info "CLI11 single-header installed"
+    fi
+
+    # Build libpqxx 7.9.2 from source if headers not found
+    # (7.6.0 is incompatible with CMake 3.31 — uses removed cmake_determine_compile_features)
+    if [ ! -f /usr/include/pqxx/pqxx ]; then
+        log_info "Building libpqxx 7.9.2 from source..."
+        apt-get install -y -qq libpq-dev cmake curl 2>/dev/null || true
+        cd /tmp
+        curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o libpqxx.tar.gz
+        tar xzf libpqxx.tar.gz
+        cd libpqxx-7.9.2
+        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON
+        cmake --build build -j$(nproc)
+        cmake --install build
+        cd /tmp && rm -rf libpqxx*
+        ldconfig
+        log_info "libpqxx 7.9.2 installed from source"
+    fi
+
     # NOTE: Do NOT remove system libpq.so or libpq-dev.
     # Removing libpq-dev cascades to removing libpqxx-dev (which depends on it),
     # losing the headers needed for opentenbase_ctl. Removing just the .so
