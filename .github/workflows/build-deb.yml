@@ -142,7 +142,7 @@ jobs:
         run: |
           cd /tmp/source/OpenTenBase
           cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/debian/" ./debian/
-          for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template; do
+          for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template opentenbase_config.ini.example; do
             if [ -f "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ]; then
               cp "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ./config/
             fi
@@ -345,7 +345,7 @@ jobs:
 
           # Copy config files to source (required by debian/rules)
           mkdir -p /tmp/source/OpenTenBase/config
-          for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template; do
+          for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template opentenbase_config.ini.example; do
             if [ -f "opentenbase-pkg/config/$f" ]; then
               cp "opentenbase-pkg/config/$f" /tmp/source/OpenTenBase/config/
             fi
