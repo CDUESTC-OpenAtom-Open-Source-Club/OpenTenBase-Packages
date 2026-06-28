@@ -195,7 +195,7 @@ jobs:
               sudo procps libatomic1 adduser \
               libxml2 libreadline8 \
               libpam0g liblz4-1 libzstd1 libcurl4 \
-              libsasl2-2 \
+              libsasl2-2 openssh-server openssh-client \
               && (apt-get install -y libssl1.1 2>/dev/null || apt-get install -y libssl3 2>/dev/null || true) \
               && (apt-get install -y libldap-2.4-2 2>/dev/null || apt-get install -y libldap-2.5-0 2>/dev/null || apt-get install -y libldap-common 2>/dev/null || true) \
               && rm -rf /var/lib/apt/lists/*
@@ -204,10 +204,22 @@ jobs:
           RUN dpkg --force-depends -i /tmp/debs/*.deb
           RUN mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
           RUN ldconfig || true
-          # Ensure opentenbase user exists
+          # Ensure opentenbase user exists with proper shell and home
           RUN id opentenbase 2>/dev/null || (addgroup --system opentenbase && adduser --system --ingroup opentenbase --home /var/lib/opentenbase --shell /bin/bash opentenbase)
           RUN mkdir -p /var/lib/opentenbase/5.0 /var/log/opentenbase/5.0 /var/run/opentenbase
           RUN chown -R opentenbase:opentenbase /var/lib/opentenbase /var/log/opentenbase /var/run/opentenbase 2>/dev/null || true
+          # Set up passwordless SSH for opentenbase user (required by opentenbase_ctl)
+          RUN mkdir -p /var/lib/opentenbase/.ssh /root/.ssh && \
+              ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519 -N "" -q && \
+              cp /root/.ssh/id_ed25519 /var/lib/opentenbase/.ssh/id_ed25519 && \
+              cp /root/.ssh/id_ed25519.pub /var/lib/opentenbase/.ssh/id_ed25519.pub && \
+              cp /root/.ssh/id_ed25519.pub /root/.ssh/authorized_keys && \
+              cp /root/.ssh/id_ed25519.pub /var/lib/opentenbase/.ssh/authorized_keys && \
+              chmod 700 /root/.ssh /var/lib/opentenbase/.ssh && \
+              chmod 600 /root/.ssh/authorized_keys /var/lib/opentenbase/.ssh/authorized_keys && \
+              chown -R opentenbase:opentenbase /var/lib/opentenbase/.ssh && \
+              echo "opentenbase ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+              echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
           COPY test/smoke-test.sh /test/
           RUN chmod +x /test/smoke-test.sh

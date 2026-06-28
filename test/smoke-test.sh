@@ -113,7 +113,34 @@ test_cluster_init() {
     opentenbase-ctl stop 2>/dev/null || true
     rm -rf /var/lib/opentenbase/data 2>/dev/null || true
 
-    if opentenbase-ctl init 2>&1; then
+    # Create config file for official opentenbase_ctl binary
+    local config_file="/tmp/opentenbase_config.ini"
+    cat > "$config_file" << EOF
+[instance]
+name=opentenbase01
+type=distributed
+package=/usr/lib/opentenbase/5.0
+
+[gtm]
+master=127.0.0.1
+
+[coordinators]
+master=127.0.0.1
+nodes-per-server=1
+
+[datanodes]
+master=127.0.0.1
+nodes-per-server=1
+
+[server]
+ssh-user=opentenbase
+ssh-port=22
+
+[log]
+level=INFO
+EOF
+
+    if opentenbase-ctl install -c "$config_file" 2>&1; then
         log_pass "Cluster initialization succeeded"
     else
         log_fail "Cluster initialization failed"
@@ -258,6 +285,10 @@ main() {
     echo "  OpenTenBase Smoke Test"
     echo "========================================"
     echo ""
+
+    # Start SSH server (required by opentenbase_ctl for local SSH operations)
+    service ssh start 2>/dev/null || service sshd start 2>/dev/null || /usr/sbin/sshd 2>/dev/null || true
+    sleep 1
 
     test_packages_installed
     test_config_files
