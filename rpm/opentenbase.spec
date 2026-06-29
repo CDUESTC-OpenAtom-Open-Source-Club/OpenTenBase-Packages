@@ -283,6 +283,14 @@ static inline size_t ZSTD_freeDDict(ZSTD_DDict* ddict) { (void)ddict; return 0; 
 ZSTD_STUB
 fi
 
+# On RHEL-8 family, enable gcc-toolset-11 for C++17 compatibility
+# GCC 8.x (default) doesn't support *this in noexcept(noexcept(...)) which
+# libpqxx 7.9.2 requires. gcc-toolset-11 provides GCC 11 with full C++17 support.
+if [ -f /opt/rh/gcc-toolset-11/enable ]; then
+    source /opt/rh/gcc-toolset-11/enable
+    echo "NOTE: Enabled gcc-toolset-11 (GCC $(gcc --version | head -1)) for C++17 compatibility"
+fi
+
 # Clear all RPM-injected compiler flags from environment
 unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 

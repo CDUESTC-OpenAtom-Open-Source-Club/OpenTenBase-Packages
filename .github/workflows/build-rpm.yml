@@ -81,6 +81,21 @@ jobs:
           for repo in crb powertools; do
             dnf config-manager --set-enabled "$repo" 2>/dev/null || true
           done
+          # On RHEL-8 family distros, install gcc-toolset-11 for modern C++17 support
+          # GCC 8.x (default on RHEL-8) doesn't support *this in noexcept(noexcept(...))
+          # which libpqxx 7.9.2 and opentenbase_ctl require
+          if grep -qiE 'centos|rocky|almalinux' /etc/os-release 2>/dev/null; then
+            REL=$(rpm -q --queryformat '%{VERSION}' -f /etc/redhat-release 2>/dev/null | cut -d. -f1)
+            if [ "$REL" = "8" ]; then
+              dnf install -y gcc-toolset-11 2>/dev/null || true
+              source /opt/rh/gcc-toolset-11/enable 2>/dev/null || true
+              echo "NOTE: Enabled gcc-toolset-11 (GCC $(gcc --version | head -1)) for RHEL-8 C++17 compatibility"
+              # Export for subsequent steps (GITHUB_ENV persists across steps)
+              echo "CC=gcc" >> "$GITHUB_ENV"
+              echo "CXX=g++" >> "$GITHUB_ENV"
+              echo "/opt/rh/gcc-toolset-11/root/usr/bin" >> "$GITHUB_PATH"
+            fi
+          fi
           if [ -f /etc/rocky-release ] || [ -f /etc/almalinux-release ]; then
             REL=$(rpm -q --queryformat '%{VERSION}' -f /etc/redhat-release 2>/dev/null | cut -d. -f1)
             if [ "$REL" = "9" ]; then
