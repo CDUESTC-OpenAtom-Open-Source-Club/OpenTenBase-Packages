@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  actions: write  # 用于触发 deploy-repo.yml（CDN 同步）
 
 jobs:
   # ============================================================
@@ -237,3 +238,14 @@ jobs:
           echo '```bash' >> $GITHUB_STEP_SUMMARY
           echo "curl -sSL https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/${{ steps.version.outputs.tag }}/install.sh | sudo bash" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Trigger CDN deploy
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering CDN deploy for ${{ steps.version.outputs.tag }}..."
+          gh workflow run "Deploy APT/RPM Repository to GitHub Pages" \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            --field tag="${{ steps.version.outputs.tag }}"
