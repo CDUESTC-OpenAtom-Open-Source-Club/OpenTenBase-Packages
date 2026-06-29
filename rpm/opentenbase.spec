@@ -424,24 +424,26 @@ if [ ! -d /usr/local/include/indicators ] && [ ! -d /usr/include/indicators ]; t
     echo "NOTE: indicators headers installed to /usr/local/include/indicators/"
 fi
 
-# 4. Build libpqxx from source if not available (not in EPEL 9 repos)
-if [ ! -f /usr/include/pqxx/pqxx ] && [ ! -f /usr/local/include/pqxx/pqxx ]; then
-    echo "NOTE: libpqxx not found, building 7.9.2 from source"
-    cd /tmp && rm -rf libpqxx-*
-    curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o /tmp/libpqxx.tar.gz || {
-        echo "ERROR: Failed to download libpqxx — opentenbase_ctl cannot be built"
-        exit 1
-    }
-    tar xzf /tmp/libpqxx.tar.gz -C /tmp
-    cd /tmp/libpqxx-7.9.2
-    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON
-    cmake --build build -j$(nproc)
-    cmake --install build
-    cd /tmp && rm -rf libpqxx-*
-    rm -f /tmp/libpqxx.tar.gz
-    ldconfig
-    echo "NOTE: libpqxx 7.9.2 built and installed"
-fi
+# 4. ALWAYS build libpqxx 7.9.2 from source — system/EPEL versions are incompatible
+#    EPEL provides older libpqxx (7.6.x/7.7.x) with range.hxx bugs that break opentenbase_ctl
+#    Remove any existing system packages and headers first, then build from source
+echo "NOTE: Force-building libpqxx 7.9.2 from source (overriding any system version)"
+rpm -e libpqxx libpqxx-devel 2>/dev/null || true
+rm -rf /usr/include/pqxx /usr/lib64/libpqxx.* /usr/lib/libpqxx.*
+cd /tmp && rm -rf libpqxx-*
+curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o /tmp/libpqxx.tar.gz || {
+    echo "ERROR: Failed to download libpqxx — opentenbase_ctl cannot be built"
+    exit 1
+}
+tar xzf /tmp/libpqxx.tar.gz -C /tmp
+cd /tmp/libpqxx-7.9.2
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON
+cmake --build build -j$(nproc)
+cmake --install build
+cd /tmp && rm -rf libpqxx-*
+rm -f /tmp/libpqxx.tar.gz
+ldconfig
+echo "NOTE: libpqxx 7.9.2 force-built and installed (overrode system version)"
 
 # Pre-build libpq and generate objfiles.txt (race condition fix)
 # libpq's Makefile has 'all: all-lib' but doesn't generate objfiles.txt
@@ -685,7 +687,7 @@ GTM_PORT=6666
 GTM_LOG="/var/log/opentenbase/%{otb_ver}/gtm.log"
 COORD_HOST=127.0.0.1
 COORD_PGDATA="/var/lib/opentenbase/%{otb_ver}/coord"
-COORD_PORT=5432
+COORD_PORT=11003
 COORD_POOLER_PORT=6667
 COORD_FORWARD_PORT=6669
 COORD_LOG="/var/log/opentenbase/%{otb_ver}/coord.log"
