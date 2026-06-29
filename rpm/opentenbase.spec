@@ -427,6 +427,7 @@ fi
 # 4. ALWAYS build libpqxx 7.9.2 from source — system/EPEL versions are incompatible
 #    EPEL provides older libpqxx (7.6.x/7.7.x) with range.hxx bugs that break opentenbase_ctl
 #    Remove any existing system packages and headers first, then build from source
+OTB_SRCDIR_ABS="$(pwd)"
 echo "NOTE: Force-building libpqxx 7.9.2 from source (overriding any system version)"
 rpm -e libpqxx libpqxx-devel 2>/dev/null || true
 rm -rf /usr/include/pqxx /usr/lib64/libpqxx.* /usr/lib/libpqxx.*
@@ -443,6 +444,7 @@ cmake --install build
 cd /tmp && rm -rf libpqxx-*
 rm -f /tmp/libpqxx.tar.gz
 ldconfig
+cd "$OTB_SRCDIR_ABS"
 echo "NOTE: libpqxx 7.9.2 force-built and installed (overrode system version)"
 
 # Pre-build libpq and generate objfiles.txt (race condition fix)
