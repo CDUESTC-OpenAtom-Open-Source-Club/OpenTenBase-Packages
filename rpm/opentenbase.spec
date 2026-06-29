@@ -25,9 +25,9 @@ BuildRequires:  gcc gcc-c++ make bison flex perl
 BuildRequires:  readline-devel zlib-devel openssl-devel pam-devel
 BuildRequires:  libxml2-devel openldap-devel libuuid-devel
 BuildRequires:  libcurl-devel lz4-devel
-# opentenbase_ctl build deps installed via CI, not hardcoded here
-# (libssh2-devel in CRB, cli11-devel/libpqxx-devel in EPEL — not always available)
-BuildRequires:  pkg-config libtool
+BuildRequires:  libssh2-devel pkg-config libtool
+# opentenbase_ctl also needs CLI11, indicators (header-only, auto-installed in %build)
+# and libpqxx (auto-built from source in %build if not in repos)
 
 Requires:       openssl-libs readline zlib libxml2 openldap libuuid libcurl lz4-libs
 
@@ -385,23 +385,62 @@ if [ "$ZSTD_FOUND" = "0" ]; then
     echo "NOTE: removed -lzstd from linker flags (using stub zstd.h)"
 fi
 
-# If libssh2-devel is not available, skip opentenbase_ctl (uses libssh2 functions)
-# Check for actual shared library, not just headers
-LIBSSH2_FOUND=0
-if { [ -f /usr/lib64/libssh2.so ] || [ -f /usr/lib/libssh2.so ]; }; then
-    LIBSSH2_FOUND=1
+# ============================================================
+# opentenbase_ctl: MANDATORY build (no conditional skip)
+# All deps are auto-installed; build FAILS if any are missing
+# ============================================================
+
+# 1. Verify libssh2 (should be installed via BuildRequires)
+if [ ! -f /usr/lib64/libssh2.so ] && [ ! -f /usr/lib/libssh2.so ]; then
+    echo "ERROR: libssh2 not found — opentenbase_ctl requires it. Install libssh2-devel."
+    exit 1
 fi
 
-# If CLI11 is not available, skip opentenbase_ctl (uses CLI/CLI.hpp)
-CLI11_FOUND=0
-if [ -f /usr/include/CLI/CLI.hpp ] || [ -f /usr/local/include/CLI/CLI.hpp ]; then
-    CLI11_FOUND=1
+# 2. Install CLI11 single-header from GitHub if not present
+if [ ! -f /usr/include/CLI/CLI.hpp ] && [ ! -f /usr/local/include/CLI/CLI.hpp ]; then
+    echo "NOTE: CLI11 not found, installing single-header v2.4.2 from GitHub"
+    mkdir -p /usr/local/include/CLI
+    curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp \
+        -o /usr/local/include/CLI/CLI.hpp || {
+        echo "ERROR: Failed to download CLI11 — opentenbase_ctl cannot be built"
+        exit 1
+    }
+    echo "NOTE: CLI11 single-header installed to /usr/local/include/CLI/CLI.hpp"
 fi
 
-# If libpqxx is not available, skip opentenbase_ctl (uses pqxx/pqxx)
-PQXX_FOUND=0
-if [ -f /usr/include/pqxx/pqxx ] || [ -f /usr/local/include/pqxx/pqxx ]; then
-    PQXX_FOUND=1
+# 3. Install indicators header-only library from GitHub if not present
+if [ ! -d /usr/local/include/indicators ] && [ ! -d /usr/include/indicators ]; then
+    echo "NOTE: indicators not found, installing from GitHub"
+    cd /tmp && rm -rf indicators_src
+    git clone --depth 1 https://github.com/p-ranav/indicators.git /tmp/indicators_src || {
+        echo "ERROR: Failed to clone indicators — opentenbase_ctl cannot be built"
+        exit 1
+    }
+    mkdir -p /usr/local/include/indicators
+    cp -r /tmp/indicators_src/include/indicators/* /usr/local/include/indicators/
+    # indicators.hpp may be at different locations in different versions
+    cp /tmp/indicators_src/include/indicators.hpp /usr/local/include/ 2>/dev/null || true
+    rm -rf /tmp/indicators_src
+    echo "NOTE: indicators headers installed to /usr/local/include/indicators/"
+fi
+
+# 4. Build libpqxx from source if not available (not in EPEL 9 repos)
+if [ ! -f /usr/include/pqxx/pqxx ] && [ ! -f /usr/local/include/pqxx/pqxx ]; then
+    echo "NOTE: libpqxx not found, building 7.9.2 from source"
+    cd /tmp && rm -rf libpqxx-*
+    curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o /tmp/libpqxx.tar.gz || {
+        echo "ERROR: Failed to download libpqxx — opentenbase_ctl cannot be built"
+        exit 1
+    }
+    tar xzf /tmp/libpqxx.tar.gz -C /tmp
+    cd /tmp/libpqxx-7.9.2
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON
+    cmake --build build -j$(nproc)
+    cmake --install build
+    cd /tmp && rm -rf libpqxx-*
+    rm -f /tmp/libpqxx.tar.gz
+    ldconfig
+    echo "NOTE: libpqxx 7.9.2 built and installed"
 fi
 
 # Pre-build libpq and generate objfiles.txt (race condition fix)
@@ -433,18 +472,35 @@ sed -i 's/^ALWAYS_SUBDIRS += uuid-ossp/# ALWAYS_SUBDIRS += uuid-ossp/' contrib/M
 sed -i '/pgsql-http/d' contrib/Makefile
 %endif
 
-# Skip opentenbase_ctl for older versions (2.x) — not in upstream contrib/
-# Also skip if build deps (libssh2, cli11, libpqxx) are not available
+# Skip opentenbase_ai and opentenbase_ctl for older versions (2.x) — not in upstream contrib/
+# For v5.0: opentenbase_ctl is MANDATORY — all deps already installed above
 if [ "$(cat /tmp/otb_version 2>/dev/null || echo '%{otb_ver}')" != "5.0" ]; then
     sed -i '/opentenbase_ai/s/ *\\$//' contrib/Makefile
     sed -i '/opentenbase_ctl/d' contrib/Makefile
-    echo "NOTE: opentenbase_ctl not available in this version, skipping"
-elif [ "$LIBSSH2_FOUND" = "0" ] || [ "$CLI11_FOUND" = "0" ] || [ "$PQXX_FOUND" = "0" ]; then
-    sed -i '/opentenbase_ctl/d' contrib/Makefile
-    echo "WARNING: opentenbase_ctl build deps not found (libssh2=$LIBSSH2_FOUND cli11=$CLI11_FOUND pqxx=$PQXX_FOUND), skipping"
+    echo "NOTE: opentenbase_ctl not available in this version, skipping (v5.0+ only)"
 fi
 
 make -C contrib -j$(nproc)
+
+# ============================================================
+# POST-BUILD VERIFICATION: opentenbase_ctl MUST exist for v5.0
+# ============================================================
+if [ "$(cat /tmp/otb_version 2>/dev/null || echo '%{otb_ver}')" = "5.0" ]; then
+    if [ ! -f contrib/opentenbase_ctl/opentenbase_ctl ]; then
+        echo "============================================================"
+        echo "FATAL: opentenbase_ctl binary not found after contrib build!"
+        echo "Dependencies status:"
+        echo "  CLI11: $(ls /usr/local/include/CLI/CLI.hpp /usr/include/CLI/CLI.hpp 2>/dev/null || echo MISSING)"
+        echo "  indicators: $(ls -d /usr/local/include/indicators /usr/include/indicators 2>/dev/null || echo MISSING)"
+        echo "  libpqxx: $(find /usr/include/pqxx/pqxx /usr/local/include/pqxx/pqxx 2>/dev/null || echo MISSING)"
+        echo "  libssh2: $(ls /usr/lib64/libssh2.so /usr/lib/libssh2.so 2>/dev/null || echo MISSING)"
+        echo "Attempting manual build for diagnostics..."
+        cd contrib/opentenbase_ctl && make clean 2>/dev/null; make 2>&1 | tail -30
+        echo "============================================================"
+        exit 1
+    fi
+    echo "NOTE: opentenbase_ctl binary built successfully"
+fi
 
 %install
 SRCDIR=$(find . -maxdepth 1 -type d -name 'OpenTenBase*' -o -name 'opentenbase*' | head -1)
