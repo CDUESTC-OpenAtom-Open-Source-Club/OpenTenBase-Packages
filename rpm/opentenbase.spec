@@ -547,11 +547,17 @@ install -m 644 %{SOURCE1} %{buildroot}/etc/opentenbase/%{otb_ver}/pg_hba.conf.te
 cat > %{buildroot}/etc/opentenbase/%{otb_ver}/opentenbase_config.ini.example << 'INIEOF'
 # OpenTenBase single-node local deployment config
 # Usage: opentenbase_ctl install -c opentenbase_config.ini
+#
+# IMPORTANT: package MUST point to a .tar.gz file, NOT a directory!
+# Create the tar.gz before running install:
+#   cd /tmp && mkdir otb-pkg && cp -af %{otb_prefix}/* otb-pkg/
+#   cd otb-pkg && tar -zcf /tmp/opentenbase-5.0.tar.gz *
+# Or use: sudo bash scripts/deploy-opentenbase.sh --yes
 
 [instance]
 name=opentenbase01
 type=distributed
-package=%{otb_prefix}
+package=/tmp/opentenbase-%{otb_ver}.tar.gz
 
 [gtm]
 master=127.0.0.1

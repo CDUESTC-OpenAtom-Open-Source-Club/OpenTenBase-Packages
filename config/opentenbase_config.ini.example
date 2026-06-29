@@ -1,6 +1,18 @@
 # OpenTenBase single-node local deployment config
 # Usage: opentenbase_ctl install -c opentenbase_config.ini
 #
+# IMPORTANT: package MUST point to a .tar.gz file, NOT a directory!
+# opentenbase_ctl's file transfer uses `cp` (without -r) for local IPs,
+# which fails on directories. Create the tar.gz before running install:
+#
+#   cd /tmp && mkdir otb-pkg && cd otb-pkg
+#   cp -af /usr/lib/opentenbase/5.0/* .
+#   tar -zcf /tmp/opentenbase-5.0.tar.gz *
+#   cd / && rm -rf /tmp/otb-pkg
+#
+# Or use the deploy script which does this automatically:
+#   sudo bash scripts/deploy-opentenbase.sh --yes
+#
 # Copy this file, edit paths/ports/user, then run:
 #   cp /etc/opentenbase/5.0/opentenbase_config.ini.example ./opentenbase_config.ini
 #   vim opentenbase_config.ini
@@ -9,7 +21,7 @@
 [instance]
 name=opentenbase01
 type=distributed
-package=/usr/lib/opentenbase/5.0
+package=/tmp/opentenbase-5.0.tar.gz
 
 [gtm]
 master=127.0.0.1

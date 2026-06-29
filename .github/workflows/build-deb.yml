@@ -98,6 +98,15 @@ jobs:
             curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
             echo "Installed CLI11 single-header v2.4.2"
           fi
+          # Install indicators header-only library (for console progress bars)
+          if ! test -d /usr/include/indicators && ! test -d /usr/local/include/indicators; then
+            cd /tmp && git clone --depth 1 https://github.com/p-ranav/indicators.git
+            mkdir -p /usr/local/include/indicators
+            cp -r indicators/include/indicators/* /usr/local/include/indicators/
+            cp indicators/include/indicators.hpp /usr/local/include/ 2>/dev/null || true
+            rm -rf indicators
+            echo "Installed indicators headers to /usr/local/include/"
+          fi
           apt-get install -y libpqxx-dev 2>/dev/null || echo "WARNING: libpqxx-dev not available"
           # Build libpqxx 7.9.2 from source if headers not found
           # (7.6.0 is incompatible with CMake 3.31 — uses removed cmake_determine_compile_features)
@@ -306,6 +315,15 @@ jobs:
             mkdir -p /usr/include/CLI
             curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp -o /usr/include/CLI/CLI.hpp
             echo "Installed CLI11 single-header v2.4.2"
+          fi
+          # Install indicators header-only library (for console progress bars)
+          if ! test -d /usr/include/indicators && ! test -d /usr/local/include/indicators; then
+            cd /tmp && git clone --depth 1 https://github.com/p-ranav/indicators.git
+            mkdir -p /usr/local/include/indicators
+            cp -r indicators/include/indicators/* /usr/local/include/indicators/
+            cp indicators/include/indicators.hpp /usr/local/include/ 2>/dev/null || true
+            rm -rf indicators
+            echo "Installed indicators headers to /usr/local/include/"
           fi
           apt-get install -y libpqxx-dev 2>/dev/null || echo "WARNING: libpqxx-dev not available"
           # Build libpqxx 7.9.2 from source if headers not found

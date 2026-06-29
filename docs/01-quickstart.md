@@ -70,6 +70,10 @@ sudo vi /tmp/otb_config.ini
 sudo mkdir -p /usr/local/install
 sudo ln -sf /usr/lib/opentenbase/5.0 /usr/local/install/opentenbase
 
+# 创建部署包 tar.gz（opentenbase_ctl 要求文件格式，不能是目录）
+cd /tmp && mkdir otb-pkg && cp -af /usr/lib/opentenbase/5.0/* otb-pkg/
+cd otb-pkg && tar -zcf /tmp/opentenbase-5.0.tar.gz * && cd / && rm -rf /tmp/otb-pkg
+
 # 安装集群（GTM + CN + DN）
 opentenbase_ctl install -c /tmp/otb_config.ini
 ```
@@ -181,12 +185,28 @@ sudo apt install opentenbase
 **错误信息：**
 ```
 FATAL: binding threads failed for 22
+# 或
+could not obtain global timestamp
 ```
 
 **解决方法：**
 ```bash
 # 检查 CPU 核心数
 nproc
+
+# 如果 ≤ 2 核，GTM 的 pthread_setaffinity_np 会返回 EINVAL
+# 创建 noaffinity.so 绕过 CPU 亲和性检查：
+cat > /tmp/noaffinity.c << 'EOF'
+#define _GNU_SOURCE
+#include <pthread.h>
+int pthread_setaffinity_np(pthread_t t, size_t s, const cpu_set_t *c) {
+    (void)t; (void)s; (void)c; return 0;
+}
+EOF
+gcc -shared -fPIC -o /usr/lib/opentenbase/noaffinity.so /tmp/noaffinity.c -lpthread
+
+# 使用 LD_PRELOAD 启动
+LD_PRELOAD=/usr/lib/opentenbase/noaffinity.so opentenbase_ctl start
 
 # 检查内存（最低 3GB）
 free -h

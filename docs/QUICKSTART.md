@@ -43,12 +43,16 @@ sudo apt update && sudo apt install -y opentenbase
 # 2. 安装 sshpass（opentenbase_ctl 通过 sshpass 远程执行，无需配置互信）
 sudo apt install -y sshpass
 
-# 3. 创建配置并安装集群
+# 3. 创建部署包 tar.gz（opentenbase_ctl 要求文件格式，不能是目录）
+cd /tmp && mkdir otb-pkg && cp -af /usr/lib/opentenbase/5.0/* otb-pkg/
+cd otb-pkg && tar -zcf /tmp/opentenbase-5.0.tar.gz * && cd / && rm -rf /tmp/otb-pkg
+
+# 4. 创建配置并安装集群
 sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
 # 编辑 [server] 部分：填写 ssh-user / ssh-password
 sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
 
-# 4. 验证
+# 5. 验证
 opentenbase_ctl start
 opentenbase_ctl status
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
@@ -64,12 +68,16 @@ sudo dnf install -y opentenbase
 # 2. 安装 sshpass（opentenbase_ctl 通过 sshpass 远程执行，无需配置互信）
 sudo dnf install -y sshpass
 
-# 3. 创建配置并安装集群
+# 3. 创建部署包 tar.gz（opentenbase_ctl 要求文件格式，不能是目录）
+cd /tmp && mkdir otb-pkg && cp -af /usr/lib/opentenbase/5.0/* otb-pkg/
+cd otb-pkg && tar -zcf /tmp/opentenbase-5.0.tar.gz * && cd / && rm -rf /tmp/otb-pkg
+
+# 4. 创建配置并安装集群
 sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
 # 编辑 [server] 部分：填写 ssh-user / ssh-password
 sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
 
-# 4. 验证
+# 5. 验证
 opentenbase_ctl start
 opentenbase_ctl status
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"

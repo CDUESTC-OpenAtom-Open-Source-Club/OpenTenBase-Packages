@@ -177,8 +177,41 @@ fi
 # CPU
 CPU_CORES=$(nproc 2>/dev/null || echo 1)
 log_ok "CPU ${CPU_CORES} 核"
-if [[ "$CPU_CORES" -lt 2 ]]; then
-    log_warn "CPU < 2 核，GTM 可能启动失败"
+
+# Low-core fix: GTM uses pthread_setaffinity_np which fails on ≤2 core machines
+# with EINVAL, causing GTM to crash. Create a stub .so that makes the call a no-op.
+NOAFFINITY_SO=""
+if [[ "$CPU_CORES" -le 2 ]]; then
+    log_warn "CPU ≤ 2 核，创建 noaffinity.so 绕过 GTM CPU 亲和性问题"
+    NOAFFINITY_SO="/usr/lib/opentenbase/noaffinity.so"
+    cat > /tmp/noaffinity.c << 'NOAFEOF'
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <string.h>
+int pthread_setaffinity_np(pthread_t thread, size_t cpusetsize, const cpu_set_t *cpuset) {
+    (void)thread; (void)cpusetsize; (void)cpuset;
+    return 0;
+}
+NOAFEOF
+    if gcc -shared -fPIC -o "$NOAFFINITY_SO" /tmp/noaffinity.c -lpthread 2>/dev/null; then
+        log_ok "noaffinity.so 已创建: $NOAFFINITY_SO"
+
+        # 写入 /etc/ld.so.preload 实现全局注入
+        # 原因：opentenbase_ctl 通过 SSH 启动 GTM 为独立进程，
+        # LD_PRELOAD 环境变量不会传播到 SSH 子进程。
+        # /etc/ld.so.preload 是系统级配置，所有进程（含 SSH 子进程）都会加载。
+        if [[ ! -f /etc/ld.so.preload ]] || ! grep -q "$NOAFFINITY_SO" /etc/ld.so.preload 2>/dev/null; then
+            echo "$NOAFFINITY_SO" >> /etc/ld.so.preload
+            chmod 644 /etc/ld.so.preload
+            log_ok "已写入 /etc/ld.so.preload（全局注入，GTM 子进程也会生效）"
+        else
+            log_ok "/etc/ld.so.preload 已包含 noaffinity.so"
+        fi
+    else
+        log_warn "noaffinity.so 创建失败，2 核机器上 GTM 可能崩溃"
+        NOAFFINITY_SO=""
+    fi
+    rm -f /tmp/noaffinity.c
 fi
 
 # OS 检测
@@ -308,6 +341,37 @@ else
 fi
 
 # ====================================================================
+# Step 3.5: 创建部署包 tar.gz
+# opentenbase_ctl 的 excute_cp_file() 对本地 IP (127.0.0.1) 使用 `cp`（无 -r），
+# 无法拷贝目录。必须将安装目录打包为 tar.gz 文件，让 pre_process_pkg() 正常处理。
+# ====================================================================
+INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
+TAR_PKG="/tmp/opentenbase-${OTB_VERSION}.tar.gz"
+if [[ -d "$INSTALL_DIR" ]] && [[ ! -f "$TAR_PKG" ]]; then
+    log_info "创建部署 tar.gz 包（opentenbase_ctl 要求文件格式而非目录）..."
+    TMP_PKG_DIR=$(mktemp -d /tmp/otb-pkg-XXXXXX)
+    cp -af "$INSTALL_DIR"/* "$TMP_PKG_DIR/"
+    (cd "$TMP_PKG_DIR" && tar -zcf "$TAR_PKG" *)
+    rm -rf "$TMP_PKG_DIR"
+    PACKAGE_PATH="$TAR_PKG"
+    log_ok "部署包: $TAR_PKG ($(du -h "$TAR_PKG" | cut -f1))"
+elif [[ -f "$TAR_PKG" ]]; then
+    PACKAGE_PATH="$TAR_PKG"
+    log_ok "部署包已存在: $TAR_PKG"
+else
+    log_warn "安装目录 $INSTALL_DIR 不存在，使用目录路径（可能导致传输失败）"
+fi
+
+# 验证 opentenbase_ctl 在 tar.gz 中
+if [[ -f "$TAR_PKG" ]]; then
+    TAR_CONTENT=$(tar -tzf "$TAR_PKG" 2>/dev/null || true)
+    if [[ "$TAR_CONTENT" != *"bin/opentenbase_ctl"* ]]; then
+        log_error "tar.gz 中未找到 bin/opentenbase_ctl，安装包可能损坏"
+        exit 1
+    fi
+fi
+
+# ====================================================================
 # Step 4: 交互式配置（仅交互模式）
 # ====================================================================
 log_step "Step 4/6: 集群配置"
@@ -385,6 +449,7 @@ level=INFO
 INIEOF
 
 chmod 600 "$CONFIG_FILE"  # 保护密码
+chown "$SSH_USER":"$SSH_USER" "$CONFIG_FILE" 2>/dev/null || chown "$SSH_USER" "$CONFIG_FILE" 2>/dev/null || true
 log_ok "配置文件已生成: $CONFIG_FILE"
 
 # ====================================================================
@@ -392,10 +457,17 @@ log_ok "配置文件已生成: $CONFIG_FILE"
 # ====================================================================
 log_step "Step 5/6: 安装集群（opentenbase_ctl install）"
 
+# Build LD_PRELOAD for low-core environments (belt-and-suspenders alongside /etc/ld.so.preload)
+OTB_LD_PRELOAD=""
+if [[ -n "$NOAFFINITY_SO" ]] && [[ -f "$NOAFFINITY_SO" ]]; then
+    OTB_LD_PRELOAD="LD_PRELOAD=$NOAFFINITY_SO "
+    log_info "GTM 低核兼容: /etc/ld.so.preload 已全局生效，LD_PRELOAD 作为额外保障"
+fi
+
 echo -e "  正在执行: ${CYAN}opentenbase_ctl install -c $CONFIG_FILE${NC}"
 echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
 
-if su - "$SSH_USER" -c "opentenbase_ctl install -c '$CONFIG_FILE'" 2>&1; then
+if su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl install -c '$CONFIG_FILE'" 2>&1; then
     echo ""
     log_ok "集群安装成功"
 else
@@ -421,27 +493,45 @@ log_step "Step 6/6: 启动与验证"
 
 # 安装完成后集群可能已自动启动，检查一下
 log_info "检查集群状态..."
-if opentenbase_ctl status 2>&1; then
+if su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl status -c '$CONFIG_FILE'" 2>&1; then
     log_ok "集群已运行"
 elif [[ "$AUTO_START" == "true" ]]; then
     log_info "启动集群..."
-    su - "$SSH_USER" -c "opentenbase_ctl start" 2>&1 || true
+    su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl start -c '$CONFIG_FILE'" 2>&1 || true
     sleep 3
-    opentenbase_ctl status 2>&1 || log_warn "集群可能需要更多时间启动"
+    su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl status -c '$CONFIG_FILE'" 2>&1 || log_warn "集群可能需要更多时间启动"
 fi
 
 # psql 连接测试
 log_info "测试数据库连接..."
 OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
+OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
+# opentenbase_ctl 部署后的运行时路径
+OTB_RUN_LIB="/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/lib"
+OTB_RUN_BIN="/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/bin"
 PSQL=""
-[[ -x "$OTB_BIN/psql" ]] && PSQL="$OTB_BIN/psql"
+[[ -x "$OTB_RUN_BIN/psql" ]] && PSQL="$OTB_RUN_BIN/psql"
+[[ -z "$PSQL" ]] && [[ -x "$OTB_BIN/psql" ]] && PSQL="$OTB_BIN/psql"
 [[ -z "$PSQL" ]] && command -v opentenbase-psql &>/dev/null && PSQL="opentenbase-psql"
 [[ -z "$PSQL" ]] && command -v psql &>/dev/null && PSQL="psql"
 
+# 确定 LD_LIBRARY_PATH
+OTB_PSQL_LIB_PATH=""
+if [[ -d "$OTB_RUN_LIB" ]]; then
+    OTB_PSQL_LIB_PATH="$OTB_RUN_LIB"
+elif [[ -d "$OTB_LIB" ]]; then
+    OTB_PSQL_LIB_PATH="$OTB_LIB"
+fi
+
+# OpenTenBase CN 默认端口 11003
+CN_PORT=11003
+
 if [[ -n "$PSQL" ]]; then
+    OTB_PSQL_ENV=""
+    [[ -n "$OTB_PSQL_LIB_PATH" ]] && OTB_PSQL_ENV="LD_LIBRARY_PATH=$OTB_PSQL_LIB_PATH "
     for i in $(seq 1 5); do
-        if su - "$SSH_USER" -c "$PSQL -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c 'SELECT version();'" 2>/dev/null; then
-            log_ok "数据库连接成功"
+        if su - "$SSH_USER" -c "${OTB_PSQL_ENV}${PSQL} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c 'SELECT version();'" 2>/dev/null; then
+            log_ok "数据库连接成功（端口 ${CN_PORT}）"
             break
         fi
         [[ $i -lt 5 ]] && log_info "等待启动...（$i/5）" && sleep 3
@@ -472,18 +562,19 @@ echo ""
 echo -e "  ${BOLD}配置文件:${NC} ${CYAN}${CONFIG_FILE}${NC}"
 echo ""
 echo -e "  ${BOLD}常用命令:${NC}"
-echo -e "    ${CYAN}opentenbase_ctl status${NC}          # 查看状态"
-echo -e "    ${CYAN}opentenbase_ctl stop${NC}            # 停止集群"
-echo -e "    ${CYAN}opentenbase_ctl start${NC}           # 启动集群"
-echo -e "    ${CYAN}opentenbase_ctl delete${NC}          # 删除集群"
+echo -e "    ${CYAN}opentenbase_ctl status -c $CONFIG_FILE${NC}   # 查看状态"
+echo -e "    ${CYAN}opentenbase_ctl stop -c $CONFIG_FILE${NC}     # 停止集群"
+echo -e "    ${CYAN}opentenbase_ctl start -c $CONFIG_FILE${NC}    # 启动集群"
+echo -e "    ${CYAN}opentenbase_ctl delete -c $CONFIG_FILE${NC}   # 删除集群"
 echo ""
 echo -e "  ${BOLD}连接数据库:${NC}"
-echo -e "    ${CYAN}${PSQL:-psql} -h 127.0.0.1 -p 5432 -U opentenbase -d postgres${NC}"
+echo -e "    ${CYAN}export LD_LIBRARY_PATH=${OTB_PSQL_LIB_PATH:-/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/lib}${NC}"
+echo -e "    ${CYAN}${PSQL:-psql} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres${NC}"
 echo ""
 
 if [[ -n "$PSQL" ]]; then
     echo -e "  ${BOLD}快速测试:${NC}"
-    su - "$SSH_USER" -c "$PSQL -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c \"CREATE TABLE t1 (id int, name text) DISTRIBUTE BY SHARD(id); INSERT INTO t1 VALUES (1,'hello'); SELECT * FROM t1;\"" 2>/dev/null && \
+    su - "$SSH_USER" -c "${OTB_PSQL_ENV}${PSQL} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"CREATE TABLE t1 (id int, name text) DISTRIBUTE BY SHARD(id); INSERT INTO t1 VALUES (1,'hello'); SELECT * FROM t1;\"" 2>/dev/null && \
         echo -e "\n  ${GREEN}✅ 分布式表创建+读写测试通过！${NC}" || \
         echo -e "\n  ${YELLOW}集群可能还在启动中，请稍后手动测试${NC}"
 fi

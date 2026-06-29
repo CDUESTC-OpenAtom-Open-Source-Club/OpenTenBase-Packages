@@ -93,18 +93,68 @@ override_dh_auto_build:
 	# Exclude uuid-ossp from contrib build (needs md5.h removed in OpenSSL 3.0)
 	# We use --with-uuid=e2fs so uuid-ossp is not needed
 	sed -i 's/ uuid-ossp//' contrib/Makefile
-	# For v5.0+, build opentenbase_ctl if libpqxx headers are available
+	# For v5.0+, opentenbase_ctl is MANDATORY — install any missing deps
 	# For older versions (2.x), contrib/opentenbase_ctl does not exist upstream
 	if [ "$(OTB_VERSION)" != "5.0" ]; then \
 	    sed -i 's/ opentenbase_ctl//' contrib/Makefile; \
-	elif [ ! -f /usr/include/pqxx/pqxx ] && [ ! -f /usr/local/include/pqxx/pqxx ]; then \
-	    echo "WARNING: libpqxx headers not found, skipping opentenbase_ctl"; \
-	    sed -i 's/ opentenbase_ctl//' contrib/Makefile; \
-	elif [ ! -f /usr/include/CLI/CLI.hpp ] && [ ! -f /usr/local/include/CLI/CLI.hpp ]; then \
-	    echo "WARNING: CLI11 headers not found, skipping opentenbase_ctl"; \
-	    sed -i 's/ opentenbase_ctl//' contrib/Makefile; \
+	    echo "NOTE: opentenbase_ctl not available in this version, skipping (v5.0+ only)"; \
+	else \
+	    echo "=== opentenbase_ctl: MANDATORY build (v5.0) ==="; \
+	    if [ ! -f /usr/include/libssh2.h ] && [ ! -f /usr/local/include/libssh2.h ]; then \
+	        echo "ERROR: libssh2 headers not found — opentenbase_ctl requires them"; \
+	        exit 1; \
+	    fi; \
+	    if [ ! -f /usr/include/CLI/CLI.hpp ] && [ ! -f /usr/local/include/CLI/CLI.hpp ]; then \
+	        echo "NOTE: CLI11 not found, installing single-header v2.4.2"; \
+	        mkdir -p /usr/local/include/CLI; \
+	        curl -fsSL https://github.com/CLIUtils/CLI11/releases/download/v2.4.2/CLI11.hpp \
+	            -o /usr/local/include/CLI/CLI.hpp || { \
+	            echo "ERROR: Failed to download CLI11"; exit 1; \
+	        }; \
+	    fi; \
+	    if [ ! -d /usr/local/include/indicators ] && [ ! -d /usr/include/indicators ]; then \
+	        echo "NOTE: indicators not found, installing from GitHub"; \
+	        cd /tmp && rm -rf indicators_src; \
+	        git clone --depth 1 https://github.com/p-ranav/indicators.git /tmp/indicators_src || { \
+	            echo "ERROR: Failed to clone indicators"; exit 1; \
+	        }; \
+	        mkdir -p /usr/local/include/indicators; \
+	        cp -r /tmp/indicators_src/include/indicators/* /usr/local/include/indicators/; \
+	        cp /tmp/indicators_src/include/indicators.hpp /usr/local/include/ 2>/dev/null || true; \
+	        rm -rf /tmp/indicators_src; \
+	        echo "NOTE: indicators headers installed to /usr/local/include/indicators/"; \
+	    fi; \
+	    if [ ! -f /usr/include/pqxx/pqxx ] && [ ! -f /usr/local/include/pqxx/pqxx ]; then \
+	        echo "NOTE: libpqxx not found, building 7.9.2 from source"; \
+	        cd /tmp && rm -rf libpqxx-*; \
+	        curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o /tmp/libpqxx.tar.gz || { \
+	            echo "ERROR: Failed to download libpqxx"; exit 1; \
+	        }; \
+	        tar xzf /tmp/libpqxx.tar.gz -C /tmp; \
+	        cd /tmp/libpqxx-7.9.2; \
+	        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON; \
+	        cmake --build build -j$(JOBS); \
+	        cmake --install build; \
+	        cd /tmp && rm -rf libpqxx-* /tmp/libpqxx.tar.gz; \
+	        ldconfig; \
+	        echo "NOTE: libpqxx 7.9.2 built and installed"; \
+	    fi; \
 	fi
 	$(MAKE) -j$(JOBS) -C contrib all
+	# POST-BUILD VERIFICATION: opentenbase_ctl MUST exist for v5.0
+	if [ "$(OTB_VERSION)" = "5.0" ] && [ ! -f contrib/opentenbase_ctl/opentenbase_ctl ]; then \
+	    echo "============================================================"; \
+	    echo "FATAL: opentenbase_ctl binary not found after contrib build!"; \
+	    echo "Dependencies status:"; \
+	    echo "  CLI11: $$(ls /usr/local/include/CLI/CLI.hpp /usr/include/CLI/CLI.hpp 2>/dev/null || echo MISSING)"; \
+	    echo "  indicators: $$(ls -d /usr/local/include/indicators /usr/include/indicators 2>/dev/null || echo MISSING)"; \
+	    echo "  libpqxx: $$(find /usr/include/pqxx/pqxx /usr/local/include/pqxx/pqxx 2>/dev/null || echo MISSING)"; \
+	    echo "  libssh2: $$(ls /usr/include/libssh2.h 2>/dev/null || echo MISSING)"; \
+	    echo "============================================================"; \
+	    exit 1; \
+	elif [ "$(OTB_VERSION)" = "5.0" ]; then \
+	    echo "NOTE: opentenbase_ctl binary built successfully"; \
+	fi
 
 override_dh_auto_install:
 	$(MAKE) -j$(JOBS) DESTDIR=$(DESTDIR) install
