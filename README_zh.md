@@ -26,41 +26,70 @@
 | **多格式** | DEB (`.deb`) + RPM (`.rpm`) 双格式支持 |
 | **多发行版** | Ubuntu 20.04 / 22.04 / 24.04, Debian 11 / 12, RHEL/CentOS 8/9, Fedora, Rocky Linux, AlmaLinux, OpenEuler |
 | **多架构** | x86_64 (amd64) + ARM64 (aarch64) |
-| **多版本共存** | 支持 v5.0 / v2.6 / v2.5 及开发版本并行安装，通过 `opentenbase-ctl switch` 切换 |
+| **多版本共存** | 支持 v5.0 / v2.6 / v2.5 及开发版本并行安装，通过 `opentenbase-switch-version` 切换 |
 | **一键安装** | `curl -sSL ... \| sudo bash` 自动检测系统、下载对应包、解决依赖 |
 | **CI/CD 自动化** | GitHub Actions 自动构建、签名、发布 |
 | **GPG 签名** | 所有发布包均经 GPG 签名（RSA 4096 位），确保包的完整性和来源可信 |
 | **APT/RPM 仓库** | 官方仓库托管在 GitHub Pages — `apt install opentenbase` / `dnf install opentenbase` |
 | **systemd 集成** | 原生 systemd 服务单元，支持 `systemctl` 管理 |
-| **集群管理** | 内置 `opentenbase-ctl` 管理脚本，一键初始化、启动、停止集群 |
+| **官方集群管理** | 内置官方 `opentenbase_ctl` C++ 二进制，通过 INI 配置文件管理集群全生命周期（install/start/stop/status/expand/shrink） |
 | **Cloudflare CDN 加速** | 全球 CDN 加速镜像：`repo.blackevil217.com` |
 
 ---
 
 ## 快速安装
 
-### APT 仓库（Ubuntu / Debian）— 推荐
+### 一键部署（推荐）
+
+**白板机器 → 集群运行，一条命令搞定。** 支持交互式和非交互式：
+
+```bash
+# 交互式（推荐，会问你几个问题）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+
+# 非交互式（全自动，单节点默认值，适合 CI/自动化）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+
+# 非交互式 + 自定义参数
+sudo bash deploy-opentenbase.sh --yes \
+    --cluster-name mycluster \
+    --ssh-password mypass123 \
+    --gtm-ip 192.168.1.10
+```
+
+脚本自动完成：安装包 → 创建用户 → 配置 sshpass → 路径符号链接 → 生成 INI 配置 → `opentenbase_ctl install` → 启动验证
+
+### 软件包仓库（手动安装）
+
+#### APT（Ubuntu / Debian）
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
-sudo apt update
-sudo apt install opentenbase
+sudo apt update && sudo apt install -y opentenbase
 ```
 
-### YUM/DNF 仓库（RHEL / CentOS / Fedora）
+#### YUM/DNF（RHEL / CentOS / Fedora）
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
-sudo dnf install opentenbase
+sudo dnf install -y opentenbase
 ```
 
-### 一键部署（交互式）
+安装包后，部署集群：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
+opentenbase_ctl install -c /tmp/otb_config.ini
+opentenbase_ctl start
+opentenbase_ctl status
 ```
 
-> **说明**：此命令在管道模式下也能正常交互。脚本会自动将 stdin 重连到终端，支持端口配置、数据目录等交互式提示。
+### 手动下载
+
+```bash
+# 从 Releases 下载: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases
+# DEB: sudo apt install ./opentenbase_*.deb
+# RPM: sudo dnf install ./opentenbase-*.rpm
+```
 
 ### 卸载
 
@@ -161,20 +190,20 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 ## 快速开始
 
 ```bash
-# 1. 初始化集群（GTM + Coordinator + Datanode）
-opentenbase-ctl init
+# 1. 安装集群（GTM + Coordinator + Datanode）
+opentenbase_ctl install -c /tmp/otb_config.ini
 
 # 2. 启动集群
-opentenbase-ctl start
+opentenbase_ctl start
 
 # 3. 查看集群状态
-opentenbase-ctl status
+opentenbase_ctl status
 
 # 4. 连接数据库
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 
 # 5. 停止集群
-opentenbase-ctl stop
+opentenbase_ctl stop
 ```
 
 ### Docker Compose 部署
@@ -284,7 +313,7 @@ readlink /etc/opentenbase/current
 | `/etc/opentenbase/<version>/` | 配置文件 |
 | `/var/lib/opentenbase/<version>/` | 数据目录 |
 | `/var/log/opentenbase/<version>/` | 日志目录 |
-| `/usr/bin/opentenbase-ctl` | 集群管理脚本 |
+| `/usr/bin/opentenbase-ctl` | 集群管理二进制（符号链接 → 官方 `opentenbase_ctl`） |
 
 ---
 
@@ -336,6 +365,7 @@ OpenTenBase-Packages/
 
 | 版本 | 日期 | 资产数 | 说明 |
 |------|------|--------|------|
+| v5.0-p31 | 2026-06-28 | 156 | 官方 `opentenbase_ctl` C++ 二进制，CLI11/libpqxx 打包 |
 | v5.0-p11 | 2026-06-02 | 156 | Cloudflare CDN 加速文档 |
 | v5.0-p10 | 2026-06-02 | 156 | ARM64 原生构建 + Docker E2E + 版本切换修复 |
 | v5.0-p9 | 2026-06-01 | 150 | 多版本端到端验证（ARM64 实机） |
@@ -512,8 +542,24 @@ dpkg -l | grep opentenbase
 # 重新安装
 sudo apt install --reinstall opentenbase
 
-# 检查文件是否存在
+# 检查文件是否存在（符号链接指向官方 opentenbase_ctl）
 ls -la /usr/bin/opentenbase-ctl
+ls -la /usr/lib/opentenbase/5.0/bin/opentenbase_ctl
+```
+
+### `error while loading shared libraries: libpqxx-6.4.so`
+
+**原因**：缺少 `libpqxx` 运行时库。v5.0-p30 起已将此库打包到软件包中。
+
+**解决**：
+
+```bash
+# 检查库文件是否存在
+ls -la /usr/lib/opentenbase/5.0/lib/libpqxx*
+
+# 如果缺失，安装系统包或升级到 v5.0-p31+
+sudo apt install -y libpqxx-dev  # DEB 系
+sudo dnf install -y libpqxx-devel  # RPM 系
 ```
 
 ---
@@ -555,4 +601,4 @@ ls -la /usr/bin/opentenbase-ctl
 ---
 
 **维护者**：muzimu217
-**最后更新**：2026-06-02（v5.0-p11，CDN 加速文档更新）
+**最后更新**：2026-06-28（v5.0-p31，官方 opentenbase_ctl C++ 二进制）

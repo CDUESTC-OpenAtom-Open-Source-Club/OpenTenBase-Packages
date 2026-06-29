@@ -117,9 +117,10 @@ fakeroot debian/rules binary
 
 4. **功能测试**
    ```bash
-   opentenbase-ctl init
-   opentenbase-ctl start
-   opentenbase-ctl status
+   # 准备 INI 配置文件（模板：/etc/opentenbase/5.0/opentenbase_config.ini.example）
+   opentenbase_ctl install -c /tmp/otb_config.ini
+   opentenbase_ctl start
+   opentenbase_ctl status
    ```
 
 ## 贡献类型

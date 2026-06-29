@@ -10,7 +10,29 @@
 | 磁盘 | 2 GB | 10 GB+ |
 | 权限 | sudo 权限 | root 或 sudo |
 
-## 快速部署（推荐）
+## 一键部署（白板机器推荐）
+
+在干净的机器上，**一条命令**完成从安装到集群运行：
+
+```bash
+# 交互式（推荐，会问你几个问题）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+
+# 非交互式（全自动，默认单节点）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+
+# 非交互式 + 自定义参数
+sudo bash deploy-opentenbase.sh --yes \
+    --cluster-name mycluster \
+    --ssh-password mypass123 \
+    --gtm-ip 192.168.1.10
+```
+
+脚本自动完成：安装包 → 创建用户 → 配置 sshpass → 路径符号链接 → 生成 INI → `opentenbase_ctl install` → 启动验证
+
+---
+
+## 手动安装（进阶）
 
 ### APT 安装（Ubuntu / Debian）
 
@@ -32,40 +54,42 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 sudo dnf install -y opentenbase
 ```
 
-### 初始化集群
+### 配置并安装集群
 
 ```bash
-opentenbase-ctl init
+# 复制配置文件模板
+sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
+
+# 确保 sshpass 已安装（opentenbase_ctl 通过 sshpass 远程执行，无需配置互信）
+sudo apt install -y sshpass   # 或 sudo dnf install -y sshpass
+
+# 编辑配置文件中的 ssh-user / ssh-password 指定 SSH 账号
+sudo vi /tmp/otb_config.ini
+
+# 创建路径符号链接（修复 OSS_INSTALL_DIR 硬编码问题）
+sudo mkdir -p /usr/local/install
+sudo ln -sf /usr/lib/opentenbase/5.0 /usr/local/install/opentenbase
+
+# 安装集群（GTM + CN + DN）
+opentenbase_ctl install -c /tmp/otb_config.ini
 ```
 
 **预期输出：**
 ```
->> initgtm /var/lib/opentenbase/gtm
->> initdb coordinator at /var/lib/opentenbase/coordinator
->> initdb datanode at /var/lib/opentenbase/dn1
->> init complete. Run: opentenbase-ctl start
+>> install complete. Run: opentenbase_ctl start
 ```
 
 ### 启动集群
 
 ```bash
-opentenbase-ctl start
+opentenbase_ctl start
 ```
 
 **预期输出：**
 ```
-starting gtm
-  gtm
-starting coord
-  coord
-starting dn1
-  dn1
-registering GTM node in pgxc_node ...
-registering coordinator node ...
-registering datanode node ...
-reloading connection pool ...
-node group setup complete
-creating sharding map ...
+starting gtm ...
+starting coordinator ...
+starting datanode ...
 start complete
 ```
 
@@ -73,7 +97,7 @@ start complete
 
 ```bash
 # 查看集群状态
-opentenbase-ctl status
+opentenbase_ctl status
 ```
 
 **预期输出：**
@@ -170,10 +194,11 @@ free -h
 # 查看 GTM 日志
 cat /var/log/opentenbase/5.0/gtm.log
 
-# 重新初始化
-sudo opentenbase-ctl stop
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+# 重新安装
+sudo opentenbase_ctl stop
+sudo opentenbase_ctl delete
+sudo opentenbase_ctl install -c /tmp/otb_config.ini
+sudo opentenbase_ctl start
 ```
 
 ### 问题3：端口被占用
@@ -191,10 +216,11 @@ sudo ss -tlnp | grep -E '(5432|6666|15432)'
 # 停止占用端口的服务
 sudo kill -9 <PID>
 
-# 重新初始化
-sudo opentenbase-ctl stop
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+# 重新安装
+sudo opentenbase_ctl stop
+sudo opentenbase_ctl delete
+sudo opentenbase_ctl install -c /tmp/otb_config.ini
+sudo opentenbase_ctl start
 ```
 
 ### 问题4：内存不足

@@ -194,31 +194,63 @@ sudo dpkg -i ./*.deb || sudo apt-get install -f -y
 | `/etc/opentenbase/` | 配置目录 |
 | `/var/lib/opentenbase/` | 数据目录 |
 | `/var/log/opentenbase/` | 日志目录 |
-| `/usr/bin/opentenbase-ctl` | 管理脚本 |
+| `/usr/bin/opentenbase_ctl` | 集群管理二进制（符号链接 → 官方 C++ 实现） |
+| `/usr/lib/opentenbase/5.0/bin/opentenbase_ctl` | 官方集群管理工具 |
+
+### 准备 SSH 账号
+
+`opentenbase_ctl` 通过 `sshpass` + SSH 账号密码在各节点间远程执行命令，**无需配置 SSH 密钥互信**：
+
+```bash
+# 1. 确保每台服务器都有 opentenbase 用户且密码一致
+sudo passwd opentenbase
+
+# 2. 在执行机上安装 sshpass
+sudo apt install -y sshpass   # Debian/Ubuntu
+sudo dnf install -y sshpass   # RHEL/Rocky/Alma
+
+# 3. 在配置文件中填写 SSH 账号信息
+# [server]
+# ssh-user=opentenbase
+# ssh-password=<your_password>
+# ssh-port=22
+```
+
+> **提示**：如需 sudo 权限（如创建目录），请将 opentenbase 用户加入 wheel/sudo 组并启用 NOPASSWD。
+
+### 创建路径符号链接
+
+由于 `opentenbase_ctl` 内部硬编码了 `OSS_INSTALL_DIR=/usr/local/install/opentenbase`，需要创建符号链接：
+
+```bash
+sudo mkdir -p /usr/local/install
+sudo ln -sf /usr/lib/opentenbase/5.0 /usr/local/install/opentenbase
+```
 
 ### 集群管理
 
 ```bash
-# 初始化集群（GTM + CN + DN）
-opentenbase-ctl init
+# 安装集群（GTM + CN + DN）
+opentenbase_ctl install -c /tmp/otb_config.ini
 
 # 启动所有节点
-opentenbase-ctl start
+opentenbase_ctl start
 
 # 查看集群状态
-opentenbase-ctl status
+opentenbase_ctl status
 
 # 停止所有节点
-opentenbase-ctl stop
+opentenbase_ctl stop
 
-# 重启集群
-opentenbase-ctl restart
+# 重启集群（stop + start）
+opentenbase_ctl stop
+opentenbase_ctl start
 ```
 
 ### 连接数据库
 
 ```bash
-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
+psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 ```
 
 ### 卸载
@@ -329,7 +361,7 @@ sudo rpm -e opentenbase
 ### 前提条件
 
 - 每台服务器都安装了 RPM 包
-- 服务器之间 SSH 免密登录已配置
+- 执行机已安装 `sshpass`，配置文件中 SSH 账号密码正确
 - 防火墙开放必要端口
 
 ### 端口规划

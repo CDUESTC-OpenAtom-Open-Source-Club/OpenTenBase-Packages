@@ -113,9 +113,13 @@ step "Stopping OpenTenBase processes..."
 
 if pgrep -f "gtm -D" &>/dev/null || pgrep -f "postgres.*opentenbase" &>/dev/null || pgrep -f "opentenbase_ctl" &>/dev/null; then
     # Try graceful stop first
-    if command -v opentenbase-ctl &>/dev/null; then
+    if command -v opentenbase_ctl &>/dev/null && [ -f /tmp/otb_config.ini ]; then
+        info "Running opentenbase_ctl stop..."
+        opentenbase_ctl stop 2>/dev/null || true
+        sleep 2
+    elif command -v opentenbase-ctl &>/dev/null && [ -f /tmp/otb_config.ini ]; then
         info "Running opentenbase-ctl stop..."
-        opentenbase-ctl stop 2>/dev/null || true
+        opentenbase-ctl stop -c /tmp/otb_config.ini 2>/dev/null || true
         sleep 2
     fi
 

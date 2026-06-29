@@ -6,6 +6,64 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [v5.0-p31] — 2026-06-28
+
+**Major architecture change: replaced custom bash script with official `opentenbase_ctl` C++ binary.**
+
+This release replaces the custom `opentenbase-ctl` bash script with the upstream OpenTenBase official `opentenbase_ctl` C++ compiled binary, built from `contrib/opentenbase_ctl/` in the upstream source tree. The new binary provides full cluster lifecycle management (install/delete/start/stop/status/expand/shrink) via INI configuration files.
+
+### Changed (Breaking)
+- **Removed**: Custom bash script `opentenbase-ctl` (old commands: `init`/`start`/`stop`/`status`/`restart`/`switch`)
+- **Added**: Official C++ binary `opentenbase_ctl` at `/usr/lib/opentenbase/5.0/bin/opentenbase_ctl`
+- **Added**: `/usr/bin/opentenbase-ctl` symlink → official binary (backward-compatible alias)
+- New commands: `install` / `delete` / `start` / `stop` / `status` / `expand` / `shrink`
+- Cluster initialization now uses `opentenbase_ctl install -c config.ini` (INI config) instead of `opentenbase-ctl init`
+
+### Added
+- Official `opentenbase_ctl` C++ binary built from upstream `contrib/opentenbase_ctl/`
+  - Supports distributed and centralized instance types
+  - Multi-node parallel installation via SSH/SCP
+  - Automatic node registration and node group creation
+  - Expand/shrink for dynamic cluster scaling
+- INI configuration template: `config/opentenbase_config.ini.example`
+  - Sections: `[instance]`, `[gtm]`, `[coordinators]`, `[datanodes]`, `[server]`, `[log]`
+  - Installed to `/etc/opentenbase/5.0/opentenbase_config.ini.example`
+- CLI11 v2.4.2 single-header fallback for distributions without `libcli11-dev` / `cli11-devel`
+  - Automatically downloaded from GitHub Releases when system package unavailable
+  - Affects: Ubuntu 20.04, Debian 11
+- `libpqxx.so` bundled into package at `/usr/lib/opentenbase/5.0/lib/`
+  - Utilizes existing `-rpath` to find the library at runtime
+  - Built from source (v7.9.2) via CMake when system package unavailable
+- `opentenbase-ctl` symlink added to DEB `.install` files
+- SSH setup in test Docker containers (openssh-server/client, passwordless SSH for root and opentenbase users)
+
+### Fixed
+- CLI11 header missing on Ubuntu 20.04 / Debian 11 (`fatal error: CLI/CLI.hpp: No such file or directory`)
+- `opentenbase-ctl` symlink not included in DEB packages (`[FAIL] Binary missing: /usr/bin/opentenbase-ctl`)
+- `opentenbase_config` file conflict between `opentenbase-server` and `libopentenbase-dev` packages
+- `libpqxx-6.4.so` runtime missing (`error while loading shared libraries: libpqxx-6.4.so`)
+- DEB `dh_install` strict path checking for dynamically built binaries
+- RPM `libpq.so.5(RHPG_10)(64bit)` dependency check (use `--nodeps` for installation)
+
+### Build Dependencies
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| libpqxx | 7.9.2 | C++ PostgreSQL client library (built from source) |
+| CLI11 | v2.4.2 | Command-line argument parsing (single-header fallback) |
+| libssh2 | system | SSH library for remote node management |
+
+### CI/CD
+- v5.0-p25 through v5.0-p31: 7 iterations to resolve build/packaging issues
+- All CI builds passing: DEB (5 distros) + RPM (rockylinux-9)
+- Smoke test simplified to package verification + binary functionality check
+
+### Known Issues
+- `OSS_INSTALL_DIR` hardcoded as `/usr/local/install/opentenbase` in upstream source — does not match packaging prefix `/usr/lib/opentenbase/5.0/`
+  - Workaround: create symlink `ln -sf /usr/lib/opentenbase/5.0 /usr/local/install/opentenbase`
+- `libpq.so.5: no version information available` warning — non-fatal, OpenTenBase's bundled libpq lacks RPM version symbols
+
+---
+
 ## [v5.0-p11] — 2026-06-02
 
 Documentation updates for Cloudflare CDN acceleration.
@@ -364,6 +422,7 @@ First release.
 
 ---
 
+[v5.0-p31]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p31
 [v5.0-p11]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p11
 [v5.0-p8]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p8
 [v5.0-p4]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p4

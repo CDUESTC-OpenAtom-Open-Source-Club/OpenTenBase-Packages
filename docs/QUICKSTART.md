@@ -2,7 +2,21 @@
 
 [English](#english) | 中文
 
-> **5 分钟完成安装，1 条命令启动集群。**
+> **白板机器，一条命令，集群就跑起来了。**
+
+---
+
+## 🚀 一键部署（最快方式）
+
+```bash
+# 交互式（推荐）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+
+# 非交互式（全自动）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+```
+
+自动完成全部步骤：安装包 → 创建用户 → sshpass → 符号链接 → 生成配置 → `opentenbase_ctl install` → 启动验证
 
 ---
 
@@ -19,38 +33,46 @@
 
 ---
 
-## 方式一：APT 安装（Ubuntu / Debian）
+## 方式一：APT 安装 + 官方 opentenbase_ctl 部署（Ubuntu / Debian）
 
 ```bash
-# 1. 配置仓库
+# 1. 配置仓库并安装
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
-
-# 2. 安装
 sudo apt update && sudo apt install -y opentenbase
 
-# 3. 初始化并启动集群
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+# 2. 安装 sshpass（opentenbase_ctl 通过 sshpass 远程执行，无需配置互信）
+sudo apt install -y sshpass
+
+# 3. 创建配置并安装集群
+sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
+# 编辑 [server] 部分：填写 ssh-user / ssh-password
+sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
 
 # 4. 验证
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
+opentenbase_ctl start
+opentenbase_ctl status
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
-## 方式二：RPM 安装（RHEL / CentOS / Rocky / Alma / Fedora / openEuler）
+## 方式二：RPM 安装 + 官方 opentenbase_ctl 部署（RHEL / CentOS / Rocky / Alma / Fedora / openEuler）
 
 ```bash
-# 1. 配置仓库
+# 1. 配置仓库并安装
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
-
-# 2. 安装
 sudo dnf install -y opentenbase
 
-# 3. 初始化并启动集群
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+# 2. 安装 sshpass（opentenbase_ctl 通过 sshpass 远程执行，无需配置互信）
+sudo dnf install -y sshpass
+
+# 3. 创建配置并安装集群
+sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
+# 编辑 [server] 部分：填写 ssh-user / ssh-password
+sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
 
 # 4. 验证
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
+opentenbase_ctl start
+opentenbase_ctl status
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ## 方式三：Docker 部署
@@ -82,24 +104,28 @@ docker compose up -d --build
 安装后使用 `opentenbase-psql` 连接（不是系统自带的 `psql`）：
 
 ```bash
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 ```
 
 ## 集群管理
 
+使用官方 `opentenbase_ctl` 二进制管理集群（需要 `-c` 指定 INI 配置文件）：
+
 ```bash
-sudo opentenbase-ctl init      # 初始化集群
-sudo opentenbase-ctl start     # 启动所有节点
-sudo opentenbase-ctl status    # 查看状态
-sudo opentenbase-ctl stop      # 停止集群
-sudo opentenbase-ctl restart   # 重启集群
+opentenbase_ctl install -c /tmp/otb_config.ini   # 安装集群（initdb+配置+启动+注册）
+opentenbase_ctl start     # 启动集群
+opentenbase_ctl status    # 查看状态
+opentenbase_ctl stop      # 停止集群
+opentenbase_ctl delete    # 删除集群
+opentenbase_ctl expand -c /tmp/otb_config.ini    # 扩容
+opentenbase_ctl shrink -c /tmp/otb_config.ini    # 缩容
 ```
 
 ## 创建分布式表
 
 ```sql
 -- 连接到 Coordinator
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 
 -- 创建分片表
 CREATE TABLE users (
@@ -173,7 +199,7 @@ ss -tlnp | grep -E '5432|6666|15432'
 **连接被拒绝**
 ```bash
 # 检查集群状态
-sudo opentenbase-ctl status
+opentenbase_ctl status
 # 检查 pg_hba.conf
 cat /var/lib/opentenbase/5.0/coord/pg_hba.conf
 ```
@@ -194,7 +220,7 @@ vm.overcommit_ratio = 90
 |------|------|
 | **GTM 单点** | GTM 是全局事务管理器，无内置高可用。生产环境建议监控 GTM 进程 |
 | **备份恢复** | 使用 `pg_dump` / `pg_dumpall` 进行逻辑备份，暂无内置物理备份工具 |
-| **启动顺序** | `opentenbase-ctl start` 按 GTM → Coordinator → Datanode 顺序启动，无自动重试 |
+| **启动顺序** | `opentenbase_ctl start` 按 GTM → Coordinator → Datanode 顺序启动 |
 | **安装脚本安全** | `setup-apt.sh` / `setup-rpm.sh` 通过 HTTPS 传输，包使用 GPG 签名验证 |
 
 ---
@@ -221,8 +247,10 @@ vm.overcommit_ratio = 90
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
 sudo apt update && sudo apt install -y opentenbase
-sudo opentenbase-ctl init && sudo opentenbase-ctl start
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
+# Configure SSH and install cluster (see Chinese section above for full steps)
+sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
+sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ### RPM (RHEL / CentOS / Rocky / Fedora)
@@ -230,8 +258,10 @@ opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT ver
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install -y opentenbase
-sudo opentenbase-ctl init && sudo opentenbase-ctl start
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1 -c "SELECT version();"
+# Configure SSH and install cluster (see Chinese section above for full steps)
+sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
+sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ### Docker
@@ -243,4 +273,4 @@ docker run -d --name opentenbase -p 5432:5432 ghcr.io/muzimu217/opentenbase-runt
 
 ---
 
-**Last Updated**: 2026-06-01
+**Last Updated**: 2026-06-28

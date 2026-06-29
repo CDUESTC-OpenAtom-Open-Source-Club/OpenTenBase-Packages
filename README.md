@@ -28,49 +28,64 @@ English | [中文](README_zh.md)
 | **Multi-format** | DEB (`.deb`) + RPM (`.rpm`) dual format support |
 | **Multi-distro** | 14 distros: Ubuntu/Debian (7), Rocky/Alma/CentOS/Fedora/openEuler (7) |
 | **Multi-arch** | x86_64 (amd64) + ARM64 (aarch64) |
-| **Multi-version coexistence** | Install v5.0 / v2.6 / v2.5 and dev versions side-by-side, switch with `opentenbase-ctl switch` |
+| **Multi-version coexistence** | Install v5.0 / v2.6 / v2.5 and dev versions side-by-side, switch with `opentenbase-switch-version` |
 | **APT/RPM repository** | Official repository hosted on GitHub Pages — `apt install opentenbase` / `dnf install opentenbase` |
 | **One-line install** | `curl -sSL ... \| sudo bash` — auto-configures repository, detects OS, resolves dependencies |
 | **CI/CD automation** | GitHub Actions for automated build, sign, and publish |
 | **GPG signed packages** | All release packages are GPG-signed (RSA 4096-bit) for authenticity verification |
 | **systemd integration** | Native systemd service units, managed via `systemctl` |
-| **Cluster management** | Built-in `opentenbase-ctl` script for one-command init, start, stop |
+| **Official cluster management** | Built-in `opentenbase_ctl` C++ binary — install/start/stop/status/expand/shrink via INI config |
 | **Cloudflare CDN acceleration** | Global CDN acceleration mirror: `repo.blackevil217.com` |
 
 ---
 
 ## Quick Install
 
-### APT Repository (Ubuntu / Debian) — Recommended
+### One-Click Deploy (Recommended)
+
+**Blank machine → running cluster in one command.** Supports both interactive and non-interactive modes:
+
+```bash
+# Interactive (asks a few questions, recommended for first-time users)
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+
+# Non-interactive (all defaults, single-node, for CI/automation)
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+```
+
+The script handles everything: install packages → create user → configure sshpass → path symlink → generate INI → `opentenbase_ctl install` → start & verify.
+
+### Package Repository (Manual)
+
+#### APT (Ubuntu / Debian)
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
-sudo apt update
-sudo apt install opentenbase
+sudo apt update && sudo apt install -y opentenbase
 ```
 
-### YUM/DNF Repository (RHEL / CentOS / Fedora)
+#### YUM/DNF (RHEL / CentOS / Fedora)
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
-sudo dnf install opentenbase
+sudo dnf install -y opentenbase
 ```
 
-### Manual Install
+After package installation, deploy the cluster:
+
+```bash
+opentenbase_ctl install -c /tmp/otb_config.ini
+opentenbase_ctl start
+opentenbase_ctl status
+```
+
+### Manual Download
 
 ```bash
 # Download from releases: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases
 # DEB: sudo apt install ./opentenbase_*.deb
 # RPM: sudo dnf install ./opentenbase-*.rpm
 ```
-
-### One-Click Deploy (Interactive)
-
-```bash
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-cluster.sh | sudo bash
-```
-
-> **Note**: This command works interactively even in piped mode. The script automatically reconnects stdin to your terminal for prompts (port configuration, data directories, etc.).
 
 ### Uninstall
 
@@ -170,20 +185,20 @@ The installation scripts automatically detect and use the fastest available mirr
 ## Quick Start
 
 ```bash
-# 1. Initialize cluster (GTM + Coordinator + Datanode)
-opentenbase-ctl init
+# 1. Install cluster (GTM + Coordinator + Datanode)
+opentenbase_ctl install -c /tmp/otb_config.ini
 
 # 2. Start cluster
-opentenbase-ctl start
+opentenbase_ctl start
 
 # 3. Check cluster status
-opentenbase-ctl status
+opentenbase_ctl status
 
 # 4. Connect to database
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d template1
+opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 
 # 5. Stop cluster
-opentenbase-ctl stop
+opentenbase_ctl stop
 ```
 
 ### Docker Compose Deployment
@@ -285,10 +300,10 @@ readlink /etc/opentenbase/current
 | Path | Purpose |
 |------|---------|
 | `/usr/lib/opentenbase/<version>/` | Binaries and libraries (isolated from system PostgreSQL) |
-| `/etc/opentenbase/<version>/` | Configuration files |
+| `/etc/opentenbase/<version>/` | Configuration files (includes `opentenbase_config.ini.example`) |
 | `/var/lib/opentenbase/<version>/` | Data directory |
 | `/var/log/opentenbase/<version>/` | Log directory |
-| `/usr/bin/opentenbase-ctl` | Cluster management script |
+| `/usr/bin/opentenbase-ctl` | Cluster management binary (symlink → official `opentenbase_ctl`) |
 
 ---
 
@@ -340,6 +355,7 @@ OpenTenBase-Packages/
 
 | Release | Date | Assets | Notes |
 |---------|------|--------|-------|
+| v5.0-p31 | 2026-06-28 | 156 | Official `opentenbase_ctl` C++ binary, CLI11/libpqxx bundling |
 | v5.0-p11 | 2026-06-02 | 156 | Cloudflare CDN acceleration documentation |
 | v5.0-p10 | 2026-06-02 | 156 | ARM64 native builds + Docker E2E + version switch fix |
 | v5.0-p9 | 2026-06-01 | 150 | Multi-version end-to-end verification on ARM64 |
@@ -518,8 +534,24 @@ dpkg -l | grep opentenbase
 # Reinstall
 sudo apt install --reinstall opentenbase
 
-# Verify the binary exists
+# Verify the binary exists (it's a symlink to the official opentenbase_ctl)
 ls -la /usr/bin/opentenbase-ctl
+ls -la /usr/lib/opentenbase/5.0/bin/opentenbase_ctl
+```
+
+### `error while loading shared libraries: libpqxx-6.4.so`
+
+**Cause**: The `libpqxx` runtime library is missing. This was fixed in v5.0-p30 (library is now bundled).
+
+**Solution**:
+
+```bash
+# Check if the library is bundled
+ls -la /usr/lib/opentenbase/5.0/lib/libpqxx*
+
+# If missing, install from system or upgrade to v5.0-p31+
+sudo apt install -y libpqxx-dev  # DEB
+sudo dnf install -y libpqxx-devel  # RPM
 ```
 
 ---
@@ -561,4 +593,4 @@ Same as OpenTenBase — [Apache License 2.0](https://www.apache.org/licenses/LIC
 ---
 
 **Maintainer**: muzimu217
-**Last Updated**: 2026-06-02 (v5.0-p11, CDN acceleration documentation)
+**Last Updated**: 2026-06-28 (v5.0-p31, official opentenbase_ctl C++ binary)

@@ -119,7 +119,7 @@ cmd_switch() {
     # Use a pattern that won't match the pgrep command itself
     if pgrep -x postgres >/dev/null 2>&1 || pgrep -x gtm >/dev/null 2>&1; then
         log_warn "OpenTenBase server processes are running."
-        echo "  opentenbase-ctl stop"
+        echo "  opentenbase_ctl stop
         echo ""
         read -p "Continue anyway? [y/N] " -n 1 -r
         echo
@@ -162,9 +162,9 @@ cmd_switch() {
     [ -n "$port" ] && echo "Coordinator port: $port"
 
     echo ""
-    echo "To initialize and start:"
-    echo "  opentenbase-ctl init"
-    echo "  opentenbase-ctl start"
+    echo "To install and start:"
+    echo "  opentenbase_ctl install -c /tmp/otb_config.ini"
+    echo "  opentenbase_ctl start
 }
 
 # Show usage

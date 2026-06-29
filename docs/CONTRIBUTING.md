@@ -117,9 +117,10 @@ Before submitting a pull request:
 
 4. **Functionality test**
    ```bash
-   opentenbase-ctl init
-   opentenbase-ctl start
-   opentenbase-ctl status
+   # Prepare INI config (template: /etc/opentenbase/5.0/opentenbase_config.ini.example)
+   opentenbase_ctl install -c /tmp/otb_config.ini
+   opentenbase_ctl start
+   opentenbase_ctl status
    ```
 
 ## Types of Contributions

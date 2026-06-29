@@ -46,7 +46,7 @@ test_packages_installed() {
         "/usr/lib/opentenbase/5.0/bin/psql"
         "/usr/lib/opentenbase/5.0/bin/initdb"
         "/usr/lib/opentenbase/5.0/bin/pg_ctl"
-        "/usr/bin/opentenbase-ctl"
+        "/usr/bin/opentenbase_ctl"
     )
 
     for bin in "${binaries[@]}"; do
@@ -110,7 +110,8 @@ test_cluster_init() {
     log_info "=== Test: Cluster Initialization ==="
 
     # Clean any existing data
-    opentenbase-ctl stop 2>/dev/null || true
+    pkill -f "gtm" 2>/dev/null || true
+    pkill -f "postgres.*opentenbase" 2>/dev/null || true
     rm -rf /var/lib/opentenbase/data 2>/dev/null || true
 
     # Create config file for official opentenbase_ctl binary
@@ -140,7 +141,7 @@ ssh-port=22
 level=INFO
 EOF
 
-    if opentenbase-ctl install -c "$config_file" 2>&1; then
+    if opentenbase_ctl install -c "$config_file" 2>&1; then
         log_pass "Cluster initialization succeeded"
     else
         log_fail "Cluster initialization failed"
@@ -154,7 +155,7 @@ EOF
 test_cluster_start() {
     log_info "=== Test: Cluster Start ==="
 
-    if opentenbase-ctl start 2>&1; then
+    if opentenbase_ctl start 2>&1; then
         log_pass "Cluster start command succeeded"
     else
         log_fail "Cluster start command failed"
@@ -248,7 +249,7 @@ test_sql_operations() {
 test_cluster_status() {
     log_info "=== Test: Cluster Status ==="
 
-    if opentenbase-ctl status 2>&1; then
+    if opentenbase_ctl status 2>&1; then
         log_pass "Cluster status command works"
     else
         log_fail "Cluster status command failed"
@@ -261,7 +262,7 @@ test_cluster_status() {
 test_cluster_stop() {
     log_info "=== Test: Cluster Stop ==="
 
-    if opentenbase-ctl stop 2>&1; then
+    if opentenbase_ctl stop 2>&1; then
         log_pass "Cluster stop succeeded"
     else
         log_fail "Cluster stop failed"
@@ -297,12 +298,12 @@ main() {
     # tar.gz package and SSH setup. These are tested during server deployment.
     # echo "[INFO] Skipping cluster init/start/stop tests (require full deployment env)"
 
-    # Verify opentenbase-ctl binary is functional (can show help)
-    log_info "=== Test: opentenbase-ctl Binary ==="
-    if opentenbase-ctl --help 2>&1 | grep -qi "usage\|install\|start\|stop\|status"; then
-        log_pass "opentenbase-ctl binary is functional"
+    # Verify opentenbase_ctl binary is functional (can show help)
+    log_info "=== Test: opentenbase_ctl Binary ==="
+    if opentenbase_ctl --help 2>&1 | grep -qi "usage\|install\|start\|stop\|status"; then
+        log_pass "opentenbase_ctl binary is functional"
     else
-        log_fail "opentenbase-ctl binary not working"
+        log_fail "opentenbase_ctl binary not working"
     fi
 
     echo ""

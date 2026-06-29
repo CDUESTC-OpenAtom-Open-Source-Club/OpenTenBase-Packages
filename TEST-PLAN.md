@@ -58,7 +58,7 @@ sudo bash install.sh --version 5.0
 
 验证项：
 - [ ] 包安装无报错
-- [ ] 二进制文件存在：`postgres`, `psql`, `initdb`, `pg_ctl`, `gtm`, `opentenbase-ctl`
+- [ ] 二进制文件存在：`postgres`, `psql`, `initdb`, `pg_ctl`, `gtm`, `opentenbase_ctl`
 - [ ] 配置文件存在：`/etc/opentenbase/5.0/` 下模板文件
 - [ ] 库文件存在：`libpq.so`, `libecpg.so` 等
 - [ ] 用户 `opentenbase` 已创建
@@ -99,7 +99,7 @@ sudo opentenbase-switch-version 2.6.0
 - [ ] `opentenbase-switch-version` 列出所有已安装版本
 - [ ] 当前激活版本标记正确
 - [ ] 切换后 `/etc/opentenbase/current` 指向正确版本
-- [ ] 切换后 `opentenbase-ctl` 使用对应版本的配置
+- [ ] 切换后 `opentenbase_ctl` 使用对应版本的配置
 - [ ] 切换后 `postgres --version` 显示正确版本
 - [ ] 切换到不存在的版本时给出错误提示
 - [ ] 切换时如果服务正在运行，提示用户确认
@@ -109,23 +109,23 @@ sudo opentenbase-switch-version 2.6.0
 # 切换到目标版本
 sudo opentenbase-switch-version 5.0
 
-# 用 opentenbase-ctl 初始化和启动
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+# 用 opentenbase_ctl 初始化和启动
+sudo opentenbase_ctl install -c /tmp/otb_config.ini
+sudo opentenbase_ctl start
 
 # 验证集群
-sudo opentenbase-ctl status
+sudo opentenbase_ctl status
 psql -h 127.0.0.1 -p 5432 -U opentenbase -c "SELECT version();"
 
 # 停止
-sudo opentenbase-ctl stop
+sudo opentenbase_ctl stop
 
 # 切换到另一个版本
 sudo opentenbase-switch-version 2.6.0
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+sudo opentenbase_ctl install -c /tmp/otb_config.ini
+sudo opentenbase_ctl start
 psql -h 127.0.0.1 -p 5432 -U opentenbase -c "SELECT version();"
-sudo opentenbase-ctl stop
+sudo opentenbase_ctl stop
 ```
 
 验证项：
@@ -136,16 +136,16 @@ sudo opentenbase-ctl stop
 
 ### 5. 多节点部署测试（每个发行版至少跑一次）
 ```bash
-# 使用 opentenbase-ctl 一键初始化
-sudo opentenbase-ctl init
-sudo opentenbase-ctl start
+# 使用 opentenbase_ctl 一键安装
+sudo opentenbase_ctl install -c /tmp/otb_config.ini
+sudo opentenbase_ctl start
 ```
 
 验证项：
 - [ ] GTM 启动正常，端口 6666
 - [ ] Datanode 启动正常
 - [ ] Coordinator 启动正常，端口 5432
-- [ ] `opentenbase-ctl status` 显示所有节点状态
+- [ ] `opentenbase_ctl status` 显示所有节点状态
 
 ### 6. CRUD 测试
 ```sql
@@ -189,8 +189,8 @@ DROP TABLE t2;
 - [ ] DROP TABLE 清理
 
 ### 7. 其他验证
-- [ ] `opentenbase-ctl status` 输出正常
-- [ ] `opentenbase-ctl stop` 干净停止
+- [ ] `opentenbase_ctl status` 输出正常
+- [ ] `opentenbase_ctl stop` 干净停止
 - [ ] 无 license 时仍可读写（license bypass 生效）
 - [ ] 2 核服务器上 GTM 正常启动（已在 EulerOS ARM64 验证，2 核环境正常启动）
 
@@ -473,5 +473,5 @@ All 7 stress tests pass. Workflow: `.github/workflows/stress-test.yml`
 1. **\`serial\` 类型在分布式表中不自动填充** -- Use \`int\` with manual id insertion
 2. **不支持的分布类型** -- Only \`SHARD\` and \`REPLICATION\` supported (no HASH/MODULAR/ROUNDROBIN)
 3. **pgbench TPC-B 测试失败** -- Due to serial type incompatibility with distributed tables
-4. **CentOS Stream 9 / AlmaLinux 9 \`opentenbase-ctl start\` 超时** -- Fixed (register_nodes ordering adjusted)
+4. **CentOS Stream 9 / AlmaLinux 9 \`opentenbase_ctl start\` 超时** -- Fixed (register_nodes ordering adjusted)
 5. **\`INSERT INTO distributed_table SELECT ... FROM generate_series()\` 挂起** -- 单行 INSERT 可正常工作，这是 OpenTenBase 分布式表的已知限制

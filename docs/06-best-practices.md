@@ -837,7 +837,7 @@ alerts:
 
 ```bash
 # 检查节点状态
-opentenbase-ctl status all
+opentenbase_ctl status
 
 # 检查磁盘空间
 df -h

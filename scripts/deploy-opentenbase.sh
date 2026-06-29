@@ -1,0 +1,493 @@
+#!/bin/bash
+#
+# OpenTenBase 一键部署脚本（白板机器 → 集群运行）
+#
+# 用法:
+#
+#   【交互式】（推荐新手，会问你几个问题）
+#   curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+#
+#   【非交互式】（单节点默认值，CI/自动化用）
+#   curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+#
+#   【非交互式 + 自定义参数】
+#   sudo bash deploy-opentenbase.sh --yes \
+#       --ssh-password mypass123 \
+#       --cluster-name mycluster \
+#       --gtm-ip 192.168.1.10 \
+#       --cn-ip 192.168.1.10 \
+#       --dn-ip 192.168.1.10
+#
+#   本地文件运行:
+#   sudo bash deploy-opentenbase.sh              # 交互式
+#   sudo bash deploy-opentenbase.sh --yes        # 非交互式（全默认值）
+#
+# 选项:
+#   --yes                 非交互式，使用默认值不提问
+#   --ssh-password PASS   SSH 密码（默认交互式询问或 'opentenbase'）
+#   --cluster-name NAME   集群名称（默认 otb01）
+#   --gtm-ip IP           GTM 节点 IP（默认 127.0.0.1）
+#   --cn-ip IP            Coordinator 节点 IP（默认同 gtm-ip）
+#   --dn-ip IP            Datanode 节点 IP（默认同 gtm-ip）
+#   --ssh-user USER       SSH 用户名（默认 opentenbase）
+#   --ssh-port PORT       SSH 端口（默认 22）
+#   --version VER         OpenTenBase 版本（默认 5.0）
+#   --skip-install        跳过包安装（已装时用）
+#   --start               安装后自动启动集群（默认启用）
+#   --no-start            安装后不启动集群
+#   --help                显示帮助
+#
+
+set -euo pipefail
+
+# ====================================================================
+# 参数与默认值
+# ====================================================================
+INTERACTIVE=true
+SSH_PASSWORD=""
+CLUSTER_NAME="otb01"
+GTM_IP="127.0.0.1"
+CN_IP=""
+DN_IP=""
+SSH_USER="opentenbase"
+SSH_PORT="22"
+OTB_VERSION="5.0"
+SKIP_INSTALL=false
+AUTO_START=true
+CONFIG_FILE="/tmp/opentenbase_config.ini"
+PACKAGE_PATH="/usr/lib/opentenbase/5.0"
+
+# 颜色
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+log_step()  { echo -e "\n${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; echo -e "${BLUE}${BOLD}  $*${NC}"; echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"; }
+log_ok()    { echo -e "${GREEN}${BOLD}  ✓${NC} $*"; }
+
+# 交互式提问（带默认值）
+ask() {
+    local prompt="$1"
+    local default="$2"
+    local var="$3"
+    if [[ "$INTERACTIVE" == "false" ]]; then
+        eval "$var=\"$default\""
+        return
+    fi
+    local input
+    read -rp "$(echo -e "${CYAN}${BOLD}?${NC} ${prompt} [${default}]: ")" input
+    eval "$var=\"${input:-$default}\""
+}
+
+ask_password() {
+    local prompt="$1"
+    local var="$2"
+    if [[ "$INTERACTIVE" == "false" ]]; then
+        eval "$var=\"opentenbase\""
+        return
+    fi
+    local input
+    read -sp "$(echo -e "${CYAN}${BOLD}?${NC} ${prompt}: ")" input
+    echo ""
+    eval "$var=\"${input:-opentenbase}\""
+}
+
+# ====================================================================
+# 解析命令行参数
+# ====================================================================
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --yes|-y)          INTERACTIVE=false; shift ;;
+        --ssh-password)    SSH_PASSWORD="$2"; INTERACTIVE=false; shift 2 ;;
+        --cluster-name)    CLUSTER_NAME="$2"; shift 2 ;;
+        --gtm-ip)          GTM_IP="$2"; shift 2 ;;
+        --cn-ip)           CN_IP="$2"; shift 2 ;;
+        --dn-ip)           DN_IP="$2"; shift 2 ;;
+        --ssh-user)        SSH_USER="$2"; shift 2 ;;
+        --ssh-port)        SSH_PORT="$2"; shift 2 ;;
+        --version)         OTB_VERSION="$2"; shift 2 ;;
+        --skip-install)    SKIP_INSTALL=true; shift ;;
+        --start)           AUTO_START=true; shift ;;
+        --no-start)        AUTO_START=false; shift ;;
+        --help|-h)
+            head -48 "$0" | tail -46
+            exit 0 ;;
+        *) log_error "未知参数: $1（--help 查看帮助）"; exit 1 ;;
+    esac
+done
+
+# ====================================================================
+# Banner
+# ====================================================================
+echo ""
+echo -e "${CYAN}${BOLD}"
+cat << 'BANNER'
+  ╔══════════════════════════════════════════════╗
+  ║                                              ║
+  ║          OpenTenBase 一键部署脚本            ║
+  ║                                              ║
+  ║    白板机器 → 集群运行，一条命令搞定         ║
+  ║                                              ║
+  ╚══════════════════════════════════════════════╝
+BANNER
+echo -e "${NC}"
+
+if [[ "$INTERACTIVE" == "true" ]]; then
+    echo -e "  模式: ${GREEN}交互式${NC}（会问你几个问题）"
+else
+    echo -e "  模式: ${GREEN}非交互式${NC}（使用默认值）"
+fi
+echo ""
+
+# ====================================================================
+# Step 0: 环境检查
+# ====================================================================
+log_step "Step 1/6: 环境检查"
+
+# root 检查
+if [[ $EUID -ne 0 ]]; then
+    log_error "请使用 root 用户运行: sudo bash $0"
+    exit 1
+fi
+log_ok "root 权限"
+
+# 内存
+MEM_TOTAL=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+if [[ -z "$MEM_TOTAL" ]] || [[ "$MEM_TOTAL" -lt 3000 ]]; then
+    log_warn "内存 ${MEM_TOTAL:-未知}MB，建议 ≥ 4GB（继续部署）"
+else
+    log_ok "内存 ${MEM_TOTAL}MB"
+fi
+
+# 磁盘
+DISK_AVAIL=$(df -m / | awk 'NR==2{print $4}')
+if [[ -n "$DISK_AVAIL" ]] && [[ "$DISK_AVAIL" -lt 3000 ]]; then
+    log_warn "磁盘剩余 ${DISK_AVAIL}MB，建议 ≥ 5GB"
+else
+    log_ok "磁盘剩余 ${DISK_AVAIL}MB"
+fi
+
+# CPU
+CPU_CORES=$(nproc 2>/dev/null || echo 1)
+log_ok "CPU ${CPU_CORES} 核"
+if [[ "$CPU_CORES" -lt 2 ]]; then
+    log_warn "CPU < 2 核，GTM 可能启动失败"
+fi
+
+# OS 检测
+OS_ID=$(cat /etc/os-release 2>/dev/null | grep -E "^ID=" | head -1 | cut -d'=' -f2 | tr -d '"' || echo "unknown")
+log_ok "操作系统: ${OS_ID}"
+
+# ====================================================================
+# Step 2: 安装软件包 + sshpass
+# ====================================================================
+if [[ "$SKIP_INSTALL" == "true" ]]; then
+    log_step "Step 2/6: 跳过包安装（--skip-install）"
+else
+    log_step "Step 2/6: 安装 OpenTenBase 软件包"
+
+    if command -v apt-get &>/dev/null; then
+        # --- APT (Ubuntu/Debian) ---
+        log_info "检测到 APT 包管理器"
+
+        # 安装 sshpass
+        log_info "安装 sshpass..."
+        apt-get install -y sshpass >/dev/null 2>&1 || true
+
+        # 配置仓库
+        if ! apt-cache show opentenbase >/dev/null 2>&1; then
+            log_info "配置 OpenTenBase APT 仓库..."
+            curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | bash || {
+                log_warn "自动配置仓库失败，尝试直接安装..."
+            }
+            apt-get update -qq 2>/dev/null || true
+        fi
+
+        # 安装
+        log_info "安装 opentenbase..."
+        apt-get install -y opentenbase 2>/dev/null || \
+        apt-get install -y --allow-unauthenticated opentenbase 2>/dev/null || {
+            log_error "apt 安装失败，请手动运行: apt install opentenbase"
+            exit 1
+        }
+
+    elif command -v dnf &>/dev/null || command -v yum &>/dev/null; then
+        # --- RPM (RHEL/CentOS/Rocky/Alma/Fedora) ---
+        YUM="dnf"; command -v dnf &>/dev/null || YUM="yum"
+        log_info "检测到 RPM 包管理器 ($YUM)"
+
+        # 安装 sshpass
+        log_info "安装 sshpass..."
+        $YUM install -y sshpass >/dev/null 2>&1 || true
+
+        # 配置仓库
+        if ! $YUM list available opentenbase >/dev/null 2>&1; then
+            log_info "配置 OpenTenBase RPM 仓库..."
+            curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash || {
+                log_warn "自动配置仓库失败，尝试直接安装..."
+            }
+        fi
+
+        # 安装
+        log_info "安装 opentenbase..."
+        $YUM install -y opentenbase 2>/dev/null || \
+        $YUM install -y --nogpgcheck opentenbase 2>/dev/null || {
+            log_error "$YUM 安装失败，请手动运行: $YUM install opentenbase"
+            exit 1
+        }
+    else
+        log_error "不支持的系统（无 apt/dnf/yum）"
+        exit 1
+    fi
+
+    log_ok "软件包安装完成"
+fi
+
+# 验证二进制
+if ! command -v opentenbase_ctl &>/dev/null && [[ ! -x /usr/lib/opentenbase/${OTB_VERSION}/bin/opentenbase_ctl ]]; then
+    log_error "opentenbase_ctl 未找到，安装可能失败"
+    exit 1
+fi
+log_ok "opentenbase_ctl 就绪"
+
+# ====================================================================
+# Step 3: 系统准备（用户 + SSH + sshpass + 符号链接）
+# ====================================================================
+log_step "Step 3/6: 系统环境准备"
+
+# 创建 opentenbase 用户
+if ! id -u "$SSH_USER" &>/dev/null; then
+    useradd -m -s /bin/bash "$SSH_USER"
+    log_ok "创建用户 $SSH_USER"
+else
+    log_ok "用户 $SSH_USER 已存在"
+fi
+
+# 设置密码
+if [[ -n "$SSH_PASSWORD" ]]; then
+    echo "$SSH_USER:$SSH_PASSWORD" | chpasswd 2>/dev/null || \
+    echo "${SSH_USER}:${SSH_PASSWORD}" | chpasswd 2>/dev/null || true
+    log_ok "已设置 $SSH_USER 密码"
+fi
+
+# sudo 免密（opentenbase_ctl 需要）
+if ! grep -q "${SSH_USER} ALL=(ALL) NOPASSWD:ALL" /etc/sudoers.d/${SSH_USER} 2>/dev/null; then
+    echo "${SSH_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${SSH_USER}
+    chmod 440 /etc/sudoers.d/${SSH_USER}
+    log_ok "sudo 免密配置完成"
+fi
+
+# 启动 SSH 服务
+systemctl start sshd 2>/dev/null || \
+systemctl start ssh 2>/dev/null || \
+/usr/sbin/sshd 2>/dev/null || true
+log_ok "SSH 服务已启动"
+
+# 安装 sshpass（如果还没有）
+if ! command -v sshpass &>/dev/null; then
+    apt-get install -y sshpass 2>/dev/null || \
+    dnf install -y sshpass 2>/dev/null || \
+    yum install -y sshpass 2>/dev/null || true
+fi
+command -v sshpass &>/dev/null && log_ok "sshpass 就绪" || log_warn "sshpass 未安装（可能影响远程操作）"
+
+# 创建 OSS_INSTALL_DIR 符号链接
+if [[ ! -e "/usr/local/install/opentenbase" ]]; then
+    mkdir -p /usr/local/install
+    ln -sf /usr/lib/opentenbase/${OTB_VERSION} /usr/local/install/opentenbase
+    log_ok "路径符号链接: /usr/local/install/opentenbase → /usr/lib/opentenbase/${OTB_VERSION}"
+else
+    log_ok "路径符号链接已存在"
+fi
+
+# ====================================================================
+# Step 4: 交互式配置（仅交互模式）
+# ====================================================================
+log_step "Step 4/6: 集群配置"
+
+if [[ "$INTERACTIVE" == "true" ]]; then
+    echo -e "  请回答以下问题（直接回车使用默认值）：\n"
+
+    ask "集群名称" "$CLUSTER_NAME" CLUSTER_NAME
+    ask "GTM 节点 IP" "$GTM_IP" GTM_IP
+    ask "Coordinator 节点 IP（默认同 GTM）" "${GTM_IP}" CN_IP
+    ask "Datanode 节点 IP（默认同 GTM）" "${GTM_IP}" DN_IP
+    ask "SSH 端口" "$SSH_PORT" SSH_PORT
+
+    # 密码
+    echo ""
+    echo -e "  ${YELLOW}提示:${NC} opentenbase_ctl 通过 sshpass + 密码远程执行命令"
+    echo -e "  所有节点的 $SSH_USER 用户密码必须一致\n"
+    ask_password "请输入 $SSH_USER 用户的 SSH 密码" SSH_PASSWORD
+
+    echo ""
+    echo -e "  ${BOLD}配置摘要:${NC}"
+    echo -e "    集群名称:    ${CYAN}${CLUSTER_NAME}${NC}"
+    echo -e "    GTM:         ${CYAN}${GTM_IP}${NC}"
+    echo -e "    Coordinator: ${CYAN}${CN_IP}${NC}"
+    echo -e "    Datanode:    ${CYAN}${DN_IP}${NC}"
+    echo -e "    SSH 用户:    ${CYAN}${SSH_USER}${NC}"
+    echo -e "    SSH 端口:    ${CYAN}${SSH_PORT}${NC}"
+    echo ""
+
+    if [[ "$INTERACTIVE" == "true" ]]; then
+        read -rp "$(echo -e "${CYAN}${BOLD}?${NC} 确认开始部署？ [Y/n] ")" confirm
+        [[ "${confirm:-Y}" =~ ^[Yy]$ ]] || { log_warn "已取消"; exit 0; }
+    fi
+else
+    # 非交互式：使用默认值或命令行参数
+    [[ -z "$CN_IP" ]] && CN_IP="$GTM_IP"
+    [[ -z "$DN_IP" ]] && DN_IP="$GTM_IP"
+    [[ -z "$SSH_PASSWORD" ]] && SSH_PASSWORD="opentenbase"
+
+    # 设置密码
+    echo "$SSH_USER:$SSH_PASSWORD" | chpasswd 2>/dev/null || true
+
+    log_info "配置: 集群=${CLUSTER_NAME} GTM=${GTM_IP} CN=${CN_IP} DN=${DN_IP} SSH=${SSH_USER}@:${SSH_PORT}"
+fi
+
+# 生成 INI 配置文件
+cat > "$CONFIG_FILE" << INIEOF
+# OpenTenBase 集群配置
+# 由 deploy-opentenbase.sh 自动生成
+# 时间: $(date '+%Y-%m-%d %H:%M:%S')
+
+[instance]
+name=${CLUSTER_NAME}
+type=distributed
+package=${PACKAGE_PATH}
+
+[gtm]
+master=${GTM_IP}
+
+[coordinators]
+master=${CN_IP}
+nodes-per-server=1
+
+[datanodes]
+master=${DN_IP}
+nodes-per-server=1
+
+[server]
+ssh-user=${SSH_USER}
+ssh-password=${SSH_PASSWORD}
+ssh-port=${SSH_PORT}
+
+[log]
+level=INFO
+INIEOF
+
+chmod 600 "$CONFIG_FILE"  # 保护密码
+log_ok "配置文件已生成: $CONFIG_FILE"
+
+# ====================================================================
+# Step 5: 安装集群
+# ====================================================================
+log_step "Step 5/6: 安装集群（opentenbase_ctl install）"
+
+echo -e "  正在执行: ${CYAN}opentenbase_ctl install -c $CONFIG_FILE${NC}"
+echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
+
+if su - "$SSH_USER" -c "opentenbase_ctl install -c '$CONFIG_FILE'" 2>&1; then
+    echo ""
+    log_ok "集群安装成功"
+else
+    EXIT_CODE=$?
+    echo ""
+    log_error "集群安装失败（退出码: $EXIT_CODE）"
+    echo ""
+    echo -e "  ${BOLD}常见原因排查:${NC}"
+    echo -e "    1. SSH 密码错误 → 检查配置文件中的 ssh-password"
+    echo -e "    2. sshd 未运行 → systemctl start sshd"
+    echo -e "    3. 端口被占用  → ss -tlnp | grep -E '(5432|6666|15432)'"
+    echo -e "    4. 路径不匹配  → ls -la /usr/local/install/opentenbase"
+    echo -e "    5. 内存不足    → free -h"
+    echo ""
+    echo -e "  配置文件: $CONFIG_FILE"
+    exit $EXIT_CODE
+fi
+
+# ====================================================================
+# Step 6: 验证 & 启动
+# ====================================================================
+log_step "Step 6/6: 启动与验证"
+
+# 安装完成后集群可能已自动启动，检查一下
+log_info "检查集群状态..."
+if opentenbase_ctl status 2>&1; then
+    log_ok "集群已运行"
+elif [[ "$AUTO_START" == "true" ]]; then
+    log_info "启动集群..."
+    su - "$SSH_USER" -c "opentenbase_ctl start" 2>&1 || true
+    sleep 3
+    opentenbase_ctl status 2>&1 || log_warn "集群可能需要更多时间启动"
+fi
+
+# psql 连接测试
+log_info "测试数据库连接..."
+OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
+PSQL=""
+[[ -x "$OTB_BIN/psql" ]] && PSQL="$OTB_BIN/psql"
+[[ -z "$PSQL" ]] && command -v opentenbase-psql &>/dev/null && PSQL="opentenbase-psql"
+[[ -z "$PSQL" ]] && command -v psql &>/dev/null && PSQL="psql"
+
+if [[ -n "$PSQL" ]]; then
+    for i in $(seq 1 5); do
+        if su - "$SSH_USER" -c "$PSQL -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c 'SELECT version();'" 2>/dev/null; then
+            log_ok "数据库连接成功"
+            break
+        fi
+        [[ $i -lt 5 ]] && log_info "等待启动...（$i/5）" && sleep 3
+    done
+fi
+
+# ====================================================================
+# 部署完成总结
+# ====================================================================
+echo ""
+echo -e "${GREEN}${BOLD}"
+cat << 'SUMMARY'
+  ╔══════════════════════════════════════════════╗
+  ║                                              ║
+  ║          ✅  部署完成！                       ║
+  ║                                              ║
+  ╚══════════════════════════════════════════════╝
+SUMMARY
+echo -e "${NC}"
+
+echo -e "  ${BOLD}集群信息:${NC}"
+echo -e "    名称:        ${CYAN}${CLUSTER_NAME}${NC}"
+echo -e "    类型:        distributed"
+echo -e "    GTM:         ${CYAN}${GTM_IP}${NC}"
+echo -e "    Coordinator: ${CYAN}${CN_IP}${NC}"
+echo -e "    Datanode:    ${CYAN}${DN_IP}${NC}"
+echo ""
+echo -e "  ${BOLD}配置文件:${NC} ${CYAN}${CONFIG_FILE}${NC}"
+echo ""
+echo -e "  ${BOLD}常用命令:${NC}"
+echo -e "    ${CYAN}opentenbase_ctl status${NC}          # 查看状态"
+echo -e "    ${CYAN}opentenbase_ctl stop${NC}            # 停止集群"
+echo -e "    ${CYAN}opentenbase_ctl start${NC}           # 启动集群"
+echo -e "    ${CYAN}opentenbase_ctl delete${NC}          # 删除集群"
+echo ""
+echo -e "  ${BOLD}连接数据库:${NC}"
+echo -e "    ${CYAN}${PSQL:-psql} -h 127.0.0.1 -p 5432 -U opentenbase -d postgres${NC}"
+echo ""
+
+if [[ -n "$PSQL" ]]; then
+    echo -e "  ${BOLD}快速测试:${NC}"
+    su - "$SSH_USER" -c "$PSQL -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c \"CREATE TABLE t1 (id int, name text) DISTRIBUTE BY SHARD(id); INSERT INTO t1 VALUES (1,'hello'); SELECT * FROM t1;\"" 2>/dev/null && \
+        echo -e "\n  ${GREEN}✅ 分布式表创建+读写测试通过！${NC}" || \
+        echo -e "\n  ${YELLOW}集群可能还在启动中，请稍后手动测试${NC}"
+fi
+
+echo ""
+echo -e "  ${BOLD}文档:${NC} https://github.com/OpenTenBase/OpenTenBase"
+echo ""

@@ -2,9 +2,13 @@
 set -e
 case "$1" in
     remove|upgrade|deconfigure)
-        if [ -x /usr/bin/opentenbase-ctl ]; then
-            /usr/bin/opentenbase-ctl stop >/dev/null 2>&1 || true
+        # Try graceful shutdown via opentenbase_ctl, then fallback to killing processes
+        if [ -x /usr/bin/opentenbase_ctl ] && [ -f /tmp/otb_config.ini ]; then
+            /usr/bin/opentenbase_ctl stop >/dev/null 2>&1 || true
         fi
+        # Fallback: kill any remaining OpenTenBase processes
+        pkill -u opentenbase -x postgres 2>/dev/null || true
+        pkill -u opentenbase -x gtm 2>/dev/null || true
         ;;
 esac
 

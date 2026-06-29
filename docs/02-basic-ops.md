@@ -5,50 +5,42 @@
 ### 1.1 启动集群
 
 ```bash
-opentenbase-ctl start
+opentenbase_ctl start
 ```
 
 **输出示例：**
 ```
-starting gtm
-  gtm
-starting coord
-  coord
-starting dn1
-  dn1
-registering GTM node in pgxc_node ...
-registering coordinator node ...
-registering datanode node ...
-reloading connection pool ...
-node group setup complete
-creating sharding map ...
+starting gtm ...
+starting coordinator ...
+starting datanode ...
 start complete
 ```
 
 ### 1.2 停止集群
 
 ```bash
-opentenbase-ctl stop
+opentenbase_ctl stop
 ```
 
 **输出示例：**
 ```
-stopping gtm
-stopping coord
-stopping dn1
+stopping gtm ...
+stopping coordinator ...
+stopping datanode ...
 stop complete
 ```
 
 ### 1.3 重启集群
 
 ```bash
-opentenbase-ctl restart
+opentenbase_ctl stop
+opentenbase_ctl start
 ```
 
 ### 1.4 查看状态
 
 ```bash
-opentenbase-ctl status
+opentenbase_ctl status
 ```
 
 **输出示例：**
@@ -397,7 +389,7 @@ psql: error: could not connect to server: Connection refused
 **排查步骤：**
 ```bash
 # 1. 检查集群状态
-opentenbase-ctl status
+opentenbase_ctl status
 
 # 2. 检查端口监听
 sudo netstat -tlnp | grep 5432

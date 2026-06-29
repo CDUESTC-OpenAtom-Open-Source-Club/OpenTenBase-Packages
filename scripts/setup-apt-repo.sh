@@ -276,9 +276,11 @@ install_opentenbase() {
     log_info "安装完成！"
     echo ""
     echo "快速开始:"
-    echo "  opentenbase-ctl init    # 初始化集群"
-    echo "  opentenbase-ctl start   # 启动所有节点"
-    echo "  opentenbase-ctl status  # 检查状态"
+    echo "  # 1. 安装 sshpass + 编辑 INI 配置文件"
+    echo "  #    模板: /etc/opentenbase/5.0/opentenbase_config.ini.example"
+    echo "  opentenbase_ctl install -c /tmp/otb_config.ini   # 安装集群"
+    echo "  opentenbase_ctl start      # 启动集群"
+    echo "  opentenbase_ctl status     # 检查状态"
     echo ""
     echo "连接数据库:"
     echo "  opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres"
@@ -358,14 +360,14 @@ sudo apt install opentenbase
 ## 快速开始
 
 ```bash
-# 初始化集群
-opentenbase-ctl init
+# 安装集群（需先准备 INI 配置文件）
+opentenbase_ctl install -c /tmp/otb_config.ini
 
 # 启动所有节点
-opentenbase-ctl start
+opentenbase_ctl start
 
 # 检查状态
-opentenbase-ctl status
+opentenbase_ctl status
 
 # 连接数据库
 opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
