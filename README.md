@@ -53,7 +53,7 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
 ```
 
-The script handles everything: install packages → create user → configure sshpass → path symlink → generate INI → `opentenbase_ctl install` → start & verify.
+The script handles everything: install packages → create user → configure sshpass → path symlink → generate INI → `opentenbase_ctl install -c <config.ini>` → start, status check, and SQL verification.
 
 ### Package Repository (Manual)
 
@@ -78,6 +78,10 @@ opentenbase_ctl install -c /tmp/otb_config.ini
 opentenbase_ctl start
 opentenbase_ctl status
 ```
+
+> **Version control path note**:
+> - `5.0` uses the `opentenbase_ctl` workflow with an INI file.
+> - `2.5` / `2.6` use the `pgxc_ctl` workflow with `pgxc_ctl.conf` as the formal control path.
 
 ### Manual Download
 
@@ -185,17 +189,17 @@ The installation scripts automatically detect and use the fastest available mirr
 ## Quick Start
 
 ```bash
-# 1. Install cluster (GTM + Coordinator + Datanode)
+# 1. Install cluster (GTM + Coordinator + Datanode) — -c specifies topology
 opentenbase_ctl install -c /tmp/otb_config.ini
 
-# 2. Start cluster
+# 2. Start cluster (cluster state is persisted after install, no -c needed)
 opentenbase_ctl start
 
 # 3. Check cluster status
 opentenbase_ctl status
 
 # 4. Connect to database
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres
 
 # 5. Stop cluster
 opentenbase_ctl stop

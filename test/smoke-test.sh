@@ -19,6 +19,10 @@ PASS_COUNT=0
 FAIL_COUNT=0
 TESTS_RUN=0
 
+CONFIG_FILE="${CONFIG_FILE:-/tmp/opentenbase_config.ini}"
+COORD_PORT="${COORD_PORT:-11003}"
+PSQL_BIN="/usr/lib/opentenbase/5.0/bin/psql"
+
 log_pass() {
     echo -e "${GREEN}[PASS]${NC} $1"
     PASS_COUNT=$((PASS_COUNT + 1))
@@ -115,8 +119,7 @@ test_cluster_init() {
     rm -rf /var/lib/opentenbase/data 2>/dev/null || true
 
     # Create config file for official opentenbase_ctl binary
-    local config_file="/tmp/opentenbase_config.ini"
-    cat > "$config_file" << EOF
+    cat > "$CONFIG_FILE" << EOF
 [instance]
 name=opentenbase01
 type=distributed
@@ -128,10 +131,12 @@ master=127.0.0.1
 [coordinators]
 master=127.0.0.1
 nodes-per-server=1
+base-port=${COORD_PORT}
 
 [datanodes]
 master=127.0.0.1
 nodes-per-server=1
+base-port=12003
 
 [server]
 ssh-user=opentenbase
@@ -141,7 +146,7 @@ ssh-port=22
 level=INFO
 EOF
 
-    if opentenbase_ctl install -c "$config_file" 2>&1; then
+    if opentenbase_ctl install -c "$CONFIG_FILE" 2>&1; then
         log_pass "Cluster initialization succeeded"
     else
         log_fail "Cluster initialization failed"
@@ -167,7 +172,7 @@ test_cluster_start() {
 
     # Check if processes are running
     local gtm_running=$(pgrep -f "gtm" 2>/dev/null | wc -l)
-    local coord_running=$(pgrep -f "postgres.*coordinator\|postgres.*5432" 2>/dev/null | wc -l)
+    local coord_running=$(pgrep -f "postgres.*coordinator\|postgres.*${COORD_PORT}" 2>/dev/null | wc -l)
 
     if [ "$gtm_running" -gt 0 ]; then
         log_pass "GTM process is running"
@@ -187,7 +192,7 @@ test_sql_connectivity() {
     local connected=0
 
     for i in $(seq 1 $retries); do
-        if /usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT 1;" &>/dev/null; then
+        if "$PSQL_BIN" -h 127.0.0.1 -p "$COORD_PORT" -U opentenbase -d postgres -c "SELECT 1;" &>/dev/null; then
             connected=1
             break
         fi
@@ -208,7 +213,7 @@ test_sql_connectivity() {
 test_sql_operations() {
     log_info "=== Test: Basic SQL Operations ==="
 
-    local psql="/usr/lib/opentenbase/5.0/bin/psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres"
+    local psql="$PSQL_BIN -h 127.0.0.1 -p $COORD_PORT -U opentenbase -d postgres"
 
     # Test SELECT
     if $psql -c "SELECT version();" 2>&1 | grep -q "PostgreSQL"; then

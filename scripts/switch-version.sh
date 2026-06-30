@@ -119,7 +119,8 @@ cmd_switch() {
     # Use a pattern that won't match the pgrep command itself
     if pgrep -x postgres >/dev/null 2>&1 || pgrep -x gtm >/dev/null 2>&1; then
         log_warn "OpenTenBase server processes are running."
-        echo "  opentenbase_ctl stop
+        echo "  5.0 可执行: opentenbase_ctl stop"
+        echo "  2.5/2.6 可执行: pgxc_ctl stop all"
         echo ""
         read -p "Continue anyway? [y/N] " -n 1 -r
         echo
@@ -162,9 +163,16 @@ cmd_switch() {
     [ -n "$port" ] && echo "Coordinator port: $port"
 
     echo ""
-    echo "To install and start:"
-    echo "  opentenbase_ctl install -c /tmp/otb_config.ini"
-    echo "  opentenbase_ctl start
+    echo "Recommended control path after switch:"
+    if [ "$target" = "5.0" ]; then
+        echo "  opentenbase_ctl install -c /tmp/otb_config.ini"
+        echo "  opentenbase_ctl start"
+        echo "  opentenbase_ctl status"
+    else
+        echo "  Edit pgxc_ctl.conf for version $target"
+        echo "  pgxc_ctl init all"
+        echo "  pgxc_ctl monitor all"
+    fi
 }
 
 # Show usage
