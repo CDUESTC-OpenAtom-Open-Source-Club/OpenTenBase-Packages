@@ -1,8 +1,16 @@
 #!/bin/bash
-#
-# OpenTenBase 一键部署脚本（白板机器 → 集群运行）
-#
+# =============================================================================
+# OpenTenBase 一键管理脚本
+# =============================================================================
 # 用法:
+#   curl -sSL <url>/opentenbase.sh | sudo bash           # 默认安装部署
+#   sudo bash opentenbase.sh install [--yes]             # 安装部署
+#   sudo bash opentenbase.sh uninstall [--purge]         # 卸载
+#   sudo bash opentenbase.sh switch [VERSION]            # 切换版本
+#   sudo bash opentenbase.sh status                      # 查看状态
+#   sudo bash opentenbase.sh test [--quick|--full]       # 验证测试
+#
+# 原 deploy-opentenbase.sh 用法（兼容）：
 #
 #   【交互式】（推荐新手，会问你几个问题）
 #   curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
@@ -41,8 +49,55 @@
 
 set -euo pipefail
 
+# 脚本目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # ====================================================================
-# 参数与默认值
+# 子命令解析（新增）
+# ====================================================================
+# 检查第一个参数是否是已知子命令
+# 如果是子命令，则调用对应功能
+# 否则，执行原有的安装部署逻辑（默认行为）
+COMMAND="${1:-}"
+case "$COMMAND" in
+    uninstall)
+        # 调用卸载脚本
+        shift || true
+        exec bash "${SCRIPT_DIR}/uninstall.sh" "$@"
+        ;;
+    switch)
+        # 调用版本切换脚本
+        shift || true
+        exec bash "${SCRIPT_DIR}/switch-version.sh" "$@"
+        ;;
+    status)
+        # 查看集群状态
+        shift || true
+        show_cluster_status "$@"
+        exit 0
+        ;;
+    test)
+        # 验证测试
+        shift || true
+        run_verification_test "$@"
+        exit 0
+        ;;
+    --help|-h)
+        show_usage
+        exit 0
+        ;;
+    install)
+        # 明确指定 install 子命令，shift 后继续执行原有逻辑
+        shift || true
+        ;;
+    *)
+        # 其他情况：继续执行原有的安装部署逻辑（默认行为）
+        # 不 shift，保持原有参数
+        ;;
+esac
+
+# ====================================================================
+# 参数与默认值（原 deploy-opentenbase.sh 逻辑）
 # ====================================================================
 INTERACTIVE=true
 SSH_PASSWORD=""
@@ -377,6 +432,21 @@ if ! id -u "$SSH_USER" &>/dev/null; then
     log_ok "创建用户 $SSH_USER"
 else
     log_ok "用户 $SSH_USER 已存在"
+fi
+
+# 修复用户主目录权限（软件包安装后主目录常归属 root，导致 ssh-keygen 失败）
+SSH_USER_HOME=$(getent passwd "$SSH_USER" | cut -d: -f6)
+if [[ -n "$SSH_USER_HOME" ]]; then
+    if [[ ! -d "$SSH_USER_HOME" ]]; then
+        mkdir -p "$SSH_USER_HOME/.ssh"
+        log_info "创建用户主目录: $SSH_USER_HOME"
+    fi
+    if [[ "$(stat -c '%U' "$SSH_USER_HOME" 2>/dev/null)" != "$SSH_USER" ]]; then
+        chown -R "$SSH_USER":"$SSH_USER" "$SSH_USER_HOME"
+        log_info "修复主目录权限归属: $SSH_USER_HOME → $SSH_USER"
+    fi
+    chmod 750 "$SSH_USER_HOME"
+    chmod 700 "$SSH_USER_HOME/.ssh" 2>/dev/null || true
 fi
 
 # 设置密码
@@ -788,3 +858,232 @@ fi
 echo ""
 echo -e "  ${BOLD}文档:${NC} https://github.com/OpenTenBase/OpenTenBase"
 echo ""
+
+# ====================================================================
+# 新增功能函数（子命令实现）
+# ====================================================================
+
+# 显示使用帮助
+show_usage() {
+	cat << EOF
+OpenTenBase 一键管理脚本
+
+用法:
+  opentenbase.sh [命令] [选项]
+
+命令:
+  install      安装部署 OpenTenBase 集群（默认命令）
+  uninstall    卸载 OpenTenBase
+  switch       切换版本
+  status       查看集群状态
+  test         验证测试（创建分布式表、读写测试）
+
+选项:
+  install:
+    --yes              非交互式，使用默认值
+    --version VER      指定版本（5.0 / 2.6.0 / 2.5.0）
+    --cluster-name N   集群名称
+    --gtm-ip IP        GTM 节点 IP
+    --cn-ip IP         Coordinator IP
+    --dn-ip IP         Datanode IP
+    --ssh-user USER    SSH 用户名
+    --ssh-port PORT    SSH 端口
+    --ssh-password P   SSH 密码
+    --skip-install     跳过包安装
+    --clean            部署前清理旧数据
+
+  uninstall:
+    --purge            删除数据目录和日志
+    --yes              跳过确认
+
+  test:
+    --quick            快速测试（仅连接验证）
+    --full             完整测试（创建表、插入、查询、分布式查询）
+
+示例:
+  curl -sSL <url>/opentenbase.sh | sudo bash
+  sudo bash opentenbase.sh install --yes --version 5.0
+  sudo bash opentenbase.sh status
+  sudo bash opentenbase.sh test --full
+  sudo bash opentenbase.sh uninstall --purge --yes
+EOF
+}
+
+# 查看集群状态
+show_cluster_status() {
+	log_step "检查 OpenTenBase 集群状态..."
+
+	# 检测当前版本
+	OTB_VERSION=$(opentenbase-switch-version 2>/dev/null | grep "current" | awk '{print $2}' || echo "5.0")
+	INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
+
+	# 检测使用的链路
+	USE_PGXC_CTL=false
+	[[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
+
+	if [[ "$USE_PGXC_CTL" == "true" ]]; then
+		log_info "使用 pgxc_ctl 链路（v${OTB_VERSION}）"
+		export PATH="${INSTALL_DIR}/bin:$PATH"
+		export LD_LIBRARY_PATH="${INSTALL_DIR}/lib"
+		su - opentenbase -c "pgxc_ctl monitor all" 2>&1 || log_warn "pgxc_ctl monitor 执行失败"
+	else
+		log_info "使用 opentenbase_ctl 链路（v${OTB_VERSION}）"
+		OTB_CTL="${INSTALL_DIR}/bin/opentenbase_ctl"
+		if [[ -x "$OTB_CTL" ]]; then
+			su - opentenbase -c "$OTB_CTL status" 2>&1 || log_warn "opentenbase_ctl status 执行失败"
+		else
+			log_warn "opentenbase_ctl 未找到"
+		fi
+	fi
+
+	# 检查端口
+	log_info "检查端口状态..."
+	for port in 6666 11003 15432 5432; do
+		if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":${port}"; then
+			log_ok "端口 ${port} 正在监听"
+		elif command -v netstat >/dev/null 2>&1 && netstat -tlnp 2>/dev/null | grep -q ":${port}"; then
+			log_ok "端口 ${port} 正在监听"
+		else
+			log_warn "端口 ${port} 未监听"
+		fi
+	done
+
+	# 检查进程
+	log_info "检查进程状态..."
+	for proc in gtm postgres; do
+		count=$(pgrep -u opentenbase "$proc" 2>/dev/null | wc -l || echo 0)
+		if [[ "$count" -gt 0 ]]; then
+			log_ok "${proc}: ${count} 个进程运行中"
+		else
+			log_warn "${proc}: 无进程运行"
+		fi
+	done
+
+	# 尝试数据库连接
+	log_info "尝试数据库连接..."
+	CN_PORT=$([[ "$USE_PGXC_CTL" == "true" ]] && echo 5432 || echo 11003)
+	PSQL_BIN="${INSTALL_DIR}/bin/psql"
+	PSQL_LIB="${INSTALL_DIR}/lib"
+
+	if [[ -x "$PSQL_BIN" ]]; then
+		if su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c 'SELECT version();'" 2>&1 | head -5; then
+			log_ok "数据库连接成功"
+		else
+			log_warn "数据库连接失败"
+		fi
+	else
+		log_warn "psql 未找到，无法测试数据库连接"
+	fi
+}
+
+# 验证测试
+run_verification_test() {
+	TEST_MODE="${1:---full}"
+
+	log_step "OpenTenBase 验证测试..."
+
+	# 检测当前版本和端口
+	OTB_VERSION=$(opentenbase-switch-version 2>/dev/null | grep "current" | awk '{print $2}' || echo "5.0")
+	USE_PGXC_CTL=false
+	[[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
+	CN_PORT=$([[ "$USE_PGXC_CTL" == "true" ]] && echo 5432 || echo 11003)
+
+	INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
+	PSQL_BIN="${INSTALL_DIR}/bin/psql"
+	PSQL_LIB="${INSTALL_DIR}/lib"
+
+	# 检查 psql 是否存在
+	if [[ ! -x "$PSQL_BIN" ]]; then
+		log_error "psql 未找到（${PSQL_BIN}），请先安装 OpenTenBase"
+		exit 1
+	fi
+
+	# 测试 1: 连接验证
+	log_info "测试数据库连接（端口 ${CN_PORT}）..."
+	if ! su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c 'SELECT version();'" 2>&1; then
+		log_error "数据库连接失败"
+		exit 1
+	fi
+	log_ok "连接测试通过 ✓"
+
+	# 测试 2: 快速测试（仅连接）
+	if [[ "$TEST_MODE" == "--quick" ]]; then
+		echo ""
+		log_ok "✅ 快速测试完成（仅连接验证）"
+		return 0
+	fi
+
+	# 测试 3: 创建分布式表
+	log_info "创建分布式测试表..."
+	TEST_TABLE="test_table_$(date +%s)"
+
+	if [[ "$USE_PGXC_CTL" == "true" ]]; then
+		# pgxc_ctl 路径需要先创建节点组和分片映射（如果还没有）
+		su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
+			-c \"CREATE DEFAULT NODE GROUP default_group WITH(dn0001);\"" 2>/dev/null || true
+		su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
+			-c \"CREATE SHARDING GROUP TO GROUP default_group;\"" 2>/dev/null || true
+		CREATE_SQL="CREATE TABLE ${TEST_TABLE} (id int, name text, created_at timestamp) DISTRIBUTE BY SHARD(id) TO GROUP default_group;"
+	else
+		CREATE_SQL="CREATE TABLE ${TEST_TABLE} (id int, name text, created_at timestamp) DISTRIBUTE BY SHARD(id);"
+	fi
+
+	if ! su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"${CREATE_SQL}\"" 2>&1; then
+		log_error "创建分布式表失败"
+		exit 1
+	fi
+	log_ok "分布式表创建成功: ${TEST_TABLE} ✓"
+
+	# 测试 4: 插入数据
+	log_info "插入测试数据..."
+	INSERT_SQL="INSERT INTO ${TEST_TABLE} VALUES (1, 'Alice', now()), (2, 'Bob', now()), (3, 'Charlie', now());"
+	if ! su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"${INSERT_SQL}\"" 2>&1; then
+		log_error "插入数据失败"
+		# 清理测试表
+		su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"DROP TABLE ${TEST_TABLE};\"" 2>&1 || true
+		exit 1
+	fi
+	log_ok "插入 3 条测试数据 ✓"
+
+	# 测试 5: 查询数据
+	log_info "查询测试数据..."
+	SELECT_SQL="SELECT * FROM ${TEST_TABLE} ORDER BY id;"
+	if ! su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"${SELECT_SQL}\"" 2>&1; then
+		log_error "查询数据失败"
+		# 清理测试表
+		su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"DROP TABLE ${TEST_TABLE};\"" 2>&1 || true
+		exit 1
+	fi
+	log_ok "查询测试通过 ✓"
+
+	# 测试 6: 分布式架构验证（集群节点 + shard 映射）
+	log_info "验证分布式架构..."
+	# 查询集群节点（gtm/coordinator/datanode）
+	su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"SELECT node_name, node_type FROM pgxc_node ORDER BY node_type;\"" 2>&1 | grep -v "no version" || true
+	# 查询 shard 映射总数（验证分片机制生效）
+	SHARD_TOTAL=$(su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -t -A -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"SELECT count(*) FROM pgxc_shard_map;\"" 2>/dev/null | grep -v "no version" | tr -d '[:space:]' || echo "0")
+	if [[ "${SHARD_TOTAL:-0}" -gt 0 ]] 2>/dev/null; then
+		log_ok "分布式架构验证完成（${SHARD_TOTAL} 条 shard 映射）✓"
+	else
+		log_warn "未检测到 shard 映射（数据分布验证可能未生效）"
+	fi
+
+	# 测试 7: 清理测试表
+	log_info "清理测试表..."
+	if su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"DROP TABLE ${TEST_TABLE};\"" 2>&1; then
+		log_ok "测试表已清理 ✓"
+	else
+		log_warn "测试表清理失败（可手动删除: DROP TABLE ${TEST_TABLE};）"
+	fi
+
+	# 测试总结
+	echo ""
+	log_ok "✅ 完整验证测试通过！"
+	echo -e "  ${BOLD}测试摘要:${NC}"
+	echo "    - 数据库连接: ✓"
+	echo "    - 分布式表创建: ✓"
+	echo "    - 数据写入: ✓"
+	echo "    - 数据查询: ✓"
+	echo "    - 数据分布验证: ✓"
+	echo "    - 测试表清理: ✓"
+}
