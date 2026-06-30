@@ -168,9 +168,15 @@ build_apt_repo() {
 
             mkdir -p "$binary_dir" "$component_pool"
 
-            # Find DEBs matching this codename AND version
+            # Find DEBs matching this codename AND version.
+            # IMPORTANT: exclude arm64 — the Release file declares Architectures: amd64
+            # only and we generate just binary-amd64. Letting arm64 .deb into the same
+            # pool makes dpkg-scanpackages emit an arm64 record for packages that have
+            # both arches (e.g. opentenbase-server), so amd64 hosts can't install them
+            # ("opentenbase-server (= ...) is not installable"). arm64 APT support needs
+            # a separate binary-arm64 index + Release arch declaration (future work).
             local debs
-            debs=$(find "$pkgdir" \( -name "*~${codename}_*.deb" -o -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) 2>/dev/null | grep "_${version}-" || true)
+            debs=$(find "$pkgdir" \( -name "*~${codename}_*.deb" -o -name "*.${codename}_*.deb" -o -name "*.${codename}.*.deb" \) ! -name "*_arm64.deb" 2>/dev/null | grep "_${version}-" || true)
 
             if [ -z "$debs" ]; then
                 continue
