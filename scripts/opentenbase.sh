@@ -1034,6 +1034,12 @@ run_verification_test() {
 	fi
 	log_ok "分布式表创建成功: ${TEST_TABLE} ✓"
 
+	# CREATE 分布式表后，Coordinator 到 Datanode 的连接池需要刷新，否则紧接的
+	# INSERT 在新连接里会命中 "primary datanode connection released" 错误。
+	# pgxc_pool_reload() 让协调节点重建连接池映射，是 OpenTenBase DDL 后的标准步骤。
+	log_info "刷新连接池 (pgxc_pool_reload)..."
+	su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c 'SELECT pgxc_pool_reload();'" 2>&1 | grep -v "no version" || true
+
 	# 测试 4: 插入数据
 	log_info "插入测试数据..."
 	INSERT_SQL="INSERT INTO ${TEST_TABLE} VALUES (1, 'Alice', now()), (2, 'Bob', now()), (3, 'Charlie', now());"
