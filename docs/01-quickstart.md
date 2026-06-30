@@ -116,7 +116,7 @@ Datanode: Running
 ### 连接数据库
 
 ```bash
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase postgres
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase postgres
 ```
 
 **预期输出：**
@@ -231,7 +231,7 @@ FATAL: could not bind IPv6 socket: Address already in use
 **解决方法：**
 ```bash
 # 检查端口占用
-sudo ss -tlnp | grep -E '(5432|6666|15432)'
+sudo ss -tlnp | grep -E '(11003|6666|15432)'
 
 # 停止占用端口的服务
 sudo kill -9 <PID>
@@ -278,7 +278,7 @@ OpenTenBase 是一个分布式数据库，由三个核心组件组成：
 │    ┌─────┴────┐                                              │
 │    │          │                                              │
 │ ┌──▼───┐  ┌──▼───┐         ┌────────┐                       │
-│ │ CN1  │  │ CN2  │  ...    │  CNx   │ ← 协调节点（Port: 5432） │
+│ │ CN1  │  │ CN2  │  ...    │  CNx   │ ← 协调节点（Port: 11003） │
 │ └──┬───┘  └──┬───┘         └────────┘                       │
 │    │        │                                                   │
 │    └────┬───┘                                                   │

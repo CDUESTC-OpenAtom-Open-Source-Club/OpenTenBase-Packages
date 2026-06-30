@@ -55,7 +55,7 @@ sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
 # 5. 验证
 opentenbase_ctl start
 opentenbase_ctl status
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ## 方式二：RPM 安装 + 官方 opentenbase_ctl 部署（RHEL / CentOS / Rocky / Alma / Fedora / openEuler）
@@ -80,7 +80,7 @@ sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
 # 5. 验证
 opentenbase_ctl start
 opentenbase_ctl status
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ## 方式三：Docker 部署
@@ -109,22 +109,22 @@ docker compose up -d --build
 
 ## 连接数据库
 
-安装后使用 `opentenbase-psql` 连接（不是系统自带的 `psql`）：
+安装后使用 `opentenbase-psql` 连接（不是系统自带的 `psql`）。**裸机（`opentenbase_ctl`）CN 端口 11003；Docker 映射 5432**：
 
 ```bash
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres
 ```
 
 ## 集群管理
 
-使用官方 `opentenbase_ctl` 二进制管理集群（需要 `-c` 指定 INI 配置文件）：
+使用官方 `opentenbase_ctl` 二进制管理集群（`install`/`delete`/`expand`/`shrink` 需要 `-c`；`start`/`stop`/`status` 不需要）：
 
 ```bash
 opentenbase_ctl install -c /tmp/otb_config.ini   # 安装集群（initdb+配置+启动+注册）
 opentenbase_ctl start     # 启动集群
 opentenbase_ctl status    # 查看状态
 opentenbase_ctl stop      # 停止集群
-opentenbase_ctl delete    # 删除集群
+opentenbase_ctl delete -c /tmp/otb_config.ini    # 删除集群
 opentenbase_ctl expand -c /tmp/otb_config.ini    # 扩容
 opentenbase_ctl shrink -c /tmp/otb_config.ini    # 缩容
 ```
@@ -132,8 +132,8 @@ opentenbase_ctl shrink -c /tmp/otb_config.ini    # 缩容
 ## 创建分布式表
 
 ```sql
--- 连接到 Coordinator
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
+-- 连接到 Coordinator（裸机端口 11003）
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres
 
 -- 创建分片表
 CREATE TABLE users (
@@ -200,7 +200,7 @@ free -h
 **端口被占用**
 ```bash
 # 检查端口
-ss -tlnp | grep -E '5432|6666|15432'
+ss -tlnp | grep -E '11003|6666|15432'
 # 停止占用进程后重新初始化
 ```
 
@@ -258,7 +258,7 @@ sudo apt update && sudo apt install -y opentenbase
 # Configure SSH and install cluster (see Chinese section above for full steps)
 sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
 sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ### RPM (RHEL / CentOS / Rocky / Fedora)
@@ -269,7 +269,7 @@ sudo dnf install -y opentenbase
 # Configure SSH and install cluster (see Chinese section above for full steps)
 sudo cp /etc/opentenbase/5.0/opentenbase_config.ini.example /tmp/otb_config.ini
 sudo -u opentenbase opentenbase_ctl install -c /tmp/otb_config.ini
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres -c "SELECT version();"
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres -c "SELECT version();"
 ```
 
 ### Docker

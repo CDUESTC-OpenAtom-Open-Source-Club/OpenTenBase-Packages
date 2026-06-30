@@ -367,6 +367,7 @@ OpenTenBase-Packages/
 
 | 版本 | 日期 | 资产数 | 说明 |
 |------|------|--------|------|
+| v5.0-p32 | 2026-06-29 | 156 | GTM ≤2核修复（全局 `noaffinity.so` 注入）+ CN 端口 11003 + 一键部署脚本端到端验证 + DEB 构建修复 |
 | v5.0-p31 | 2026-06-28 | 156 | 官方 `opentenbase_ctl` C++ 二进制，CLI11/libpqxx 打包 |
 | v5.0-p11 | 2026-06-02 | 156 | Cloudflare CDN 加速文档 |
 | v5.0-p10 | 2026-06-02 | 156 | ARM64 原生构建 + Docker E2E + 版本切换修复 |
@@ -603,4 +604,4 @@ sudo dnf install -y libpqxx-devel  # RPM 系
 ---
 
 **维护者**：muzimu217
-**最后更新**：2026-06-28（v5.0-p31，官方 opentenbase_ctl C++ 二进制）
+**最后更新**：2026-06-29（v5.0-p32，GTM 2核修复 + CN 端口 11003）

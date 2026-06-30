@@ -359,6 +359,7 @@ OpenTenBase-Packages/
 
 | Release | Date | Assets | Notes |
 |---------|------|--------|-------|
+| v5.0-p32 | 2026-06-29 | 156 | GTM ≤2-core crash fix (global `noaffinity.so` injection) + CN port 11003 + one-click deploy script e2e verification + DEB build fixes |
 | v5.0-p31 | 2026-06-28 | 156 | Official `opentenbase_ctl` C++ binary, CLI11/libpqxx bundling |
 | v5.0-p11 | 2026-06-02 | 156 | Cloudflare CDN acceleration documentation |
 | v5.0-p10 | 2026-06-02 | 156 | ARM64 native builds + Docker E2E + version switch fix |
@@ -597,4 +598,4 @@ Same as OpenTenBase — [Apache License 2.0](https://www.apache.org/licenses/LIC
 ---
 
 **Maintainer**: muzimu217
-**Last Updated**: 2026-06-28 (v5.0-p31, official opentenbase_ctl C++ binary)
+**Last Updated**: 2026-06-29 (v5.0-p32, GTM 2-core fix + CN port 11003)
