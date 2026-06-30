@@ -816,18 +816,26 @@ echo -e "    Datanode:    ${CYAN}${DN_IP}${NC}"
 echo ""
 echo -e "  ${BOLD}配置文件:${NC} ${CYAN}${CONFIG_FILE}${NC}"
 echo ""
-echo -e "  ${BOLD}常用命令:${NC}"
+echo -e "  ${BOLD}日常运维:${NC} ${GREEN}以下工具已随包安装到本机，日常运维直接用这些短命令即可，无需再 curl 长脚本${NC}"
 if [[ "$USE_PGXC_CTL" == "true" ]]; then
+echo -e "    运维工具: ${CYAN}pgxc_ctl${NC}  （v${OTB_VERSION} 集群管理器，需先 export PATH）"
 echo -e "    ${CYAN}export PATH=${INSTALL_DIR}/bin:\$PATH${NC}"
-echo -e "    ${CYAN}pgxc_ctl monitor all${NC}    # 查看状态"
-echo -e "    ${CYAN}pgxc_ctl stop all${NC}       # 停止集群"
-echo -e "    ${CYAN}pgxc_ctl start all${NC}      # 启动集群"
+echo -e "    ${CYAN}pgxc_ctl monitor all${NC}      # 查看集群状态"
+echo -e "    ${CYAN}pgxc_ctl start all${NC}        # 启动集群"
+echo -e "    ${CYAN}pgxc_ctl stop all${NC}         # 停止集群"
 else
-echo -e "    ${CYAN}opentenbase_ctl status${NC}   # 查看状态"
-echo -e "    ${CYAN}opentenbase_ctl stop${NC}     # 停止集群"
-echo -e "    ${CYAN}opentenbase_ctl start${NC}    # 启动集群"
+echo -e "    运维工具: ${CYAN}opentenbase_ctl${NC}  （v${OTB_VERSION} 集群管理器，全生命周期：install/start/stop/status/expand/shrink/delete）"
+echo -e "    ${CYAN}opentenbase_ctl status${NC}              # 查看集群状态"
+echo -e "    ${CYAN}opentenbase_ctl start${NC}               # 启动集群"
+echo -e "    ${CYAN}opentenbase_ctl stop${NC}                # 停止集群"
+echo -e "    ${CYAN}opentenbase_ctl expand -c $CONFIG_FILE${NC}   # 扩容节点"
 echo -e "    ${CYAN}opentenbase_ctl delete -c $CONFIG_FILE${NC}   # 删除集群"
 fi
+echo ""
+echo -e "  ${BOLD}一键脚本（仅装/卸/自检时用，日常运维不用）:${NC}"
+echo -e "    ${CYAN}opentenbase.sh status${NC}    # 快速自检（端口/进程/连接）"
+echo -e "    ${CYAN}opentenbase.sh test${NC}      # 完整验证（建表/读写/分片）"
+echo -e "    ${CYAN}opentenbase.sh uninstall${NC} # 卸载"
 echo ""
 echo -e "  ${BOLD}连接数据库:${NC}"
 if [[ "$USE_PGXC_CTL" == "true" ]]; then
@@ -877,6 +885,10 @@ OpenTenBase 一键管理脚本
   switch       切换版本
   status       查看集群状态
   test         验证测试（创建分布式表、读写测试）
+
+日常运维（集群装好后，用随包安装的本地工具，无需再 curl）:
+  v5.0  → opentenbase_ctl {status|start|stop|expand|shrink|delete}
+  v2.5/v2.6 → pgxc_ctl {monitor|start|stop} all   （需先 export PATH=安装目录/bin）
 
 选项:
   install:
