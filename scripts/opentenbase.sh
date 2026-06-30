@@ -358,9 +358,18 @@ else
         # 配置仓库
         if ! apt-cache show opentenbase >/dev/null 2>&1; then
             log_info "配置 OpenTenBase APT 仓库..."
-            curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | bash || {
-                log_warn "自动配置仓库失败，尝试直接安装..."
-            }
+            # Use CDN for faster global access, fallback to GitHub raw
+            CDN_URL="https://repo.blackevil217.com/scripts/setup-apt.sh"
+            GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh"
+
+            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash; then
+                log_ok "APT repository configured via CDN"
+            else
+                log_warn "CDN unavailable, falling back to GitHub..."
+                curl -sSL "$GITHUB_URL" | bash || {
+                    log_warn "自动配置仓库失败，尝试直接安装..."
+                }
+            fi
             apt-get update -qq 2>/dev/null || true
         fi
 
@@ -384,9 +393,18 @@ else
         # 配置仓库
         if ! $YUM list available opentenbase >/dev/null 2>&1; then
             log_info "配置 OpenTenBase RPM 仓库..."
-            curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash || {
-                log_warn "自动配置仓库失败，尝试直接安装..."
-            }
+            # Use CDN for faster global access, fallback to GitHub raw
+            CDN_URL="https://repo.blackevil217.com/scripts/setup-rpm.sh"
+            GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh"
+
+            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash; then
+                log_ok "RPM repository configured via CDN"
+            else
+                log_warn "CDN unavailable, falling back to GitHub..."
+                curl -sSL "$GITHUB_URL" | bash || {
+                    log_warn "自动配置仓库失败，尝试直接安装..."
+                }
+            fi
         fi
 
         # 安装
