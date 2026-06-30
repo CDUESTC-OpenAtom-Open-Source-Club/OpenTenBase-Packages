@@ -46,11 +46,14 @@ English | [中文](README_zh.md)
 **Blank machine → running cluster in one command.** Supports both interactive and non-interactive modes:
 
 ```bash
-# Interactive (asks a few questions, recommended for first-time users)
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+# CDN accelerated (recommended, global fast)
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash
+
+# GitHub direct (fallback)
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
 
 # Non-interactive (all defaults, single-node, for CI/automation)
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash -s -- install --yes
 ```
 
 The script handles everything: install packages → create user → configure sshpass → path symlink → generate INI → `opentenbase_ctl install -c <config.ini>` → start, status check, and SQL verification.
@@ -94,11 +97,14 @@ opentenbase_ctl status
 ### Uninstall
 
 ```bash
-# Interactive uninstall (prompts before removing data)
+# CDN accelerated (recommended)
+curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash
+
+# GitHub direct (fallback)
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash
 
 # Full uninstall including data and logs (no prompts)
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash -s -- --purge --yes
+curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash -s -- --purge --yes
 ```
 
 ---
@@ -107,10 +113,10 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 
 The installation scripts automatically detect and use the fastest available mirror:
 
-1. **Cloudflare CDN** (`repo.blackevil217.com/apt` for APT, `repo.blackevil217.com/rpm` for RPM) — global acceleration, free forever
+1. **Cloudflare CDN** (`repo.blackevil217.com/scripts/` for scripts, `repo.blackevil217.com/apt` for APT, `repo.blackevil217.com/rpm` for RPM) — global acceleration, free forever
 2. **GitHub Pages** (`cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/`) — direct fallback
 
-> **Note**: The `curl` commands in the Quick Install section download scripts from `raw.githubusercontent.com`. Once executed, the scripts will automatically configure your system to use the CDN-accelerated repository.
+> **Recommended**: Use `https://repo.blackevil217.com/scripts/opentenbase.sh` CDN path for faster and more stable script downloads.
 
 ### China Speed Test (2026-06-02)
 

@@ -44,14 +44,17 @@
 **白板机器 → 集群运行，一条命令搞定。** 支持交互式和非交互式：
 
 ```bash
-# 交互式（推荐，会问你几个问题）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+# CDN 加速（推荐，全球加速）
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash
+
+# GitHub 直连（备用）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
 
 # 非交互式（全自动，单节点默认值，适合 CI/自动化）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash -s -- install --yes
 
 # 非交互式 + 自定义参数
-sudo bash deploy-opentenbase.sh --yes \
+sudo bash opentenbase.sh install --yes \
     --cluster-name mycluster \
     --ssh-password mypass123 \
     --gtm-ip 192.168.1.10
@@ -94,11 +97,14 @@ opentenbase_ctl status -c /tmp/otb_config.ini
 ### 卸载
 
 ```bash
-# 交互式卸载（删除前会逐一确认）
+# CDN 加速（推荐）
+curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash
+
+# GitHub 直连（备用）
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash
 
 # 完全卸载（包括数据和日志，无需确认）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash -s -- --purge --yes
+curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash -s -- --purge --yes
 ```
 
 ---
@@ -107,10 +113,10 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 
 安装脚本会自动检测并使用最快的可用镜像：
 
-1. **Cloudflare CDN**（`repo.blackevil217.com/apt` 用于 APT，`repo.blackevil217.com/rpm` 用于 RPM）— 全球加速，永久免费
+1. **Cloudflare CDN**（`repo.blackevil217.com/scripts/` 用于脚本，`repo.blackevil217.com/apt` 用于 APT，`repo.blackevil217.com/rpm` 用于 RPM）— 全球加速，永久免费
 2. **GitHub Pages**（`cduestc-openatom-open-source-club.github.io/OpenTenBase-Packages/`）— 直接备用
 
-> **注意**：快速安装部分的 `curl` 命令从 `raw.githubusercontent.com` 下载脚本。执行后，脚本会自动将您的系统配置为使用 CDN 加速仓库。
+> **推荐**：使用 `https://repo.blackevil217.com/scripts/opentenbase.sh` CDN 路径下载脚本，速度更快更稳定。
 
 ### 国内加速实测（2026-06-02）
 
