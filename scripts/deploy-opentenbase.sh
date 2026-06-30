@@ -31,10 +31,11 @@
 #   --dn-ip IP            Datanode 节点 IP（默认同 gtm-ip）
 #   --ssh-user USER       SSH 用户名（默认 opentenbase）
 #   --ssh-port PORT       SSH 端口（默认 22）
-#   --version VER         OpenTenBase 版本（默认 5.0）
+#   --version VER         OpenTenBase 版本（5.0 / 2.6.0 / 2.5.0，默认 5.0）
 #   --skip-install        跳过包安装（已装时用）
 #   --start               安装后自动启动集群（默认启用）
 #   --no-start            安装后不启动集群
+#   --clean               部署前清理旧数据和残留进程
 #   --help                显示帮助
 #
 
@@ -54,6 +55,7 @@ SSH_PORT="22"
 OTB_VERSION="5.0"
 SKIP_INSTALL=false
 AUTO_START=true
+CLEAN_BEFORE=false
 CONFIG_FILE="/tmp/opentenbase_config.ini"
 PACKAGE_PATH="/usr/lib/opentenbase/5.0"
 
@@ -116,6 +118,7 @@ while [[ $# -gt 0 ]]; do
         --skip-install)    SKIP_INSTALL=true; shift ;;
         --start)           AUTO_START=true; shift ;;
         --no-start)        AUTO_START=false; shift ;;
+        --clean)           CLEAN_BEFORE=true; shift ;;
         --help|-h)
             head -48 "$0" | tail -46
             exit 0 ;;
@@ -145,6 +148,71 @@ else
     echo -e "  模式: ${GREEN}非交互式${NC}（使用默认值）"
 fi
 echo ""
+
+# ====================================================================
+# 版本规范化与链路判定
+# ====================================================================
+case "$OTB_VERSION" in
+    2.5)   OTB_VERSION="2.5.0" ;;
+    2.6)   OTB_VERSION="2.6.0" ;;
+    5.0|5) OTB_VERSION="5.0" ;;
+esac
+
+USE_PGXC_CTL=false
+case "$OTB_VERSION" in
+    2.5.0|2.6.0)
+        USE_PGXC_CTL=true
+        OTB_SHORT_VER="${OTB_VERSION%%.*}"
+        CN_PORT_DEFAULT=5432
+        ;;
+    5.0)
+        USE_PGXC_CTL=false
+        OTB_SHORT_VER="5"
+        CN_PORT_DEFAULT=11003
+        ;;
+    *)
+        log_error "不支持的版本: $OTB_VERSION（支持: 5.0 / 2.6.0 / 2.5.0）"
+        exit 1
+        ;;
+esac
+
+INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
+echo -e "  版本: ${GREEN}${OTB_VERSION}${NC}  链路: ${GREEN}$([[ "$USE_PGXC_CTL" == "true" ]] && echo 'pgxc_ctl' || echo 'opentenbase_ctl')${NC}"
+echo ""
+
+# ====================================================================
+# 预清理（--clean）
+# ====================================================================
+if [[ "$CLEAN_BEFORE" == "true" ]]; then
+    log_step "Step 0: 清理旧环境和残留进程"
+
+    # 停止所有版本的集群（安全模式：精确匹配 OTB 进程，不影响 SSH/脚本自身）
+    for pat in "postgres:.*coord" "postgres:.*dn0" "gtm.*master" "gtm_proxy"; do
+        kill -9 $(pgrep -f "$pat" 2>/dev/null) 2>/dev/null || true
+    done
+    for pid in $(ps -u "$SSH_USER" -o pid= 2>/dev/null); do
+        cmd=$(ps -p "$pid" -o comm= 2>/dev/null)
+        [[ "$cmd" == "postgres" || "$cmd" == "gtm" || "$cmd" == "gtm_proxy" ]] && kill -9 "$pid" 2>/dev/null || true
+    done
+    sleep 3
+
+    # 清理 lock 文件
+    rm -f /tmp/.s.PGSQL.* /tmp/.s.PGPOOL.* /tmp/.s.*.lock 2>/dev/null || true
+
+    # 清理所有版本的数据目录（全量清理，避免跨版本残留）
+    for ver in 2 2.5 2.5.0 2.6 2.6.0 5 5.0; do
+        for subdir in gtm coord dn1 coord_archlog dn1_archlog gtm_slave coord_slave dn1_slave; do
+            rm -rf "/var/lib/opentenbase/${ver}/${subdir}"/* 2>/dev/null || true
+        done
+    done
+    # 清理 5.0 的数据目录
+    rm -rf /var/lib/opentenbase/install/opentenbase/5.0/data/* 2>/dev/null || true
+    rm -rf /var/lib/opentenbase/data/* 2>/dev/null || true
+    # 清理 pgxc_ctl 工作目录中的残留状态
+    rm -f /var/lib/opentenbase/pgxc_ctl/pgxc_ctl.conf 2>/dev/null || true
+
+    log_ok "旧环境已清理（跨版本全量清理）"
+fi
 
 # ====================================================================
 # Step 0: 环境检查
@@ -284,11 +352,19 @@ else
 fi
 
 # 验证二进制
-if ! command -v opentenbase_ctl &>/dev/null && [[ ! -x /usr/lib/opentenbase/${OTB_VERSION}/bin/opentenbase_ctl ]]; then
-    log_error "opentenbase_ctl 未找到，安装可能失败"
-    exit 1
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+    if [[ ! -x "${INSTALL_DIR}/bin/pgxc_ctl" ]]; then
+        log_error "pgxc_ctl 未找到（${INSTALL_DIR}/bin/pgxc_ctl），安装可能失败"
+        exit 1
+    fi
+    log_ok "pgxc_ctl 就绪"
+else
+    if ! command -v opentenbase_ctl &>/dev/null && [[ ! -x "${INSTALL_DIR}/bin/opentenbase_ctl" ]]; then
+        log_error "opentenbase_ctl 未找到，安装可能失败"
+        exit 1
+    fi
+    log_ok "opentenbase_ctl 就绪"
 fi
-log_ok "opentenbase_ctl 就绪"
 
 # ====================================================================
 # Step 3: 系统准备（用户 + SSH + sshpass + 符号链接）
@@ -331,6 +407,19 @@ if ! command -v sshpass &>/dev/null; then
 fi
 command -v sshpass &>/dev/null && log_ok "sshpass 就绪" || log_warn "sshpass 未安装（可能影响远程操作）"
 
+# 配置 opentenbase 用户 SSH 免密自连接（pgxc_ctl 和 opentenbase_ctl 都需要）
+if ! su - "$SSH_USER" -c "test -f ~/.ssh/id_rsa" 2>/dev/null; then
+    log_info "为 $SSH_USER 用户生成 SSH 密钥..."
+    su - "$SSH_USER" -c "ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa" 2>/dev/null
+fi
+su - "$SSH_USER" -c "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys 2>/dev/null; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys 2>/dev/null" 2>/dev/null || true
+# 测试 SSH 自连接
+if su - "$SSH_USER" -c "ssh -o StrictHostKeyChecking=no ${SSH_USER}@127.0.0.1 'echo SSH_OK'" 2>/dev/null | grep -q SSH_OK; then
+    log_ok "SSH 免密自连接就绪"
+else
+    log_warn "SSH 免密自连接未通，集群部署可能失败"
+fi
+
 # 创建 OSS_INSTALL_DIR 符号链接
 if [[ ! -e "/usr/local/install/opentenbase" ]]; then
     mkdir -p /usr/local/install
@@ -341,33 +430,45 @@ else
 fi
 
 # ====================================================================
-# Step 3.5: 创建部署包 tar.gz
-# opentenbase_ctl 的 excute_cp_file() 对本地 IP (127.0.0.1) 使用 `cp`（无 -r），
-# 无法拷贝目录。必须将安装目录打包为 tar.gz 文件，让 pre_process_pkg() 正常处理。
+# Step 3.5: 版本专属准备
 # ====================================================================
-INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
-TAR_PKG="/tmp/opentenbase-${OTB_VERSION}.tar.gz"
-if [[ -d "$INSTALL_DIR" ]] && [[ ! -f "$TAR_PKG" ]]; then
-    log_info "创建部署 tar.gz 包（opentenbase_ctl 要求文件格式而非目录）..."
-    TMP_PKG_DIR=$(mktemp -d /tmp/otb-pkg-XXXXXX)
-    cp -af "$INSTALL_DIR"/* "$TMP_PKG_DIR/"
-    (cd "$TMP_PKG_DIR" && tar -zcf "$TAR_PKG" *)
-    rm -rf "$TMP_PKG_DIR"
-    PACKAGE_PATH="$TAR_PKG"
-    log_ok "部署包: $TAR_PKG ($(du -h "$TAR_PKG" | cut -f1))"
-elif [[ -f "$TAR_PKG" ]]; then
-    PACKAGE_PATH="$TAR_PKG"
-    log_ok "部署包已存在: $TAR_PKG"
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+    # ---- 2.5/2.6: pgxc_ctl 链路 ----
+    # 不需要 tar.gz，直接用目录
+    log_ok "pgxc_ctl 链路：无需打包，直接使用 ${INSTALL_DIR}"
+    # 创建数据目录
+    DATA_BASE="/var/lib/opentenbase/${OTB_SHORT_VER}"
+    mkdir -p "${DATA_BASE}/gtm" "${DATA_BASE}/coord" "${DATA_BASE}/dn1" \
+             "${DATA_BASE}/coord_archlog" "${DATA_BASE}/dn1_archlog"
+    chown -R "$SSH_USER":"$SSH_USER" "${DATA_BASE}"
+    log_ok "数据目录就绪: ${DATA_BASE}"
 else
-    log_warn "安装目录 $INSTALL_DIR 不存在，使用目录路径（可能导致传输失败）"
-fi
+    # ---- 5.0: opentenbase_ctl 链路 ----
+    # 创建部署包 tar.gz（opentenbase_ctl 要求文件格式）
+    TAR_PKG="/tmp/opentenbase-${OTB_VERSION}.tar.gz"
+    if [[ -d "$INSTALL_DIR" ]] && [[ ! -f "$TAR_PKG" ]]; then
+        log_info "创建部署 tar.gz 包（opentenbase_ctl 要求文件格式而非目录）..."
+        TMP_PKG_DIR=$(mktemp -d /tmp/otb-pkg-XXXXXX)
+        cp -af "$INSTALL_DIR"/* "$TMP_PKG_DIR/"
+        (cd "$TMP_PKG_DIR" && tar -zcf "$TAR_PKG" *)
+        rm -rf "$TMP_PKG_DIR"
+        PACKAGE_PATH="$TAR_PKG"
+        log_ok "部署包: $TAR_PKG ($(du -h "$TAR_PKG" | cut -f1))"
+    elif [[ -f "$TAR_PKG" ]]; then
+        PACKAGE_PATH="$TAR_PKG"
+        log_ok "部署包已存在: $TAR_PKG"
+    else
+        log_warn "安装目录 $INSTALL_DIR 不存在"
+        PACKAGE_PATH="$INSTALL_DIR"
+    fi
 
-# 验证 opentenbase_ctl 在 tar.gz 中
-if [[ -f "$TAR_PKG" ]]; then
-    TAR_CONTENT=$(tar -tzf "$TAR_PKG" 2>/dev/null || true)
-    if [[ "$TAR_CONTENT" != *"bin/opentenbase_ctl"* ]]; then
-        log_error "tar.gz 中未找到 bin/opentenbase_ctl，安装包可能损坏"
-        exit 1
+    # 验证 opentenbase_ctl 在 tar.gz 中
+    if [[ -f "$TAR_PKG" ]]; then
+        TAR_CONTENT=$(tar -tzf "$TAR_PKG" 2>/dev/null || true)
+        if [[ "$TAR_CONTENT" != *"bin/opentenbase_ctl"* ]]; then
+            log_error "tar.gz 中未找到 bin/opentenbase_ctl，安装包可能损坏"
+            exit 1
+        fi
     fi
 fi
 
@@ -417,11 +518,65 @@ else
     log_info "配置: 集群=${CLUSTER_NAME} GTM=${GTM_IP} CN=${CN_IP} DN=${DN_IP} SSH=${SSH_USER}@:${SSH_PORT}"
 fi
 
-# 生成 INI 配置文件
-cat > "$CONFIG_FILE" << INIEOF
-# OpenTenBase 集群配置
+# 生成配置文件
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+    # ---- 2.5/2.6: 生成 pgxc_ctl.conf ----
+    PGXC_CONF_DIR="/var/lib/opentenbase/pgxc_ctl"
+    mkdir -p "$PGXC_CONF_DIR"
+    DATA_BASE="/var/lib/opentenbase/${OTB_SHORT_VER}"
+    cat > "${PGXC_CONF_DIR}/pgxc_ctl.conf" << PGXCEOF
+#!/usr/bin/env bash
+# pgxc_ctl.conf for OpenTenBase ${OTB_VERSION}
 # 由 deploy-opentenbase.sh 自动生成
-# 时间: $(date '+%Y-%m-%d %H:%M:%S')
+
+IP_1=127.0.0.1
+pgxcInstallDir=${INSTALL_DIR}
+pgxcOwner=${SSH_USER}
+defaultDatabase=postgres
+pgxcUser=${SSH_USER}
+pgxcGroup=opentenbase
+tmpDir=/tmp
+localTmpDir=\$tmpDir
+configBackup=n
+
+gtmName=gtm
+gtmMasterServer=\$IP_1
+gtmMasterPort=6666
+gtmMasterDir=${DATA_BASE}/gtm
+gtmSlave=n
+
+coordNames=(cn0001)
+coordPorts=(5432)
+poolerPorts=(6669)
+coordMasterServers=(\$IP_1)
+coordMasterDirs=(${DATA_BASE}/coord)
+coordArchLogDir=${DATA_BASE}/coord_archlog
+coordMaxWALSenders=1
+coordSlave=n
+coordSpecificExtraConfig=none
+coordSpecificExtraPgHba=none
+
+primaryDatanode=dn0001
+datanodeNames=(dn0001)
+datanodePorts=(15432)
+datanodePoolerPorts=(6670)
+datanodeMasterServers=(\$IP_1)
+datanodeMasterDirs=(${DATA_BASE}/dn1)
+datanodeArchLogDir=${DATA_BASE}/dn1_archlog
+datanodeMaxWALSenders=1
+datanodeSlave=n
+datanodeSpecificExtraConfig=none
+datanodeSpecificExtraPgHba=none
+PGXCEOF
+    chown "$SSH_USER":"$SSH_USER" "${PGXC_CONF_DIR}/pgxc_ctl.conf"
+    CONFIG_FILE="${PGXC_CONF_DIR}/pgxc_ctl.conf"
+    log_ok "pgxc_ctl.conf 已生成: $CONFIG_FILE"
+else
+    # ---- 5.0: 生成 INI 配置 ----
+    CONFIG_FILE="/tmp/opentenbase_config.ini"
+    cat > "$CONFIG_FILE" << INIEOF
+# OpenTenBase 5.0 集群配置
+# 由 deploy-opentenbase.sh 自动生成
 
 [instance]
 name=${CLUSTER_NAME}
@@ -447,43 +602,63 @@ ssh-port=${SSH_PORT}
 [log]
 level=INFO
 INIEOF
-
-chmod 600 "$CONFIG_FILE"  # 保护密码
-chown "$SSH_USER":"$SSH_USER" "$CONFIG_FILE" 2>/dev/null || chown "$SSH_USER" "$CONFIG_FILE" 2>/dev/null || true
-log_ok "配置文件已生成: $CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+    chown "$SSH_USER":"$SSH_USER" "$CONFIG_FILE" 2>/dev/null || true
+    log_ok "INI 配置文件已生成: $CONFIG_FILE"
+fi
 
 # ====================================================================
 # Step 5: 安装集群
 # ====================================================================
-log_step "Step 5/6: 安装集群（opentenbase_ctl install）"
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+    log_step "Step 5/6: 安装集群（pgxc_ctl init all）"
 
-# Build LD_PRELOAD for low-core environments (belt-and-suspenders alongside /etc/ld.so.preload)
-OTB_LD_PRELOAD=""
-if [[ -n "$NOAFFINITY_SO" ]] && [[ -f "$NOAFFINITY_SO" ]]; then
-    OTB_LD_PRELOAD="LD_PRELOAD=$NOAFFINITY_SO "
-    log_info "GTM 低核兼容: /etc/ld.so.preload 已全局生效，LD_PRELOAD 作为额外保障"
-fi
+    echo -e "  正在执行: ${CYAN}pgxc_ctl init all${NC}"
+    echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
 
-echo -e "  正在执行: ${CYAN}opentenbase_ctl install -c $CONFIG_FILE${NC}"
-echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
-
-if su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl install -c '$CONFIG_FILE'" 2>&1; then
-    echo ""
-    log_ok "集群安装成功"
+    if su - "$SSH_USER" -c "export PATH=${INSTALL_DIR}/bin:\$PATH && export LD_LIBRARY_PATH=${INSTALL_DIR}/lib && cd /var/lib/opentenbase && pgxc_ctl init all" < /dev/null 2>&1; then
+        echo ""
+        log_ok "集群安装成功（pgxc_ctl init all）"
+    else
+        EXIT_CODE=$?
+        echo ""
+        log_error "集群安装失败（退出码: $EXIT_CODE）"
+        echo -e "  ${BOLD}排查:${NC}"
+        echo -e "    1. 数据目录残留 → 使用 --clean 重新部署"
+        echo -e "    2. SSH 自连接   → su - $SSH_USER -c 'ssh ${SSH_USER}@127.0.0.1 echo ok'"
+        echo -e "    3. 端口占用     → ss -tlnp | grep -E '(5432|6666|15432)'"
+        exit $EXIT_CODE
+    fi
 else
-    EXIT_CODE=$?
-    echo ""
-    log_error "集群安装失败（退出码: $EXIT_CODE）"
-    echo ""
-    echo -e "  ${BOLD}常见原因排查:${NC}"
-    echo -e "    1. SSH 密码错误 → 检查配置文件中的 ssh-password"
-    echo -e "    2. sshd 未运行 → systemctl start sshd"
-    echo -e "    3. 端口被占用  → ss -tlnp | grep -E '(5432|6666|15432)'"
-    echo -e "    4. 路径不匹配  → ls -la /usr/local/install/opentenbase"
-    echo -e "    5. 内存不足    → free -h"
-    echo ""
-    echo -e "  配置文件: $CONFIG_FILE"
-    exit $EXIT_CODE
+    log_step "Step 5/6: 安装集群（opentenbase_ctl install）"
+
+    # 5.0 必须使用绝对路径，避免 /usr/bin 符号链接指向其他版本
+    OTB_CTL_BIN="${INSTALL_DIR}/bin/opentenbase_ctl"
+
+    OTB_LD_PRELOAD=""
+    if [[ -n "$NOAFFINITY_SO" ]] && [[ -f "$NOAFFINITY_SO" ]]; then
+        OTB_LD_PRELOAD="LD_PRELOAD=$NOAFFINITY_SO "
+        log_info "GTM 低核兼容: /etc/ld.so.preload 已全局生效，LD_PRELOAD 作为额外保障"
+    fi
+
+    echo -e "  正在执行: ${CYAN}${OTB_CTL_BIN} install -c $CONFIG_FILE${NC}"
+    echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
+
+    if su - "$SSH_USER" -c "${OTB_LD_PRELOAD}${OTB_CTL_BIN} install -c '$CONFIG_FILE'" < /dev/null 2>&1; then
+        echo ""
+        log_ok "集群安装成功"
+    else
+        EXIT_CODE=$?
+        echo ""
+        log_error "集群安装失败（退出码: $EXIT_CODE）"
+        echo -e "  ${BOLD}常见原因排查:${NC}"
+        echo -e "    1. SSH 密码错误 → 检查配置文件中的 ssh-password"
+        echo -e "    2. sshd 未运行 → systemctl start sshd"
+        echo -e "    3. 端口被占用  → ss -tlnp | grep -E '(11003|6666|15432)'"
+        echo -e "    4. 路径不匹配  → ls -la /usr/local/install/opentenbase"
+        echo -e "    5. 内存不足    → free -h"
+        exit $EXIT_CODE
+    fi
 fi
 
 # ====================================================================
@@ -491,51 +666,62 @@ fi
 # ====================================================================
 log_step "Step 6/6: 启动与验证"
 
-# 安装完成后集群可能已自动启动，检查一下
-log_info "检查集群状态..."
-if su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl status -c '$CONFIG_FILE'" 2>&1; then
-    log_ok "集群已运行"
-elif [[ "$AUTO_START" == "true" ]]; then
-    log_info "启动集群..."
-    su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl start -c '$CONFIG_FILE'" 2>&1 || true
-    sleep 3
-    su - "$SSH_USER" -c "${OTB_LD_PRELOAD}opentenbase_ctl status -c '$CONFIG_FILE'" 2>&1 || log_warn "集群可能需要更多时间启动"
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+    # ---- 2.5/2.6 验证 ----
+    log_info "检查集群状态..."
+    su - "$SSH_USER" -c "export PATH=${INSTALL_DIR}/bin:\$PATH && export LD_LIBRARY_PATH=${INSTALL_DIR}/lib && pgxc_ctl monitor all" 2>&1
+    CN_PORT=5432
+    PSQL_BIN="${INSTALL_DIR}/bin/psql"
+    PSQL_LIB="${INSTALL_DIR}/lib"
+else
+    # ---- 5.0 验证 ----
+    log_info "检查集群状态..."
+    su - "$SSH_USER" -c "${OTB_LD_PRELOAD}${OTB_CTL_BIN} status" < /dev/null 2>&1 || true
+    CN_PORT=11003
+    OTB_BIN="${INSTALL_DIR}/bin"
+    OTB_LIB="${INSTALL_DIR}/lib"
+    OTB_RUN_LIB="/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/lib"
+    OTB_RUN_BIN="/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/bin"
+    PSQL_BIN=""
+    [[ -x "$OTB_RUN_BIN/psql" ]] && PSQL_BIN="$OTB_RUN_BIN/psql"
+    [[ -z "$PSQL_BIN" ]] && [[ -x "$OTB_BIN/psql" ]] && PSQL_BIN="$OTB_BIN/psql"
+    [[ -z "$PSQL_BIN" ]] && command -v opentenbase-psql &>/dev/null && PSQL_BIN="opentenbase-psql"
+    [[ -z "$PSQL_BIN" ]] && command -v psql &>/dev/null && PSQL_BIN="psql"
+    PSQL_LIB=""
+    [[ -d "$OTB_RUN_LIB" ]] && PSQL_LIB="$OTB_RUN_LIB"
+    [[ -z "$PSQL_LIB" ]] && [[ -d "$OTB_LIB" ]] && PSQL_LIB="$OTB_LIB"
 fi
 
-# psql 连接测试
-log_info "测试数据库连接..."
-OTB_BIN="/usr/lib/opentenbase/${OTB_VERSION}/bin"
-OTB_LIB="/usr/lib/opentenbase/${OTB_VERSION}/lib"
-# opentenbase_ctl 部署后的运行时路径
-OTB_RUN_LIB="/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/lib"
-OTB_RUN_BIN="/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/bin"
-PSQL=""
-[[ -x "$OTB_RUN_BIN/psql" ]] && PSQL="$OTB_RUN_BIN/psql"
-[[ -z "$PSQL" ]] && [[ -x "$OTB_BIN/psql" ]] && PSQL="$OTB_BIN/psql"
-[[ -z "$PSQL" ]] && command -v opentenbase-psql &>/dev/null && PSQL="opentenbase-psql"
-[[ -z "$PSQL" ]] && command -v psql &>/dev/null && PSQL="psql"
-
-# 确定 LD_LIBRARY_PATH
-OTB_PSQL_LIB_PATH=""
-if [[ -d "$OTB_RUN_LIB" ]]; then
-    OTB_PSQL_LIB_PATH="$OTB_RUN_LIB"
-elif [[ -d "$OTB_LIB" ]]; then
-    OTB_PSQL_LIB_PATH="$OTB_LIB"
-fi
-
-# OpenTenBase CN 默认端口 11003
-CN_PORT=11003
-
-if [[ -n "$PSQL" ]]; then
-    OTB_PSQL_ENV=""
-    [[ -n "$OTB_PSQL_LIB_PATH" ]] && OTB_PSQL_ENV="LD_LIBRARY_PATH=$OTB_PSQL_LIB_PATH "
+# 数据库连接测试
+if [[ -n "$PSQL_BIN" ]]; then
+    log_info "测试数据库连接（端口 ${CN_PORT}）..."
+    PSQL_ENV=""
+    [[ -n "$PSQL_LIB" ]] && PSQL_ENV="LD_LIBRARY_PATH=$PSQL_LIB "
     for i in $(seq 1 5); do
-        if su - "$SSH_USER" -c "${OTB_PSQL_ENV}${PSQL} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c 'SELECT version();'" 2>/dev/null; then
+        if su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c 'SELECT version();'" 2>/dev/null; then
             log_ok "数据库连接成功（端口 ${CN_PORT}）"
             break
         fi
         [[ $i -lt 5 ]] && log_info "等待启动...（$i/5）" && sleep 3
     done
+
+    # pgxc_ctl 路径需要手动初始化默认节点组和分片映射
+    if [[ "$USE_PGXC_CTL" == "true" ]]; then
+        log_info "初始化默认节点组与分片映射（pgxc_ctl 路径）..."
+        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
+            -c \"CREATE DEFAULT NODE GROUP default_group WITH(dn0001);\" 2>/dev/null || true"
+        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
+            -c \"CREATE SHARDING GROUP TO GROUP default_group;\" 2>/dev/null || true"
+        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
+            -c \"SELECT pgxc_pool_reload();\" 2>/dev/null || true"
+        SHARD_COUNT=$(su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -t -A -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
+            -c \"SELECT count(*) FROM pgxc_shard_map;\"" 2>/dev/null || echo "0")
+        if [[ "${SHARD_COUNT}" -gt 0 ]] 2>/dev/null; then
+            log_ok "分片映射已初始化（${SHARD_COUNT} 条分片记录）"
+        else
+            log_warn "分片映射初始化可能未成功，分布式表创建可能失败"
+        fi
+    fi
 fi
 
 # ====================================================================
@@ -554,6 +740,7 @@ echo -e "${NC}"
 
 echo -e "  ${BOLD}集群信息:${NC}"
 echo -e "    名称:        ${CYAN}${CLUSTER_NAME}${NC}"
+echo -e "    版本:        ${CYAN}${OTB_VERSION}${NC}"
 echo -e "    类型:        distributed"
 echo -e "    GTM:         ${CYAN}${GTM_IP}${NC}"
 echo -e "    Coordinator: ${CYAN}${CN_IP}${NC}"
@@ -562,19 +749,38 @@ echo ""
 echo -e "  ${BOLD}配置文件:${NC} ${CYAN}${CONFIG_FILE}${NC}"
 echo ""
 echo -e "  ${BOLD}常用命令:${NC}"
-echo -e "    ${CYAN}opentenbase_ctl status -c $CONFIG_FILE${NC}   # 查看状态"
-echo -e "    ${CYAN}opentenbase_ctl stop -c $CONFIG_FILE${NC}     # 停止集群"
-echo -e "    ${CYAN}opentenbase_ctl start -c $CONFIG_FILE${NC}    # 启动集群"
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+echo -e "    ${CYAN}export PATH=${INSTALL_DIR}/bin:\$PATH${NC}"
+echo -e "    ${CYAN}pgxc_ctl monitor all${NC}    # 查看状态"
+echo -e "    ${CYAN}pgxc_ctl stop all${NC}       # 停止集群"
+echo -e "    ${CYAN}pgxc_ctl start all${NC}      # 启动集群"
+else
+echo -e "    ${CYAN}opentenbase_ctl status${NC}   # 查看状态"
+echo -e "    ${CYAN}opentenbase_ctl stop${NC}     # 停止集群"
+echo -e "    ${CYAN}opentenbase_ctl start${NC}    # 启动集群"
 echo -e "    ${CYAN}opentenbase_ctl delete -c $CONFIG_FILE${NC}   # 删除集群"
+fi
 echo ""
 echo -e "  ${BOLD}连接数据库:${NC}"
-echo -e "    ${CYAN}export LD_LIBRARY_PATH=${OTB_PSQL_LIB_PATH:-/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/lib}${NC}"
-echo -e "    ${CYAN}${PSQL:-psql} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres${NC}"
+if [[ "$USE_PGXC_CTL" == "true" ]]; then
+echo -e "    ${CYAN}export LD_LIBRARY_PATH=${INSTALL_DIR}/lib${NC}"
+echo -e "    ${CYAN}${INSTALL_DIR}/bin/psql -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres${NC}"
+else
+echo -e "    ${CYAN}export LD_LIBRARY_PATH=${PSQL_LIB:-/var/lib/opentenbase/install/opentenbase/${OTB_VERSION}/lib}${NC}"
+echo -e "    ${CYAN}${PSQL_BIN:-psql} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres${NC}"
+fi
 echo ""
 
-if [[ -n "$PSQL" ]]; then
+if [[ -n "$PSQL_BIN" ]]; then
     echo -e "  ${BOLD}快速测试:${NC}"
-    su - "$SSH_USER" -c "${OTB_PSQL_ENV}${PSQL} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"CREATE TABLE t1 (id int, name text) DISTRIBUTE BY SHARD(id); INSERT INTO t1 VALUES (1,'hello'); SELECT * FROM t1;\"" 2>/dev/null && \
+    PSQL_LIB_ARG=""
+    [[ -n "$PSQL_LIB" ]] && PSQL_LIB_ARG="LD_LIBRARY_PATH=$PSQL_LIB"
+    if [[ "$USE_PGXC_CTL" == "true" ]]; then
+        SHARD_SQL="CREATE TABLE t1 (id int, name text) DISTRIBUTE BY SHARD(id) TO GROUP default_group; INSERT INTO t1 VALUES (1,'hello'); SELECT * FROM t1;"
+    else
+        SHARD_SQL="CREATE TABLE t1 (id int, name text) DISTRIBUTE BY SHARD(id); INSERT INTO t1 VALUES (1,'hello'); SELECT * FROM t1;"
+    fi
+    su - "$SSH_USER" -c "${PSQL_LIB_ARG} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"${SHARD_SQL}\"" 2>/dev/null && \
         echo -e "\n  ${GREEN}✅ 分布式表创建+读写测试通过！${NC}" || \
         echo -e "\n  ${YELLOW}集群可能还在启动中，请稍后手动测试${NC}"
 fi

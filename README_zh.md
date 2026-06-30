@@ -79,8 +79,8 @@ sudo dnf install -y opentenbase
 
 ```bash
 opentenbase_ctl install -c /tmp/otb_config.ini
-opentenbase_ctl start
-opentenbase_ctl status
+opentenbase_ctl start -c /tmp/otb_config.ini
+opentenbase_ctl status -c /tmp/otb_config.ini
 ```
 
 ### 手动下载
@@ -190,21 +190,23 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 ## 快速开始
 
 ```bash
-# 1. 安装集群（GTM + Coordinator + Datanode）
+# 1. 安装集群（GTM + Coordinator + Datanode）——需要 -c 指定拓扑配置
 opentenbase_ctl install -c /tmp/otb_config.ini
 
-# 2. 启动集群
+# 2. 启动集群（安装后集群状态已持久化，无需 -c）
 opentenbase_ctl start
 
 # 3. 查看集群状态
 opentenbase_ctl status
 
 # 4. 连接数据库
-opentenbase-psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
+opentenbase-psql -h 127.0.0.1 -p 11003 -U opentenbase -d postgres
 
 # 5. 停止集群
 opentenbase_ctl stop
 ```
+
+> **版本链路说明**：`5.0` 使用官方 `opentenbase_ctl` + INI 配置；`2.5/2.6` 使用 `pgxc_ctl` + `pgxc_ctl.conf` 正式链路。
 
 ### Docker Compose 部署
 
