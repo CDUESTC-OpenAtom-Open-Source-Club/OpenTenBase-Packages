@@ -50,13 +50,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          chmod +x scripts/build-repo.sh
+          chmod +x scripts/tools/build-repo.sh
           TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
-            ./scripts/build-repo.sh -o repo
+            ./scripts/tools/build-repo.sh -o repo
           else
-            ./scripts/build-repo.sh -t "$TAG" -o repo
+            ./scripts/tools/build-repo.sh -t "$TAG" -o repo
           fi
+
+          # Copy scripts to CDN for faster global access
+          echo "[INFO] Copying scripts to CDN..."
+          mkdir -p repo/scripts
+          cp scripts/opentenbase.sh repo/scripts/
+          cp scripts/setup-apt.sh repo/scripts/
+          cp scripts/setup-rpm.sh repo/scripts/
+          cp scripts/uninstall.sh repo/scripts/
+          cp scripts/switch-version.sh repo/scripts/
+          cp scripts/opentenbase-packages-key.asc repo/scripts/
+          echo "[INFO] Scripts copied to CDN successfully!"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
