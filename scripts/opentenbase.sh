@@ -1023,9 +1023,9 @@ run_verification_test() {
 			-c \"CREATE DEFAULT NODE GROUP default_group WITH(dn0001);\"" 2>/dev/null || true
 		su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
 			-c \"CREATE SHARDING GROUP TO GROUP default_group;\"" 2>/dev/null || true
-		CREATE_SQL="CREATE TABLE ${TEST_TABLE} (id int, name text, created_at timestamp) DISTRIBUTE BY SHARD(id) TO GROUP default_group;"
+		CREATE_SQL="CREATE TABLE ${TEST_TABLE} (id int, name text) DISTRIBUTE BY SHARD(id) TO GROUP default_group;"
 	else
-		CREATE_SQL="CREATE TABLE ${TEST_TABLE} (id int, name text, created_at timestamp) DISTRIBUTE BY SHARD(id);"
+		CREATE_SQL="CREATE TABLE ${TEST_TABLE} (id int, name text) DISTRIBUTE BY SHARD(id);"
 	fi
 
 	if ! su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"${CREATE_SQL}\"" 2>&1; then
@@ -1044,7 +1044,7 @@ run_verification_test() {
 
 	# 测试 4: 插入数据
 	log_info "插入测试数据..."
-	INSERT_SQL="INSERT INTO ${TEST_TABLE} VALUES (1, 'Alice', now()), (2, 'Bob', now()), (3, 'Charlie', now());"
+	INSERT_SQL="INSERT INTO ${TEST_TABLE} VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie');"
 	if ! su - opentenbase -c "LD_LIBRARY_PATH=${PSQL_LIB} ${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres -c \"${INSERT_SQL}\"" 2>&1; then
 		log_error "插入数据失败"
 		# 清理测试表
