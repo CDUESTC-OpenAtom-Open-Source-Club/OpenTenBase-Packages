@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [v5.0-p32] — 2026-06-29
+
+**Deployment reliability: GTM ≤2-core crash fix, CN port 11003, deploy script hardening.**
+
+### Fixed
+- **GTM ≤2-core crash**: `pthread_setaffinity_np` returned `EINVAL` on hosts with ≤2 CPU cores, crashing the GTM during startup. Because `opentenbase_ctl` spawns the GTM via SSH as a separate process, `LD_PRELOAD` did not propagate to it. Fix: inject `noaffinity.so` globally via `/etc/ld.so.preload` (with `LD_PRELOAD` as a belt-and-suspenders backup). The one-click deploy script auto-applies this on ≤2-core hosts.
+- **Coordinator listen port corrected to 11003** (not 5432) for `opentenbase_ctl`-deployed single-node clusters; `psql` connection examples updated.
+- **Deploy script hardening**: tar.gz creation for the `opentenbase_ctl` file-format requirement, SIGPIPE-safe tar validation, config file ownership (`chmod 600` + `chown opentenbase`).
+- **DEB build**: removed the conditional skip of `opentenbase_ctl` compilation; auto-install build deps (libssh2, CLI11, indicators, libpqxx); post-build verification now fails if the binary is missing.
+- Made GPG signing tolerant of missing `dpkg-sig` on Ubuntu 24.04.
+- Install `gcc-toolset-11` on RHEL-8 for C++17 compatibility.
+- Always build libpqxx 7.9.2 from source to resolve RPM build failures; restore working directory after the source build.
+
+### CI
+- Auto-trigger CDN repo deployment after a Release is published.
+
 ## [v5.0-p31] — 2026-06-28
 
 **Major architecture change: replaced custom bash script with official `opentenbase_ctl` C++ binary.**
@@ -422,6 +438,7 @@ First release.
 
 ---
 
+[v5.0-p32]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p32
 [v5.0-p31]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p31
 [v5.0-p11]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p11
 [v5.0-p8]: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/v5.0-p8
