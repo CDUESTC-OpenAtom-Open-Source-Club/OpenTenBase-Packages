@@ -49,50 +49,44 @@
 
 set -euo pipefail
 
-# 脚本目录
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 管道执行（curl|bash）兼容：stdin 不是终端时重连到 /dev/tty，使交互式
+# read 正常工作；若 /dev/tty 不可用（CI/无终端环境）则标记强制非交互，
+# 避免 read 遇到 EOF 返回非零而触发 set -e 退出。
+if [[ ! -t 0 ]]; then
+    if [[ -c /dev/tty ]] && ( : <>/dev/tty ) 2>/dev/null; then
+        exec 0</dev/tty
+    else
+        export OTB_FORCE_NONINTERACTIVE=1
+    fi
+fi
+
+# 脚本目录（管道执行时 BASH_SOURCE 为空，用 ${0:-.} 兜底，避免 set -u 报错）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0:-.}}")" 2>/dev/null && pwd || echo ".")"
 
 # ====================================================================
 # 子命令解析（新增）
 # ====================================================================
-# 检查第一个参数是否是已知子命令
-# 如果是子命令，则调用对应功能
-# 否则，执行原有的安装部署逻辑（默认行为）
-COMMAND="${1:-}"
-case "$COMMAND" in
+# 记录子命令。uninstall/switch 立即 exec（调用外部脚本，不依赖内部函数）；
+# status/test/--help 延迟到脚本末尾分发（此时函数定义已加载）；
+# install 或无参数 → 继续执行下方的安装部署主体（默认行为）。
+OTB_COMMAND="${1:-install}"
+case "$OTB_COMMAND" in
     uninstall)
-        # 调用卸载脚本
-        shift || true
+        shift
         exec bash "${SCRIPT_DIR}/uninstall.sh" "$@"
         ;;
     switch)
-        # 调用版本切换脚本
-        shift || true
+        shift
         exec bash "${SCRIPT_DIR}/switch-version.sh" "$@"
         ;;
-    status)
-        # 查看集群状态
-        shift || true
-        show_cluster_status "$@"
-        exit 0
-        ;;
-    test)
-        # 验证测试
-        shift || true
-        run_verification_test "$@"
-        exit 0
-        ;;
-    --help|-h)
-        show_usage
-        exit 0
-        ;;
     install)
-        # 明确指定 install 子命令，shift 后继续执行原有逻辑
+        shift || true
+        ;;
+    status|test|--help|-h)
         shift || true
         ;;
     *)
-        # 其他情况：继续执行原有的安装部署逻辑（默认行为）
-        # 不 shift，保持原有参数
+        OTB_COMMAND="install"
         ;;
 esac
 
@@ -100,6 +94,7 @@ esac
 # 参数与默认值（原 deploy-opentenbase.sh 逻辑）
 # ====================================================================
 INTERACTIVE=true
+[[ "${OTB_FORCE_NONINTERACTIVE:-0}" == "1" ]] && INTERACTIVE=false
 SSH_PASSWORD=""
 CLUSTER_NAME="otb01"
 GTM_IP="127.0.0.1"
@@ -234,6 +229,9 @@ esac
 INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
 echo -e "  版本: ${GREEN}${OTB_VERSION}${NC}  链路: ${GREEN}$([[ "$USE_PGXC_CTL" == "true" ]] && echo 'pgxc_ctl' || echo 'opentenbase_ctl')${NC}"
 echo ""
+
+# 非 install 子命令（status/test/--help）跳过下方部署主体，落到末尾分发
+if [[ "$OTB_COMMAND" == "install" ]]; then
 
 # ====================================================================
 # 预清理（--clean）
@@ -859,6 +857,8 @@ echo ""
 echo -e "  ${BOLD}文档:${NC} https://github.com/OpenTenBase/OpenTenBase"
 echo ""
 
+fi  # end of "if [[ "$OTB_COMMAND" == "install" ]]" 部署主体守卫
+
 # ====================================================================
 # 新增功能函数（子命令实现）
 # ====================================================================
@@ -1087,3 +1087,21 @@ run_verification_test() {
 	echo "    - 数据分布验证: ✓"
 	echo "    - 测试表清理: ✓"
 }
+
+# ====================================================================
+# 子命令分发（延迟到此处，确保上方函数定义已加载）
+# ====================================================================
+case "$OTB_COMMAND" in
+    status)
+        show_cluster_status "$@"
+        ;;
+    test)
+        run_verification_test "$@"
+        ;;
+    --help|-h)
+        show_usage
+        ;;
+    install)
+        : # 部署主体已在上方执行
+        ;;
+esac
