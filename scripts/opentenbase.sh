@@ -362,11 +362,11 @@ else
             CDN_URL="https://repo.blackevil217.com/scripts/setup-apt.sh"
             GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh"
 
-            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash; then
-                log_ok "APT repository configured via CDN"
+            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash -s -- --version "$OTB_VERSION"; then
+                log_ok "APT repository configured via CDN (version $OTB_VERSION)"
             else
                 log_warn "CDN unavailable, falling back to GitHub..."
-                curl -sSL "$GITHUB_URL" | bash || {
+                curl -sSL "$GITHUB_URL" | bash -s -- --version "$OTB_VERSION" || {
                     log_warn "自动配置仓库失败，尝试直接安装..."
                 }
             fi
@@ -397,11 +397,11 @@ else
             CDN_URL="https://repo.blackevil217.com/scripts/setup-rpm.sh"
             GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh"
 
-            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash; then
-                log_ok "RPM repository configured via CDN"
+            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash -s -- --version "$OTB_VERSION"; then
+                log_ok "RPM repository configured via CDN (version $OTB_VERSION)"
             else
                 log_warn "CDN unavailable, falling back to GitHub..."
-                curl -sSL "$GITHUB_URL" | bash || {
+                curl -sSL "$GITHUB_URL" | bash -s -- --version "$OTB_VERSION" || {
                     log_warn "自动配置仓库失败，尝试直接安装..."
                 }
             fi
