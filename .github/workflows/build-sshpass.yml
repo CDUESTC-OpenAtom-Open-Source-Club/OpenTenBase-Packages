@@ -3,8 +3,9 @@ name: Build Static sshpass Binaries
 on:
   workflow_dispatch:  # 手动触发
   push:
+    branches: [main]
     paths:
-      - 'workflows/build-sshpass.yml'
+      - '.github/workflows/build-sshpass.yml'
       - 'binaries/VERSION'
 
 permissions:
