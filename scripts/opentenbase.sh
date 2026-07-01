@@ -220,6 +220,89 @@ ask_password() {
 }
 
 # ====================================================================
+# 环境能力预检（在执行关键操作前检测必要能力）
+# ====================================================================
+check_required_capabilities() {
+    local missing=""
+    local warnings=""
+
+    # 1. Root 权限（部署需要）
+    if [[ "$(id -u)" -ne 0 ]]; then
+        missing="${missing}ROOT_PERMISSIONS "
+    fi
+
+    # 2. SSH 服务（集群部署必需）
+    if ! systemctl is-active sshd &>/dev/null && ! systemctl is-active ssh &>/dev/null && ! pgrep -x sshd &>/dev/null; then
+        warnings="${warnings}SSH_SERVICE_NOT_RUNNING "
+    fi
+
+    # 3. 文件传输能力（curl 或 wget）
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        missing="${missing}NETWORK_DOWNLOAD "
+    fi
+
+    # 4. 包管理器（至少有一个）
+    local has_pkg_mgr=false
+    command -v apt-get &>/dev/null && has_pkg_mgr=true
+    command -v dnf &>/dev/null && has_pkg_mgr=true
+    command -v yum &>/dev/null && has_pkg_mgr=true
+    command -v apk &>/dev/null && has_pkg_mgr=true
+    if [[ "$has_pkg_mgr" == "false" ]]; then
+        warnings="${warnings}NO_PACKAGE_MANAGER "
+    fi
+
+    # 5. 基本工具
+    for tool in tar sed grep awk; do
+        if ! command -v "$tool" &>/dev/null; then
+            missing="${missing}${tool}_MISSING "
+        fi
+    done
+
+    # 6. 内存和磁盘（警告级别）
+    local mem_kb=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+    local mem_mb=$((mem_kb / 1024))
+    if [[ "$mem_mb" -lt 3000 ]]; then
+        warnings="${warnings}LOW_MEMORY(${mem_mb}MB) "
+    fi
+
+    # 报告检测结果
+    if [[ -n "$missing" ]]; then
+        log_error "缺失关键能力，无法部署："
+        for cap in $missing; do
+            case "$cap" in
+                ROOT_PERMISSIONS)
+                    log_error "  - 需要 root 权限：请使用 sudo 运行脚本" ;;
+                NETWORK_DOWNLOAD)
+                    log_error "  - 需要 curl 或 wget：请安装其一" ;;
+                tar_MISSING|sed_MISSING|grep_MISSING|awk_MISSING)
+                    log_error "  - 缺少基础工具：$cap" ;;
+                *)
+                    log_error "  - $cap" ;;
+            esac
+        done
+        return 1
+    fi
+
+    if [[ -n "$warnings" ]]; then
+        log_warn "环境警告（可能影响部署）："
+        for warn in $warnings; do
+            case "$warn" in
+                SSH_SERVICE_NOT_RUNNING)
+                    log_warn "  - SSH 服务未运行，脚本将尝试启动" ;;
+                NO_PACKAGE_MANAGER)
+                    log_warn "  - 无包管理器，将依赖静态二进制下载" ;;
+                LOW_MEMORY*)
+                    log_warn "  - 内存不足 3GB：$warn" ;;
+                *)
+                    log_warn "  - $warn" ;;
+            esac
+        done
+    fi
+
+    return 0
+}
+
+# ====================================================================
 # 解析命令行参数
 # ====================================================================
 while [[ $# -gt 0 ]]; do
@@ -360,18 +443,16 @@ if [[ "$CLEAN_BEFORE" == "true" ]]; then
 fi
 
 # ====================================================================
-# Step 0: 环境检查
+# Step 1: 环境能力预检
 # ====================================================================
-log_step "Step 1/6: 环境检查"
+log_step "Step 1/6: 环境能力预检"
 
-# root 检查
-if [[ $EUID -ne 0 ]]; then
-    log_error "请使用 root 用户运行: sudo bash $0"
-    exit 1
-fi
+# 执行能力预检
+check_required_capabilities || exit 1
+
+# 详细资源检查（仅用于信息展示）
 log_ok "root 权限"
 
-# 内存
 MEM_TOTAL=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
 if [[ -z "$MEM_TOTAL" ]] || [[ "$MEM_TOTAL" -lt 3000 ]]; then
     log_warn "内存 ${MEM_TOTAL:-未知}MB，建议 ≥ 4GB（继续部署）"
@@ -379,7 +460,6 @@ else
     log_ok "内存 ${MEM_TOTAL}MB"
 fi
 
-# 磁盘
 DISK_AVAIL=$(df -m / | awk 'NR==2{print $4}')
 if [[ -n "$DISK_AVAIL" ]] && [[ "$DISK_AVAIL" -lt 3000 ]]; then
     log_warn "磁盘剩余 ${DISK_AVAIL}MB，建议 ≥ 5GB"
@@ -387,7 +467,6 @@ else
     log_ok "磁盘剩余 ${DISK_AVAIL}MB"
 fi
 
-# CPU
 CPU_CORES=$(nproc 2>/dev/null || echo 1)
 log_ok "CPU ${CPU_CORES} 核"
 
@@ -606,94 +685,95 @@ systemctl start ssh 2>/dev/null || \
 log_ok "SSH 服务已启动"
 
 # 安装 sshpass（集群部署必需，用于 opentenbase_ctl/pgxc_ctl 内部 SSH 密码认证）
-# 方案优先级：1. 包管理器安装 2. 下载二进制 RPM 3. expect wrapper 备选
-if ! command -v sshpass &>/dev/null; then
-    log_info "尝试安装 sshpass..."
-    # 方案 1：包管理器安装
-    apt-get install -y sshpass 2>/dev/null || \
-    dnf install -y sshpass 2>/dev/null || \
-    yum install -y sshpass 2>/dev/null || true
-fi
+# 标准化方案：包管理器 → 静态二进制 → 清晰报错（不使用 expect wrapper）
+install_sshpass() {
+    # 如果已存在，直接返回
+    if command -v sshpass &>/dev/null; then
+        log_ok "sshpass 已存在: $(command -v sshpass)"
+        return 0
+    fi
 
-# 方案 2：下载 sshpass 二进制 RPM（适用于 EulerOS 等无 sshpass 包的系统）
-if ! command -v sshpass &>/dev/null; then
-    log_info "包管理器安装失败，尝试下载 sshpass 二进制..."
+    log_info "sshpass 未安装，尝试获取..."
     ARCH=$(uname -m)
-    SSPASS_RPM_DIR="/tmp/sshpass-rpm"
-    mkdir -p "$SSPASS_RPM_DIR"
 
-    # 尝试多个下载源
-    SSPASS_URLS=(
-        # CentOS Vault (el7)
-        "https://vault.centos.org/7.9.2009/os/${ARCH}/Packages/sshpass-1.06-2.el7.${ARCH}.rpm"
-        # Fedora koji (el8)
-        "https://kojipkgs.fedoraproject.org/packages/sshpass/1.06/2.el8/${ARCH}/sshpass-1.06-2.el8.${ARCH}.rpm"
-        # EPEL 7
-        "https://dl.fedoraproject.org/pub/epel/7/${ARCH}/Packages/s/sshpass-1.06-2.el7.${ARCH}.rpm"
-    )
+    # 方案 1：包管理器安装（优先使用系统原生方案）
+    if command -v apt-get &>/dev/null && [[ "$(id -u)" -eq 0 ]]; then
+        log_info "尝试 apt-get 安装..."
+        apt-get install -y sshpass 2>/dev/null && command -v sshpass &>/dev/null && return 0
+    fi
+    if command -v dnf &>/dev/null && [[ "$(id -u)" -eq 0 ]]; then
+        log_info "尝试 dnf 安装..."
+        dnf install -y sshpass 2>/dev/null && command -v sshpass &>/dev/null && return 0
+    fi
+    if command -v yum &>/dev/null && [[ "$(id -u)" -eq 0 ]]; then
+        log_info "尝试 yum 安装..."
+        yum install -y sshpass 2>/dev/null && command -v sshpass &>/dev/null && return 0
+    fi
+    if command -v apk &>/dev/null && [[ "$(id -u)" -eq 0 ]]; then
+        log_info "尝试 apk 安装（Alpine）..."
+        apk add sshpass 2>/dev/null && command -v sshpass &>/dev/null && return 0
+    fi
 
-    for url in "${SSPASS_URLS[@]}"; do
-        log_info "尝试下载: $url"
-        if curl -fsSL "$url" -o "$SSPASS_RPM_DIR/sshpass.rpm" 2>/dev/null; then
-            # 验证下载的文件是否是 RPM（不是 HTML 404 页面）
-            if file "$SSPASS_RPM_DIR/sshpass.rpm" | grep -q "RPM"; then
-                log_ok "sshpass RPM 下载成功"
-                rpm -ivh --nodeps "$SSPASS_RPM_DIR/sshpass.rpm" 2>/dev/null && break
+    # 方案 2：静态二进制下载（通用方案，不依赖包管理器）
+    # 预编译的静态 sshpass 存放在仓库 CDN，支持 x86_64 和 aarch64
+    SSPASS_STATIC_URL="https://repo.blackevil217.com/binaries/sshpass-${ARCH}"
+    SSPASS_FALLBACK_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/binaries/sshpass-${ARCH}"
+
+    if command -v curl &>/dev/null || command -v wget &>/dev/null; then
+        log_info "尝试下载 sshpass 静态二进制 (${ARCH})..."
+        SSPASS_BIN="/usr/local/bin/sshpass"
+
+        if command -v curl &>/dev/null; then
+            curl -fsSL "$SSPASS_STATIC_URL" -o "$SSPASS_BIN" 2>/dev/null || \
+            curl -fsSL "$SSPASS_FALLBACK_URL" -o "$SSPASS_BIN" 2>/dev/null || true
+        elif command -v wget &>/dev/null; then
+            wget -q "$SSPASS_STATIC_URL" -O "$SSPASS_BIN" 2>/dev/null || \
+            wget -q "$SSPASS_FALLBACK_URL" -O "$SSPASS_BIN" 2>/dev/null || true
+        fi
+
+        if [[ -f "$SSPASS_BIN" && -s "$SSPASS_BIN" ]]; then
+            chmod +x "$SSPASS_BIN"
+            # 验证是否可执行
+            if "$SSPASS_BIN" -V &>/dev/null; then
+                log_ok "sshpass 静态二进制安装成功: $SSPASS_BIN"
+                # 确保 PATH 中可用
+                ln -sf "$SSPASS_BIN" /usr/bin/sshpass 2>/dev/null || true
+                return 0
             else
-                log_warn "下载的不是有效的 RPM 文件"
+                log_warn "下载的 sshpass 二进制不可执行，可能架构不匹配"
+                rm -f "$SSPASS_BIN"
             fi
         fi
-    done
-
-    rm -rf "$SSPASS_RPM_DIR" 2>/dev/null || true
-fi
-
-# 方案 3：expect wrapper 备选方案（最后的备选）
-if ! command -v sshpass &>/dev/null; then
-    if command -v expect &>/dev/null; then
-        log_info "创建 sshpass wrapper (expect)..."
-        cat > /usr/local/bin/sshpass << 'SSHPASS_WRAPPER'
-#!/bin/bash
-# sshpass wrapper using expect for systems without sshpass package
-# Usage: sshpass -p 'password' command [args]
-# 注意：此 wrapper 为备选方案，建议安装官方 sshpass 包以获得最佳兼容性
-password=""
-shift_count=0
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -p) password="$2"; shift 2; shift_count=2 ;;
-        *) break ;;
-    esac
-done
-if [[ -z "$password" || $shift_count -eq 0 ]]; then
-    # No password provided, run command directly
-    "$@"
-else
-    # Use expect for password authentication
-    expect -c "
-        spawn $*
-        expect {
-            -re \"password.*:\" { send \"$password\r\"; exp_continue }
-            -re \"Password.*:\" { send \"$password\r\"; exp_continue }
-            eof
-        }
-    " 2>/dev/null || "$@"
-fi
-SSHPASS_WRAPPER
-        chmod +x /usr/local/bin/sshpass
-        # 确保在 PATH 中
-        ln -sf /usr/local/bin/sshpass /usr/bin/sshpass 2>/dev/null || true
-        log_ok "sshpass wrapper 已创建（备选方案）"
-        log_warn "建议手动安装官方 sshpass 包以获得最佳兼容性"
-    else
-        log_error "sshpass 和 expect 都不可用，集群部署将失败"
-        log_error "请手动安装 sshpass："
-        log_error "  - EulerOS: 从 CentOS Vault 下载 RPM: rpm -ivh sshpass-1.06-2.el7.aarch64.rpm"
-        log_error "  - 其他系统: apt/dnf/yum install sshpass"
-        exit 1
     fi
-fi
-command -v sshpass &>/dev/null && log_ok "sshpass 就绪" || log_warn "sshpass 未安装（可能影响远程操作）"
+
+    # 方案 3：清晰报错（不使用 expect wrapper 补丁）
+    # 以上方案都失败时，给出清晰的错误信息和手动指引
+    log_error "无法获取 sshpass，集群部署无法进行"
+    log_error ""
+    log_error "缺失能力检测："
+    command -v apt-get &>/dev/null || log_error "  - apt-get 不可用"
+    command -v dnf &>/dev/null || log_error "  - dnf 不可用"
+    command -v yum &>/dev/null || log_error "  - yum 不可用"
+    command -v apk &>/dev/null || log_error "  - apk 不可用（非 Alpine）"
+    command -v curl &>/dev/null || log_error "  - curl 不可用（无法下载静态二进制）"
+    command -v wget &>/dev/null || log_error "  - wget 不可用（无法下载静态二进制）"
+    [[ "$(id -u)" -ne 0 ]] && log_error "  - 没有 sudo 权限（无法安装）"
+    log_error ""
+    log_error "请手动安装 sshpass："
+    log_error "  Debian/Ubuntu: apt-get install sshpass"
+    log_error "  RHEL/CentOS/Fedora: dnf install sshpass 或 yum install sshpass"
+    log_error "  Alpine: apk add sshpass"
+    log_error "  其他系统: 从 https://sourceforge.net/projects/sshpass/ 下载源码编译"
+    log_error "  或下载静态二进制: https://repo.blackevil217.com/binaries/sshpass-${ARCH}"
+    log_error ""
+    log_error "OpenTenBase 集群管理工具（opentenbase_ctl/pgxc_ctl）依赖 sshpass 进行远程 SSH 操作。"
+    log_error "没有 sshpass，集群无法部署。"
+
+    return 1
+}
+
+# 执行 sshpass 安装
+install_sshpass || exit 1
 
 # 配置 opentenbase 用户 SSH 免密自连接（pgxc_ctl 和 opentenbase_ctl 都需要）
 # 重要：opentenbase 用户可能已存在（系统用户），home 目录在 /var/lib/opentenbase
