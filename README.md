@@ -26,7 +26,7 @@ English | [中文](README_zh.md)
 | Feature | Description |
 |---------|-------------|
 | **Multi-format** | DEB (`.deb`) + RPM (`.rpm`) dual format support |
-| **Multi-distro** | 14 distros: Ubuntu/Debian (7), Rocky/Alma/CentOS/Fedora/openEuler (7) |
+| **Multi-distro** | 14+ distros: Ubuntu/Debian (7), Rocky/Alma/CentOS/Fedora/openEuler/EulerOS (8) — including **Huawei Cloud EulerOS (HCE) 2.0** |
 | **Multi-arch** | x86_64 (amd64) + ARM64 (aarch64) |
 | **Multi-version coexistence** | Install v5.0 / v2.6 / v2.5 and dev versions side-by-side, switch with `opentenbase-switch-version` |
 | **APT/RPM repository** | Official repository hosted on GitHub Pages — `apt install opentenbase` / `dnf install opentenbase` |
@@ -67,7 +67,7 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 sudo apt update && sudo apt install -y opentenbase
 ```
 
-#### YUM/DNF (RHEL / CentOS / Fedora)
+#### YUM/DNF (RHEL / CentOS / Fedora / openEuler / EulerOS)
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
@@ -85,6 +85,10 @@ opentenbase_ctl status
 > **Version control path note**:
 > - `5.0` uses the `opentenbase_ctl` workflow with an INI file.
 > - `2.5` / `2.6` use the `pgxc_ctl` workflow with `pgxc_ctl.conf` as the formal control path.
+> - **On EulerOS / openEuler**, the one-click script automatically uses `pgxc_ctl` for v5.0
+>   to work around an `opentenbase_ctl` port-allocation bug (see
+>   [Issue #215](https://github.com/OpenTenBase/OpenTenBase/issues/215)). v5.0 supports
+>   both `pgxc_ctl` and `opentenbase_ctl` as startup methods.
 
 ### Manual Download
 
@@ -106,6 +110,32 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 # Full uninstall including data and logs (no prompts)
 curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash -s -- --purge --yes
 ```
+
+### openEuler / EulerOS (Huawei Cloud) Support
+
+This repository fully supports **openEuler** and **Huawei Cloud EulerOS (HCE) 2.0** on both
+**aarch64 (ARM64)** and **x86_64**. The one-click script has been verified end-to-end on
+HCE 2.0 (aarch64):
+
+```bash
+# One-click deploy on EulerOS / openEuler (any version)
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh \
+  | sudo bash -s -- install --yes --version 2.6.0   # pgxc_ctl path, fully verified
+
+# Or v5.0 — the script auto-detects EulerOS and uses pgxc_ctl to bypass the
+# opentenbase_ctl port bug
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh \
+  | sudo bash -s -- install --yes --version 5.0
+```
+
+**What the script does automatically on EulerOS/openEuler:**
+- Installs `sshpass` (CentOS Vault RPM fallback — EulerOS has no `sshpass` in its repos)
+- Creates the mandatory `opentenbase` system user and configures SSH trust (home: `/var/lib/opentenbase`)
+- Pre-seeds `known_hosts` with the local host key (required by `pgxc_ctl`'s internal SSH)
+- For v5.0, switches to the `pgxc_ctl` startup path to avoid the
+  [`opentenbase_ctl` port-allocation bug](https://github.com/OpenTenBase/OpenTenBase/issues/215)
+
+See [docs/EulerOS-Deployment-Issues.md](docs/EulerOS-Deployment-Issues.md) for full details.
 
 ---
 

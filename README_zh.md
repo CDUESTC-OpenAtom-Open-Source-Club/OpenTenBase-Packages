@@ -24,7 +24,7 @@
 | 特性 | 说明 |
 |------|------|
 | **多格式** | DEB (`.deb`) + RPM (`.rpm`) 双格式支持 |
-| **多发行版** | Ubuntu 20.04 / 22.04 / 24.04, Debian 11 / 12, RHEL/CentOS 8/9, Fedora, Rocky Linux, AlmaLinux, OpenEuler |
+| **多发行版** | Ubuntu/Debian，RHEL/CentOS/Fedora，Rocky/Alma，openEuler/EulerOS（含华为云 HCE 2.0，已端到端验证） |
 | **多架构** | x86_64 (amd64) + ARM64 (aarch64) |
 | **多版本共存** | 支持 v5.0 / v2.6 / v2.5 及开发版本并行安装，通过 `opentenbase-switch-version` 切换 |
 | **一键安装** | `curl -sSL ... \| sudo bash` 自动检测系统、下载对应包、解决依赖 |
@@ -71,7 +71,7 @@ curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/Op
 sudo apt update && sudo apt install -y opentenbase
 ```
 
-#### YUM/DNF（RHEL / CentOS / Fedora）
+#### YUM/DNF（RHEL / CentOS / Fedora / openEuler / EulerOS）
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
@@ -85,6 +85,16 @@ opentenbase_ctl install -c /tmp/otb_config.ini
 opentenbase_ctl start -c /tmp/otb_config.ini
 opentenbase_ctl status -c /tmp/otb_config.ini
 ```
+
+> **openEuler / EulerOS（华为云）说明**：本仓库完整支持 openEuler 与华为云 EulerOS（HCE）2.0，
+> 覆盖 aarch64 与 x86_64，已在 HCE 2.0 (aarch64) 上端到端验证通过。一键脚本在 EulerOS/openEuler 上会：
+> - 自动安装 `sshpass`（EulerOS 仓库无此包，脚本从 CentOS Vault 下载 RPM 兜底）
+> - 自动创建必需的 `opentenbase` 系统用户并配置 SSH 免密（home：`/var/lib/opentenbase`）
+> - 自动预置本机 host key 到 `known_hosts`（`pgxc_ctl` 内部 SSH 需要）
+> - **v5.0 自动改用 `pgxc_ctl` 启动**，绕过 `opentenbase_ctl` 端口分配 bug
+>   （见 [Issue #215](https://github.com/OpenTenBase/OpenTenBase/issues/215)）
+>
+> 详见 [docs/EulerOS-Deployment-Issues.md](docs/EulerOS-Deployment-Issues.md)。
 
 ### 手动下载
 

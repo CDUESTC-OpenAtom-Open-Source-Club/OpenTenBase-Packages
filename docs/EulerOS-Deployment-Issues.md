@@ -140,7 +140,35 @@ curl -sSL https://raw.githubusercontent.com/.../scripts/opentenbase.sh | sudo ba
 - ✅ 分布式表创建/读写测试通过
 - ✅ 分布式架构验证（GTM + CN + DN）
 
-### OpenTenBase 5.0 (opentenbase_ctl) ❌ 端口 Bug
+### OpenTenBase 5.0 ✅ 已解决（通过 pgxc_ctl 启动）
+
+**关键发现**：OpenTenBase 5.0 的 RPM 包**同时包含 `pgxc_ctl` 和 `opentenbase_ctl`**，
+即 5.0 支持两种启动方式。由于 `opentenbase_ctl` 在 EulerOS/aarch64 上有端口分配 bug，
+脚本在检测到 EulerOS/openEuler 时**自动切换到 `pgxc_ctl` 启动 5.0**，完美绕过该 bug。
+
+```
+curl -sSL https://raw.githubusercontent.com/.../scripts/opentenbase.sh | sudo bash -s -- install --yes --version 5.0
+```
+
+脚本输出会提示：
+```
+[WARN] 检测到 EulerOS/openEuler 系统
+[WARN] opentenbase_ctl 在此平台上有端口分配 bug（已上报 Issue #215）
+[INFO] 自动切换到 pgxc_ctl 启动 5.0（兼容且无此问题）
+```
+
+验证结果：
+- ✅ RPM 包安装成功
+- ✅ 自动检测 EulerOS 并切换 pgxc_ctl
+- ✅ GTM/Coordinator/Datanode 全部启动
+- ✅ 数据库连接成功（OpenTenBase V5.21）
+- ✅ 分片映射初始化（4096 条）
+- ✅ 分布式表创建/读写测试通过
+
+> **遗留**：`opentenbase_ctl` 的端口分配 bug 仍待上游修复（Issue #215）。在此之前，
+> EulerOS/openEuler 用户通过 `pgxc_ctl` 启动 5.0 是推荐方案。
+
+### opentenbase_ctl 端口分配 bug（待上游修复）
 
 确认存在端口分配 bug（已上报上游 Issue #215）：
 - GTM port = -16777216（负数）
@@ -194,11 +222,12 @@ curl -sSL https://raw.githubusercontent.com/.../scripts/uninstall.sh | sudo bash
 
 ## 测试矩阵
 
-| 版本 | 发行版 | 架构 | 状态 | 备注 |
-|------|--------|------|------|------|
-| 2.6.0 | HCE 2.0 | aarch64 | ✅ 通过 | 一键部署成功，分布式测试通过 |
-| 5.0 | HCE 2.0 | aarch64 | ❌ Bug | 端口分配负数，Issue #215 |
-| 2.5.0 | HCE 2.0 | aarch64 | 待测 | - |
+| 版本 | 启动方式 | 发行版 | 架构 | 状态 | 备注 |
+|------|----------|--------|------|------|------|
+| 2.6.0 | pgxc_ctl | HCE 2.0 | aarch64 | ✅ 通过 | 一键部署成功，分布式测试通过 |
+| 5.0 | pgxc_ctl（自动） | HCE 2.0 | aarch64 | ✅ 通过 | 脚本自动检测 EulerOS 切换 pgxc_ctl |
+| 5.0 | opentenbase_ctl | HCE 2.0 | aarch64 | ❌ Bug | 端口分配负数，Issue #215（已绕过） |
+| 2.5.0 | pgxc_ctl | HCE 2.0 | aarch64 | 待测 | - |
 
 ---
 
