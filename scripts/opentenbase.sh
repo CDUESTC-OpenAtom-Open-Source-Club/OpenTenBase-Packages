@@ -733,6 +733,32 @@ else
     log_warn "SSH 免密自连接未通，集群部署可能失败"
 fi
 
+# 预置 localhost host key 到 known_hosts
+# 重要：pgxc_ctl 内部 SSH 不带 StrictHostKeyChecking=no，若 known_hosts 中没有
+# 本机 host key 会因 "Host key verification failed" 导致所有远程操作失败。
+# 必须以 opentenbase 用户身份执行 ssh-keyscan，写入该用户的 known_hosts。
+log_info "预置本机 host key 到 known_hosts（pgxc_ctl 需要）..."
+HOSTNAME_LOCAL=$(hostname 2>/dev/null || echo localhost)
+su - "$SSH_USER" -c "
+    touch '$OTB_USER_HOME/.ssh/known_hosts'
+    chmod 644 '$OTB_USER_HOME/.ssh/known_hosts'
+    for host in 127.0.0.1 localhost '$HOSTNAME_LOCAL'; do
+        ssh-keyscan -t rsa,ecdsa,ed25519 \"\$host\" 2>/dev/null >> '$OTB_USER_HOME/.ssh/known_hosts'
+    done
+    sort -u '$OTB_USER_HOME/.ssh/known_hosts' -o '$OTB_USER_HOME/.ssh/known_hosts'
+" 2>/dev/null || {
+    # su 失败时用 sudo/runuser 回退
+    touch "$OTB_USER_HOME/.ssh/known_hosts"
+    for host in 127.0.0.1 localhost "$HOSTNAME_LOCAL"; do
+        ssh-keyscan -t rsa,ecdsa,ed25519 "$host" 2>/dev/null >> "$OTB_USER_HOME/.ssh/known_hosts"
+    done
+    sort -u "$OTB_USER_HOME/.ssh/known_hosts" -o "$OTB_USER_HOME/.ssh/known_hosts"
+    chown "$SSH_USER":"$SSH_USER" "$OTB_USER_HOME/.ssh/known_hosts"
+}
+chown "$SSH_USER":"$SSH_USER" "$OTB_USER_HOME/.ssh/known_hosts" 2>/dev/null || true
+chmod 644 "$OTB_USER_HOME/.ssh/known_hosts" 2>/dev/null || true
+log_ok "known_hosts 已预置本机 host key"
+
 # 创建 OSS_INSTALL_DIR 符号链接
 if [[ ! -e "/usr/local/install/opentenbase" ]]; then
     mkdir -p /usr/local/install
