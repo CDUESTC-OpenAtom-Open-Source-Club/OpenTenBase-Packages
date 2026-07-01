@@ -564,14 +564,50 @@ systemctl start ssh 2>/dev/null || \
 /usr/sbin/sshd 2>/dev/null || true
 log_ok "SSH 服务已启动"
 
-# 安装 sshpass（如果还没有）
+# 安装 sshpass（集群部署必需，用于 opentenbase_ctl/pgxc_ctl 内部 SSH 密码认证）
+# 方案优先级：1. 包管理器安装 2. 下载二进制 RPM 3. expect wrapper 备选
 if ! command -v sshpass &>/dev/null; then
+    log_info "尝试安装 sshpass..."
+    # 方案 1：包管理器安装
     apt-get install -y sshpass 2>/dev/null || \
     dnf install -y sshpass 2>/dev/null || \
     yum install -y sshpass 2>/dev/null || true
 fi
 
-# 如果 sshpass 仍然不可用（EulerOS 等），创建 expect wrapper
+# 方案 2：下载 sshpass 二进制 RPM（适用于 EulerOS 等无 sshpass 包的系统）
+if ! command -v sshpass &>/dev/null; then
+    log_info "包管理器安装失败，尝试下载 sshpass 二进制..."
+    ARCH=$(uname -m)
+    SSPASS_RPM_DIR="/tmp/sshpass-rpm"
+    mkdir -p "$SSPASS_RPM_DIR"
+
+    # 尝试多个下载源
+    SSPASS_URLS=(
+        # CentOS Vault (el7)
+        "https://vault.centos.org/7.9.2009/os/${ARCH}/Packages/sshpass-1.06-2.el7.${ARCH}.rpm"
+        # Fedora koji (el8)
+        "https://kojipkgs.fedoraproject.org/packages/sshpass/1.06/2.el8/${ARCH}/sshpass-1.06-2.el8.${ARCH}.rpm"
+        # EPEL 7
+        "https://dl.fedoraproject.org/pub/epel/7/${ARCH}/Packages/s/sshpass-1.06-2.el7.${ARCH}.rpm"
+    )
+
+    for url in "${SSPASS_URLS[@]}"; do
+        log_info "尝试下载: $url"
+        if curl -fsSL "$url" -o "$SSPASS_RPM_DIR/sshpass.rpm" 2>/dev/null; then
+            # 验证下载的文件是否是 RPM（不是 HTML 404 页面）
+            if file "$SSPASS_RPM_DIR/sshpass.rpm" | grep -q "RPM"; then
+                log_ok "sshpass RPM 下载成功"
+                rpm -ivh --nodeps "$SSPASS_RPM_DIR/sshpass.rpm" 2>/dev/null && break
+            else
+                log_warn "下载的不是有效的 RPM 文件"
+            fi
+        fi
+    done
+
+    rm -rf "$SSPASS_RPM_DIR" 2>/dev/null || true
+fi
+
+# 方案 3：expect wrapper 备选方案（最后的备选）
 if ! command -v sshpass &>/dev/null; then
     if command -v expect &>/dev/null; then
         log_info "创建 sshpass wrapper (expect)..."
@@ -579,6 +615,7 @@ if ! command -v sshpass &>/dev/null; then
 #!/bin/bash
 # sshpass wrapper using expect for systems without sshpass package
 # Usage: sshpass -p 'password' command [args]
+# 注意：此 wrapper 为备选方案，建议安装官方 sshpass 包以获得最佳兼容性
 password=""
 shift_count=0
 while [[ $# -gt 0 ]]; do
@@ -595,8 +632,8 @@ else
     expect -c "
         spawn $*
         expect {
-            -re \"password.*:\" { send \"$password\\r\"; exp_continue }
-            -re \"Password.*:\" { send \"$password\\r\"; exp_continue }
+            -re \"password.*:\" { send \"$password\r\"; exp_continue }
+            -re \"Password.*:\" { send \"$password\r\"; exp_continue }
             eof
         }
     " 2>/dev/null || "$@"
@@ -605,9 +642,14 @@ SSHPASS_WRAPPER
         chmod +x /usr/local/bin/sshpass
         # 确保在 PATH 中
         ln -sf /usr/local/bin/sshpass /usr/bin/sshpass 2>/dev/null || true
-        log_ok "sshpass wrapper 已创建"
+        log_ok "sshpass wrapper 已创建（备选方案）"
+        log_warn "建议手动安装官方 sshpass 包以获得最佳兼容性"
     else
-        log_warn "sshpass 和 expect 都不可用，集群部署可能失败"
+        log_error "sshpass 和 expect 都不可用，集群部署将失败"
+        log_error "请手动安装 sshpass："
+        log_error "  - EulerOS: 从 CentOS Vault 下载 RPM: rpm -ivh sshpass-1.06-2.el7.aarch64.rpm"
+        log_error "  - 其他系统: apt/dnf/yum install sshpass"
+        exit 1
     fi
 fi
 command -v sshpass &>/dev/null && log_ok "sshpass 就绪" || log_warn "sshpass 未安装（可能影响远程操作）"

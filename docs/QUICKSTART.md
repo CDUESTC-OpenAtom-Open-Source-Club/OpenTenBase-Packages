@@ -6,6 +6,23 @@
 
 ---
 
+## ⚠️ 重要提示：必须使用 opentenbase 用户
+
+OpenTenBase 集群管理工具（opentenbase_ctl / pgxc_ctl）**必须使用 `opentenbase` 用户**进行 SSH 连接和部署操作。
+
+**关键点：**
+- opentenbase 用户必须存在（脚本会自动创建）
+- opentenbase 用户的 home 目录是 `/var/lib/opentenbase`（系统用户，不在 `/home/`）
+- SSH 密钥必须放在 `/var/lib/opentenbase/.ssh/`
+- 不要尝试使用其他用户（如 root、developer）运行集群部署
+
+**脚本会自动处理：**
+1. 创建 opentenbase 系统用户
+2. 配置 `/var/lib/opentenbase/.ssh/` 目录和密钥
+3. 配置 authorized_keys 实现免密登录
+
+---
+
 ## 🚀 一键部署（最快方式）
 
 ```bash

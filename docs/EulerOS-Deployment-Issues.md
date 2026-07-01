@@ -7,7 +7,7 @@
 
 ## 发现的问题
 
-### 问题 1：sshpass 缺失 ✗ 严重
+### 问题 1：sshpass 缺失 ✗ 严重 → 已修复
 
 **现象**：
 ```
@@ -23,9 +23,22 @@
 - CN/DN 节点无法通过 SSH 传输文件
 - GTM 节点安装成功，但 CN/DN 失败
 
-**解决方案**：
-1. 创建 `sshpass` wrapper 使用 `expect` 替代
-2. 或在脚本中自动检测并安装替代方案
+**解决方案（已集成到脚本）**：
+1. **方案 A（推荐）**：下载 sshpass 二进制 RPM
+   ```bash
+   # 从 CentOS Vault 下载
+   curl -fsSL https://vault.centos.org/7.9.2009/os/aarch64/Packages/sshpass-1.06-2.el7.aarch64.rpm -o /tmp/sshpass.rpm
+   rpm -ivh --nodeps /tmp/sshpass.rpm
+   ```
+2. **方案 B（备选）**：使用 expect wrapper
+   - 脚本会自动创建 `/usr/local/bin/sshpass` wrapper
+   - 使用 expect 模拟 sshpass 行为
+
+**脚本改进**：
+- 优先尝试包管理器安装
+- 失败后自动下载 RPM（尝试多个源）
+- 最后备选 expect wrapper
+- 如果三种方案都失败，脚本报错退出并提示手动安装
 
 **相关代码**：
 ```
@@ -67,7 +80,7 @@ sudo chown -R opentenbase:opentenbase /var/lib/opentenbase/.ssh
 
 ---
 
-### 问题 3：端口分配 bug ✗ 严重
+### 问题 3：端口分配 bug ✗ 严重 → 已上报上游
 
 **现象**：
 ```
@@ -84,10 +97,18 @@ sudo chown -R opentenbase:opentenbase /var/lib/opentenbase/.ssh
 - GTM 配置文件生成错误的端口值
 - 节点无法正常启动
 
-**解决方案**：
-1. 在配置文件中手动指定端口（当前方案）
-2. 向 OpenTenBase 团队报告此 bug
-3. 或在脚本中修复生成的配置文件
+**对比测试结果**：
+- OpenTenBase 2.6.0 (pgxc_ctl)：端口分配正常（GTM 6666, coord 5432, dn1 15432）
+- OpenTenBase 5.0 (opentenbase_ctl)：端口为负数（-16777216, -828132608）
+
+**状态**：
+- 已确认是 opentenbase_ctl 上游 bug（不是脚本问题）
+- 已向官方提交 Issue：https://github.com/OpenTenBase/OpenTenBase/issues/215
+
+**临时解决方案**：
+1. 使用 OpenTenBase 2.6.0（pgxc_ctl）版本，无此问题
+2. 在配置文件中手动指定端口（绕过自动分配）
+3. 等待上游修复
 
 **GTM 配置文件示例**：
 ```
