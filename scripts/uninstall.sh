@@ -114,6 +114,7 @@ step "Stopping OpenTenBase processes..."
 
 if pgrep -f "gtm -D" &>/dev/null || pgrep -f "postgres.*opentenbase" &>/dev/null || pgrep -f "opentenbase_ctl" &>/dev/null; then
     # Try graceful stop first
+    # opentenbase_ctl (5.0)
     if command -v opentenbase_ctl &>/dev/null && [ -f /tmp/otb_config.ini ]; then
         info "Running opentenbase_ctl stop..."
         opentenbase_ctl stop 2>/dev/null || true
@@ -124,7 +125,19 @@ if pgrep -f "gtm -D" &>/dev/null || pgrep -f "postgres.*opentenbase" &>/dev/null
         sleep 2
     fi
 
-    # Kill remaining processes
+    # pgxc_ctl (2.5/2.6) - 配置文件在 /var/lib/opentenbase/pgxc_ctl/pgxc_ctl.conf
+    if command -v pgxc_ctl &>/dev/null && [ -f /var/lib/opentenbase/pgxc_ctl/pgxc_ctl.conf ]; then
+        info "Running pgxc_ctl stop all..."
+        # pgxc_ctl 需要在正确的工作目录执行
+        cd /var/lib/opentenbase/pgxc_ctl && pgxc_ctl stop all 2>/dev/null || true
+        sleep 2
+    fi
+
+    # Kill remaining processes by user
+    pkill -u opentenbase 2>/dev/null || true
+    sleep 2
+
+    # Kill remaining processes by pattern
     pkill -f "gtm -D" 2>/dev/null || true
     pkill -f "postgres.*-D.*opentenbase" 2>/dev/null || true
     pkill -f "opentenbase_ctl" 2>/dev/null || true
@@ -133,6 +146,7 @@ if pgrep -f "gtm -D" &>/dev/null || pgrep -f "postgres.*opentenbase" &>/dev/null
     # Force kill if still running
     if pgrep -f "gtm -D" &>/dev/null || pgrep -f "postgres.*-D.*opentenbase" &>/dev/null; then
         warn "Some processes still running, force killing..."
+        pkill -9 -u opentenbase 2>/dev/null || true
         pkill -9 -f "gtm -D" 2>/dev/null || true
         pkill -9 -f "postgres.*-D.*opentenbase" 2>/dev/null || true
         pkill -9 -f "opentenbase_ctl" 2>/dev/null || true
@@ -253,9 +267,18 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Remove old binary installations
+# 6. Remove old binary installations and /usr/lib/opentenbase
 # ---------------------------------------------------------------------------
 step "Checking for legacy installations..."
+
+# RPM 卸载后可能残留的目录
+if [[ -d "/usr/lib/opentenbase" ]]; then
+    dir_size=$(du -sh /usr/lib/opentenbase 2>/dev/null | cut -f1)
+    if ask_yes_no "Remove /usr/lib/opentenbase (${dir_size})?" "y"; then
+        rm -rf /usr/lib/opentenbase
+        ok "Removed /usr/lib/opentenbase"
+    fi
+fi
 
 for old_dir in "/data/opentenbase" "/usr/local/install/opentenbase"; do
     if [[ -d "$old_dir" ]]; then
