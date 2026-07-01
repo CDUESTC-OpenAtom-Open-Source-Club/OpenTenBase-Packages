@@ -570,16 +570,87 @@ if ! command -v sshpass &>/dev/null; then
     dnf install -y sshpass 2>/dev/null || \
     yum install -y sshpass 2>/dev/null || true
 fi
+
+# 如果 sshpass 仍然不可用（EulerOS 等），创建 expect wrapper
+if ! command -v sshpass &>/dev/null; then
+    if command -v expect &>/dev/null; then
+        log_info "创建 sshpass wrapper (expect)..."
+        cat > /usr/local/bin/sshpass << 'SSHPASS_WRAPPER'
+#!/bin/bash
+# sshpass wrapper using expect for systems without sshpass package
+# Usage: sshpass -p 'password' command [args]
+password=""
+shift_count=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -p) password="$2"; shift 2; shift_count=2 ;;
+        *) break ;;
+    esac
+done
+if [[ -z "$password" || $shift_count -eq 0 ]]; then
+    # No password provided, run command directly
+    "$@"
+else
+    # Use expect for password authentication
+    expect -c "
+        spawn $*
+        expect {
+            -re \"password.*:\" { send \"$password\\r\"; exp_continue }
+            -re \"Password.*:\" { send \"$password\\r\"; exp_continue }
+            eof
+        }
+    " 2>/dev/null || "$@"
+fi
+SSHPASS_WRAPPER
+        chmod +x /usr/local/bin/sshpass
+        # 确保在 PATH 中
+        ln -sf /usr/local/bin/sshpass /usr/bin/sshpass 2>/dev/null || true
+        log_ok "sshpass wrapper 已创建"
+    else
+        log_warn "sshpass 和 expect 都不可用，集群部署可能失败"
+    fi
+fi
 command -v sshpass &>/dev/null && log_ok "sshpass 就绪" || log_warn "sshpass 未安装（可能影响远程操作）"
 
 # 配置 opentenbase 用户 SSH 免密自连接（pgxc_ctl 和 opentenbase_ctl 都需要）
-if ! su - "$SSH_USER" -c "test -f ~/.ssh/id_rsa" 2>/dev/null; then
-    log_info "为 $SSH_USER 用户生成 SSH 密钥..."
-    su - "$SSH_USER" -c "ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa" 2>/dev/null
+# 重要：opentenbase 用户可能已存在（系统用户），home 目录在 /var/lib/opentenbase
+OTB_USER_HOME=$(getent passwd "$SSH_USER" | cut -d: -f6)
+if [[ -z "$OTB_USER_HOME" ]]; then
+    OTB_USER_HOME="/home/$SSH_USER"
 fi
-su - "$SSH_USER" -c "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys 2>/dev/null; sort -u ~/.ssh/authorized_keys -o ~/.ssh/authorized_keys 2>/dev/null" 2>/dev/null || true
+
+log_info "SSH 用户 $SSH_USER 的 home 目录: $OTB_USER_HOME"
+
+# 确保目录存在且有正确权限
+if [[ ! -d "$OTB_USER_HOME/.ssh" ]]; then
+    mkdir -p "$OTB_USER_HOME/.ssh"
+    chown "$SSH_USER":"$SSH_USER" "$OTB_USER_HOME/.ssh" 2>/dev/null || \
+    chown "$SSH_USER" "$OTB_USER_HOME/.ssh" 2>/dev/null || true
+    chmod 700 "$OTB_USER_HOME/.ssh"
+fi
+
+# 生成 SSH 密钥
+if [[ ! -f "$OTB_USER_HOME/.ssh/id_rsa" ]]; then
+    log_info "为 $SSH_USER 用户生成 SSH 密钥..."
+    ssh-keygen -t rsa -N '' -f "$OTB_USER_HOME/.ssh/id_rsa" -q 2>/dev/null || \
+    su - "$SSH_USER" -c "ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa" 2>/dev/null || true
+fi
+
+# 配置 authorized_keys
+if [[ -f "$OTB_USER_HOME/.ssh/id_rsa.pub" ]]; then
+    cat "$OTB_USER_HOME/.ssh/id_rsa.pub" >> "$OTB_USER_HOME/.ssh/authorized_keys" 2>/dev/null || true
+    sort -u "$OTB_USER_HOME/.ssh/authorized_keys" -o "$OTB_USER_HOME/.ssh/authorized_keys" 2>/dev/null || true
+fi
+
+# 修复权限
+chown -R "$SSH_USER":"$SSH_USER" "$OTB_USER_HOME/.ssh" 2>/dev/null || \
+chown -R "$SSH_USER" "$OTB_USER_HOME/.ssh" 2>/dev/null || true
+chmod 700 "$OTB_USER_HOME/.ssh"
+chmod 600 "$OTB_USER_HOME/.ssh/id_rsa" 2>/dev/null || true
+chmod 600 "$OTB_USER_HOME/.ssh/authorized_keys" 2>/dev/null || true
+
 # 测试 SSH 自连接
-if su - "$SSH_USER" -c "ssh -o StrictHostKeyChecking=no ${SSH_USER}@127.0.0.1 'echo SSH_OK'" 2>/dev/null | grep -q SSH_OK; then
+if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$OTB_USER_HOME/.ssh/id_rsa" "${SSH_USER}@127.0.0.1" 'echo SSH_OK' 2>/dev/null | grep -q SSH_OK; then
     log_ok "SSH 免密自连接就绪"
 else
     log_warn "SSH 免密自连接未通，集群部署可能失败"
@@ -813,7 +884,52 @@ else
     echo -e "  正在执行: ${CYAN}${OTB_CTL_BIN} install -c $CONFIG_FILE${NC}"
     echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
 
-    if su - "$SSH_USER" -c "${OTB_LD_PRELOAD}${OTB_CTL_BIN} install -c '$CONFIG_FILE'" < /dev/null 2>&1; then
+    # 执行安装
+    INSTALL_OUTPUT=$(su - "$SSH_USER" -c "${OTB_LD_PRELOAD}${OTB_CTL_BIN} install -c '$CONFIG_FILE'" 2>&1)
+    INSTALL_EXIT_CODE=$?
+
+    # 检测端口分配 bug（EulerOS/aarch64 问题）
+    if echo "$INSTALL_OUTPUT" | grep -q "invalid port number.*-"; then
+        log_warn "检测到端口分配 bug，尝试自动修复..."
+        log_info "opentenbase_ctl 在某些平台上端口分配算法存在问题"
+
+        # 查找实例目录
+        INSTANCE_DIR="/var/lib/opentenbase/run/instance/${CLUSTER_NAME}"
+        if [[ -d "$INSTANCE_DIR" ]]; then
+            # 修复 GTM 端口
+            GTM_CONF="$INSTANCE_DIR/gtm0001/data/gtm.conf"
+            if [[ -f "$GTM_CONF" ]] && grep -q "port = -" "$GTM_CONF"; then
+                sed -i 's/port = -[0-9]*/port = 6666/g' "$GTM_CONF"
+                log_ok "修复 GTM 端口: 6666"
+            fi
+
+            # 修复 CN/DN postgresql.conf 端口（如果存在）
+            for node_dir in "$INSTANCE_DIR"/cn* "$INSTANCE_DIR"/dn*; do
+                if [[ -d "$node_dir/data" ]]; then
+                    PG_CONF="$node_dir/data/postgresql.conf"
+                    if [[ -f "$PG_CONF" ]] && grep -q "^port = -" "$PG_CONF"; then
+                        # CN 默认端口 11003，DN 默认端口 15432
+                        if [[ "$node_dir" =~ cn ]]; then
+                            sed -i 's/^port = -[0-9]*/port = 11003/g' "$PG_CONF"
+                            log_ok "修复 CN 端口: 11003 ($node_dir)"
+                        else
+                            sed -i 's/^port = -[0-9]*/port = 15432/g' "$PG_CONF"
+                            log_ok "修复 DN 端口: 15432 ($node_dir)"
+                        fi
+                    fi
+                fi
+            done
+
+            # 重新尝试安装（使用修复后的配置）
+            log_info "重新执行安装..."
+            INSTALL_OUTPUT=$(su - "$SSH_USER" -c "${OTB_LD_PRELOAD}${OTB_CTL_BIN} install -c '$CONFIG_FILE'" 2>&1)
+            INSTALL_EXIT_CODE=$?
+        fi
+    fi
+
+    echo "$INSTALL_OUTPUT"
+
+    if [[ $INSTALL_EXIT_CODE -eq 0 ]]; then
         echo ""
         log_ok "集群安装成功"
     else
