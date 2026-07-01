@@ -63,6 +63,25 @@ fi
 # 脚本目录（管道执行时 BASH_SOURCE 为空，用 ${0:-.} 兜底，避免 set -u 报错）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0:-.}}")" 2>/dev/null && pwd || echo ".")"
 
+# curl|bash 管道执行时，同目录的其他脚本（uninstall.sh/switch-version.sh）不存在，
+# 需要从 CDN 下载。优先用本地脚本，找不到则走 CDN。
+OTB_SCRIPTS_CDN="https://repo.blackevil217.com/scripts"
+resolve_script() {
+    local name="$1"
+    # 1) 本地同目录
+    if [ -f "${SCRIPT_DIR}/${name}" ]; then
+        echo "${SCRIPT_DIR}/${name}"
+        return 0
+    fi
+    # 2) 从 CDN 下载到 /tmp
+    local tmp="/tmp/${name}"
+    if curl -sSL --connect-timeout 5 --max-time 30 "${OTB_SCRIPTS_CDN}/${name}" -o "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+        echo "$tmp"
+        return 0
+    fi
+    return 1
+}
+
 # ====================================================================
 # 子命令解析（新增）
 # ====================================================================
@@ -73,11 +92,13 @@ OTB_COMMAND="${1:-install}"
 case "$OTB_COMMAND" in
     uninstall)
         shift
-        exec bash "${SCRIPT_DIR}/uninstall.sh" "$@"
+        OTB_SUB=$(resolve_script uninstall.sh) || { echo "[ERROR] 找不到 uninstall.sh（本地与 CDN 均不可用）" >&2; exit 1; }
+        exec bash "$OTB_SUB" "$@"
         ;;
     switch)
         shift
-        exec bash "${SCRIPT_DIR}/switch-version.sh" "$@"
+        OTB_SUB=$(resolve_script switch-version.sh) || { echo "[ERROR] 找不到 switch-version.sh（本地与 CDN 均不可用）" >&2; exit 1; }
+        exec bash "$OTB_SUB" "$@"
         ;;
     install)
         shift || true

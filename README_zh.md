@@ -257,7 +257,7 @@ OpenTenBase 支持多个版本并行安装，类似 PostgreSQL 的 `postgresql-1
 # 查看已安装版本
 opentenbase-switch-version
 
-# 切换到指定版本
+# 切换到指定版本（需目标版本已安装）
 opentenbase-switch-version 5.0
 
 # 切换到另一个版本
@@ -266,6 +266,18 @@ opentenbase-switch-version 2.6.0
 # 验证当前版本
 readlink /etc/opentenbase/current
 ```
+
+**一键脚本切换版本：**
+
+```bash
+# 通过 CDN 一键脚本切换版本（需目标版本已安装）
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash -s -- switch 5.0
+
+# 或使用 GitHub 直连
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash -s -- switch 2.6.0
+```
+
+> **注意**：切换版本前需先停止当前版本的集群。多版本共存时，软件包注册只显示最后安装版本，但版本目录和集群进程会保留。详见"已知限制"部分。
 
 **版本化目录结构：**
 
@@ -488,7 +500,9 @@ gh workflow run stress-test.yml
 
 | 限制 | 说明 |
 |------|------|
-| 同机多集群 | 由于端口冲突，不支持同一台机器运行多套集群；每台机器运行一套集群（GTM + 协调器 + 数据节点） |
+| 多版本软件包注册 | 所有版本共享同一包名 `opentenbase`，后安装的版本会覆盖前一版本的软件包注册（`rpm -q` 或 `dpkg -l` 只显示最后安装版本）。但版本目录 `/usr/lib/opentenbase/<ver>` 会保留，集群进程仍可正常运行。 |
+| 多版本配置目录 | 安装新版本时，前一版本的 `/etc/opentenbase/<ver>` 配置目录会被覆盖，导致 `opentenbase-switch-version` 可能无法切换到旧版本（需重装）。 |
+| 多版本 bin 目录 | 安装新版本时，前一版本的 `/usr/lib/opentenbase/<ver>/bin` 目录可能被删除，导致无法使用旧版本的工具（如 `pgxc_ctl`），但旧版本集群进程仍可继续运行。 |
 
 ---
 
