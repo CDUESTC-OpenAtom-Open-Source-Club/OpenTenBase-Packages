@@ -310,8 +310,14 @@ INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
 # status/test 子命令不传 --version，这里按实际安装版本显示，避免 banner 误报 5.0
 if [[ "$OTB_COMMAND" != "install" ]]; then
     OTB_VERSION=$(detect_installed_version)
+    OTB_SHORT_VER="${OTB_VERSION%%.*}"
     USE_PGXC_CTL=false
     [[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
+    # EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（避免端口 bug）
+    if [[ "$OTB_VERSION" == "5.0" ]]; then
+        OS_TYPE=$(detect_os_type)
+        [[ "$OS_TYPE" == "euler" ]] && USE_PGXC_CTL=true
+    fi
 fi
 echo -e "  版本: ${GREEN}${OTB_VERSION}${NC}  链路: ${GREEN}$([[ "$USE_PGXC_CTL" == "true" ]] && echo 'pgxc_ctl' || echo 'opentenbase_ctl')${NC}"
 echo ""
@@ -1319,6 +1325,11 @@ show_cluster_status() {
 	# 尝试数据库连接
 	log_info "尝试数据库连接..."
 	CN_PORT=$([[ "$USE_PGXC_CTL" == "true" ]] && echo 5432 || echo 11003)
+	# EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（端口 5432）
+	if [[ "$OTB_VERSION" == "5.0" ]]; then
+		OS_TYPE=$(detect_os_type)
+		[[ "$OS_TYPE" == "euler" ]] && CN_PORT=5432
+	fi
 	PSQL_BIN="${INSTALL_DIR}/bin/psql"
 	PSQL_LIB="${INSTALL_DIR}/lib"
 
@@ -1343,6 +1354,11 @@ run_verification_test() {
 	OTB_VERSION=$(detect_installed_version)
 	USE_PGXC_CTL=false
 	[[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
+	# EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（避免端口 bug）
+	if [[ "$OTB_VERSION" == "5.0" ]]; then
+		OS_TYPE=$(detect_os_type)
+		[[ "$OS_TYPE" == "euler" ]] && USE_PGXC_CTL=true
+	fi
 	CN_PORT=$([[ "$USE_PGXC_CTL" == "true" ]] && echo 5432 || echo 11003)
 
 	INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
