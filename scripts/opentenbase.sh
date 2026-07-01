@@ -355,14 +355,14 @@ else
         log_info "安装 sshpass..."
         apt-get install -y sshpass >/dev/null 2>&1 || true
 
-        # 配置仓库
-        if ! apt-cache show opentenbase >/dev/null 2>&1; then
+        # 配置仓库（用 sources.list 文件存在性检查，避免包名匹配干扰）
+        if [ ! -f /etc/apt/sources.list.d/opentenbase.list ]; then
             log_info "配置 OpenTenBase APT 仓库..."
             # Use CDN for faster global access, fallback to GitHub raw
             CDN_URL="https://repo.blackevil217.com/scripts/setup-apt.sh"
             GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh"
 
-            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash -s -- --version "$OTB_VERSION"; then
+            if curl -sSL --connect-timeout 5 --max-time 60 "$CDN_URL" | bash -s -- --version "$OTB_VERSION"; then
                 log_ok "APT repository configured via CDN (version $OTB_VERSION)"
             else
                 log_warn "CDN unavailable, falling back to GitHub..."
@@ -390,14 +390,16 @@ else
         log_info "安装 sshpass..."
         $YUM install -y sshpass >/dev/null 2>&1 || true
 
-        # 配置仓库
-        if ! $YUM list available opentenbase >/dev/null 2>&1; then
+        # 配置仓库（用 repo 文件存在性检查，而非包名匹配——后者会被
+        # 系统自带仓库里大小写不同的同名包干扰，例如 OpenCloudOS 的 EPOL
+        # 里有 OpenTenBase，会让 dnf list available opentenbase 误判为已可用）
+        if [ ! -f /etc/yum.repos.d/opentenbase.repo ]; then
             log_info "配置 OpenTenBase RPM 仓库..."
             # Use CDN for faster global access, fallback to GitHub raw
             CDN_URL="https://repo.blackevil217.com/scripts/setup-rpm.sh"
             GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh"
 
-            if curl -sSL --connect-timeout 5 --max-time 15 "$CDN_URL" | bash -s -- --version "$OTB_VERSION"; then
+            if curl -sSL --connect-timeout 5 --max-time 60 "$CDN_URL" | bash -s -- --version "$OTB_VERSION"; then
                 log_ok "RPM repository configured via CDN (version $OTB_VERSION)"
             else
                 log_warn "CDN unavailable, falling back to GitHub..."
