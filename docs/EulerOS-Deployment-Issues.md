@@ -121,12 +121,57 @@ port = 6666
 
 ---
 
+## 测试结果总结（2026-07-01）
+
+### OpenTenBase 2.6.0 (pgxc_ctl) ✅ 完全成功
+
+一键部署脚本测试通过：
+```
+curl -sSL https://raw.githubusercontent.com/.../scripts/opentenbase.sh | sudo bash -s -- install --yes --version 2.6.0
+```
+
+验证结果：
+- ✅ RPM 包安装成功
+- ✅ sshpass 安装成功（改进后的脚本）
+- ✅ opentenbase 用户 SSH 配置正确
+- ✅ GTM 启动正常（port=6666）
+- ✅ Coordinator 启动正常（port=5432）
+- ✅ Datanode 启动正常（port=15432）
+- ✅ 分布式表创建/读写测试通过
+- ✅ 分布式架构验证（GTM + CN + DN）
+
+### OpenTenBase 5.0 (opentenbase_ctl) ❌ 端口 Bug
+
+确认存在端口分配 bug（已上报上游 Issue #215）：
+- GTM port = -16777216（负数）
+- Coordinator port = -16777216（负数）
+- forward_port = -828132608（负数）
+
+### RPM 卸载注意事项 ⚠️
+
+卸载后发现的问题：
+1. RPM 卸载不会自动停止集群进程
+2. 卸载后有残留目录（/usr/lib/opentenbase/）
+3. 需要手动停止进程并清理目录
+
+建议卸载流程：
+```bash
+# 1. 停止集群
+sudo pkill -9 -u opentenbase
+# 2. 卸载 RPM
+sudo yum remove -y opentenbase
+# 3. 清理残留
+sudo rm -rf /usr/lib/opentenbase /var/lib/opentenbase
+```
+
+---
+
 ## 其他发现
 
 ### RPM 包安装正常 ✓
 - GPG key 导入成功（使用 GitHub Pages 源）
 - YUM 仓库配置正常
-- opentenbase-5.0-1.aarch64 安装成功
+- opentenbase-2.6.0-1.aarch64 安装成功
 
 ### GTM 手动启动成功 ✓
 - 修复端口配置后，GTM 可以正常启动
@@ -136,31 +181,25 @@ port = 6666
 
 ## 修复计划
 
-### 短期修复（脚本层面）
-1. 在 `setup-rpm.sh` 或 `opentenbase.sh` 中：
-   - 自动创建 opentenbase 用户
-   - 配置 SSH 免密登录（/var/lib/opentenbase/.ssh/）
-   - 创建 sshpass wrapper（使用 expect）
-   - 检测并修复端口配置问题
+### 已完成的修复（脚本层面）
+1. ✅ sshpass 安装改进：包管理器 → 下载 RPM → expect wrapper 备选
+2. ✅ opentenbase 用户 SSH 配置自动处理（检测 home 目录位置）
+3. ✅ 文档中添加 opentenbase 用户必须的重要声明
+4. ✅ 向上游提交 Issue #215（端口分配 bug）
 
-### 长期修复（上游反馈）
-1. 向 OpenTenBase 团队报告：
-   - EulerOS/aarch64 端口分配 bug
-   - sshpass 依赖问题
-2. 提供 EulerOS 兼容性补丁
+### 待后续处理
+1. RPM 卸载流程改进（自动停止集群、清理残留）
+2. 等待上游修复 opentenbase_ctl 端口分配 bug
 
 ---
 
-## 测试矩阵待完成
+## 测试矩阵
 
-| 发行版 | 架构 | 状态 | 问题 |
-|--------|------|------|------|
-| openeuler | aarch64 | 待测 | 本文档记录的问题 |
-| el8 | aarch64 | ✗ | 仓库未发布 |
-| el9 | aarch64 | 待测 | - |
-| openeuler | x86_64 | 待测 | - |
-| el8 | x86_64 | ✓ | 已测试（需确认） |
-| el9 | x86_64 | 待测 | - |
+| 版本 | 发行版 | 架构 | 状态 | 备注 |
+|------|--------|------|------|------|
+| 2.6.0 | HCE 2.0 | aarch64 | ✅ 通过 | 一键部署成功，分布式测试通过 |
+| 5.0 | HCE 2.0 | aarch64 | ❌ Bug | 端口分配负数，Issue #215 |
+| 2.5.0 | HCE 2.0 | aarch64 | 待测 | - |
 
 ---
 
