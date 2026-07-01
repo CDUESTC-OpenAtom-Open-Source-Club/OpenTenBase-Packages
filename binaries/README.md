@@ -100,4 +100,4 @@ When adding new static binaries:
 3. Strip to reduce size: `strip binary`
 4. Name by architecture: `binary-{arch}`
 5. Add to this directory and update CDN
-6. Update `binaries/README.md` with build instructions
+6. Update `binaries/README.md` with build instructions# Static Binaries
