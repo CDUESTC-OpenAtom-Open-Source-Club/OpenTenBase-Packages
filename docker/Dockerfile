@@ -1,31 +1,22 @@
 # OpenTenBase Docker Image
-# 基于 OpenTenBase 5.0 RPM 包构建
+# 直接从 RPM 包安装
 
-FROM alpine:3.20 AS builder
+FROM rockylinux:9
 
-# 安装编译工具
-RUN apk add --no-cache curl rpm2cpio cpio
+# 安装依赖
+RUN yum install -y \
+    curl \
+    gnupg2 \
+    libatomic \
+    libpq \
+    libssh2 \
+    && yum clean all
 
-# 下载并解压 RPM 包
-WORKDIR /build
-RUN curl -fsSL https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-p32/opentenbase-5.0-1.openeuler-22.03-5.0-x86_64.x86_64.rpm -o opentenbase.rpm \
-    && rpm2cpio opentenbase.rpm | cpio -idmv
+# 配置 OpenTenBase 仓库
+RUN curl -fsSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
 
-# 运行时镜像
-FROM alpine:3.20
-
-# 安装运行依赖
-RUN apk add --no-cache \
-    bash \
-    libintl \
-    libuuid \
-    libxml2 \
-    openssl \
-    zlib
-
-# 从 builder 复制 OpenTenBase
-COPY --from=builder /build/usr/lib/opentenbase /usr/lib/opentenbase
-COPY --from=builder /build/usr/bin /usr/bin
+# 安装 OpenTenBase
+RUN yum install -y opentenbase-5.0
 
 # 创建数据目录
 RUN mkdir -p /data/gtm /data/coord /data/dn1 && \
