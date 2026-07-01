@@ -8,7 +8,7 @@ RUN apk add --no-cache curl rpm2cpio cpio
 
 # 下载并解压 RPM 包
 WORKDIR /build
-RUN curl -fsSL https://repo.blackevil217.com/rpm/opentenbase-5.0-1.openeuler-22.03-5.0-x86_64.x86_64.rpm -o opentenbase.rpm \
+RUN curl -fsSL https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/v5.0-p32/opentenbase-5.0-1.openeuler-22.03-5.0-x86_64.x86_64.rpm -o opentenbase.rpm \
     && rpm2cpio opentenbase.rpm | cpio -idmv
 
 # 运行时镜像
