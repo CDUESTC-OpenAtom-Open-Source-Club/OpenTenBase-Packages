@@ -7,7 +7,7 @@
 
 ## 发现的问题
 
-### 问题 1：sshpass 缺失 ✗ 严重 → 已修复
+### 问题 1：sshpass 缺失 ✗ 严重 → 已通过标准化方案解决
 
 **现象**：
 ```
@@ -23,22 +23,45 @@
 - CN/DN 节点无法通过 SSH 传输文件
 - GTM 节点安装成功，但 CN/DN 失败
 
-**解决方案（已集成到脚本）**：
-1. **方案 A（推荐）**：下载 sshpass 二进制 RPM
-   ```bash
-   # 从 CentOS Vault 下载
-   curl -fsSL https://vault.centos.org/7.9.2009/os/aarch64/Packages/sshpass-1.06-2.el7.aarch64.rpm -o /tmp/sshpass.rpm
-   rpm -ivh --nodeps /tmp/sshpass.rpm
-   ```
-2. **方案 B（备选）**：使用 expect wrapper
-   - 脚本会自动创建 `/usr/local/bin/sshpass` wrapper
-   - 使用 expect 模拟 sshpass 行为
+**标准化解决方案（已集成到脚本）**：
 
-**脚本改进**：
-- 优先尝试包管理器安装
-- 失败后自动下载 RPM（尝试多个源）
-- 最后备选 expect wrapper
-- 如果三种方案都失败，脚本报错退出并提示手动安装
+采用**包管理器 → 静态二进制 → 清晰报错**的标准化流程，而非发行版特例补丁：
+
+```
+┌─────────────────────────────────────────────────────┐
+│            sshpass 能力获取（标准化流程）              │
+├─────────────────────────────────────────────────────┤
+│  优先级 1：系统包管理器                               │
+│     apt-get / dnf / yum / apk                       │
+│                                                     │
+│  优先级 2：静态二进制下载（通用备选）                  │
+│     从 CDN 下载预编译的静态 sshpass                   │
+│     支持 x86_64 + aarch64                           │
+│     不依赖任何包管理器或 expect                       │
+│                                                     │
+│  优先级 3：清晰报错                                  │
+│     列出缺失能力清单                                 │
+│     提供手动安装指引                                 │
+│     优雅退出（exit 1）                              │
+└─────────────────────────────────────────────────────┘
+```
+
+**架构改进**：
+- ✅ 移除 expect wrapper（发行版特例补丁）
+- ✅ 添加环境能力预检函数（`check_required_capabilities`）
+- ✅ 静态二进制作为通用备选方案
+- ✅ 清晰的失败处理和手动指引
+
+**静态二进制来源**：
+- 主源：`https://repo.blackevil217.com/binaries/sshpass-{arch}`
+- 备选：`https://raw.githubusercontent.com/.../binaries/sshpass-{arch}`
+- 构建方法见：`binaries/README.md`
+
+**适用场景**：
+- EulerOS/openEuler（无 sshpass 包）
+- Alpine（无 sshpass 包）
+- 精简容器环境（无包管理器）
+- 无 root 权限环境（下载静态二进制到用户目录）
 
 **相关代码**：
 ```
