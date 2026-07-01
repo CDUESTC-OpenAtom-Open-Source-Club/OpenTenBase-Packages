@@ -93,10 +93,11 @@ echo "  ==========================================="
 echo ""
 
 # Check if OpenTenBase is actually installed
+# 检测元包 opentenbase（实际安装的就是它），而非子包 opentenbase-server
 INSTALLED=false
-if [[ "$PKG_MGR" == "apt" ]] && dpkg -l opentenbase-server &>/dev/null 2>&1; then
+if [[ "$PKG_MGR" == "apt" ]] && dpkg -l opentenbase &>/dev/null 2>&1; then
     INSTALLED=true
-elif [[ "$PKG_MGR" == "dnf" || "$PKG_MGR" == "yum" ]] && rpm -q opentenbase-server &>/dev/null 2>&1; then
+elif [[ "$PKG_MGR" == "dnf" || "$PKG_MGR" == "yum" ]] && rpm -q opentenbase &>/dev/null 2>&1; then
     INSTALLED=true
 fi
 
@@ -151,7 +152,7 @@ step "Removing OpenTenBase packages..."
 PACKAGES="opentenbase opentenbase-server opentenbase-client opentenbase-contrib libopentenbase-dev opentenbase-dev opentenbase-doc"
 
 if [[ "$PKG_MGR" == "apt" ]]; then
-    if dpkg -l opentenbase-server &>/dev/null 2>&1; then
+    if dpkg -l opentenbase &>/dev/null 2>&1; then
         apt-get remove --purge -y $PACKAGES 2>/dev/null || true
         apt-get autoremove -y 2>/dev/null || true
         ok "DEB packages removed"
@@ -159,16 +160,17 @@ if [[ "$PKG_MGR" == "apt" ]]; then
         ok "No DEB packages found"
     fi
 elif [[ "$PKG_MGR" == "dnf" ]]; then
-    if rpm -q opentenbase-server &>/dev/null 2>&1; then
-        dnf remove -y $PACKAGES 2>/dev/null || true
+    if rpm -q opentenbase &>/dev/null 2>&1; then
+        # nodeps 安装的包 dnf remove 可能失败，回退 rpm -e --nodeps
+        dnf remove -y $PACKAGES 2>/dev/null || rpm -e --nodeps $PACKAGES 2>/dev/null || true
         dnf autoremove -y 2>/dev/null || true
         ok "RPM packages removed"
     else
         ok "No RPM packages found"
     fi
 elif [[ "$PKG_MGR" == "yum" ]]; then
-    if rpm -q opentenbase-server &>/dev/null 2>&1; then
-        yum remove -y $PACKAGES 2>/dev/null || true
+    if rpm -q opentenbase &>/dev/null 2>&1; then
+        yum remove -y $PACKAGES 2>/dev/null || rpm -e --nodeps $PACKAGES 2>/dev/null || true
         ok "RPM packages removed"
     else
         ok "No RPM packages found"
