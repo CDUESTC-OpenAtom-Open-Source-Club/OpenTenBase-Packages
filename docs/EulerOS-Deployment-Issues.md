@@ -147,22 +147,21 @@ curl -sSL https://raw.githubusercontent.com/.../scripts/opentenbase.sh | sudo ba
 - Coordinator port = -16777216（负数）
 - forward_port = -828132608（负数）
 
-### RPM 卸载注意事项 ⚠️
+### RPM 卸载注意事项 ⚠️ → 已修复
 
-卸载后发现的问题：
-1. RPM 卸载不会自动停止集群进程
-2. 卸载后有残留目录（/usr/lib/opentenbase/）
-3. 需要手动停止进程并清理目录
+卸载后发现的问题（已在 uninstall.sh 中修复）：
+1. ❌ RPM 卸载不会自动停止集群进程 → ✅ 已添加 pgxc_ctl 停止逻辑
+2. ❌ 卸载后有残留目录（/usr/lib/opentenbase/）→ ✅ 已添加自动清理
 
-建议卸载流程：
+使用改进后的卸载脚本：
 ```bash
-# 1. 停止集群
-sudo pkill -9 -u opentenbase
-# 2. 卸载 RPM
-sudo yum remove -y opentenbase
-# 3. 清理残留
-sudo rm -rf /usr/lib/opentenbase /var/lib/opentenbase
+curl -sSL https://raw.githubusercontent.com/.../scripts/uninstall.sh | sudo bash -s -- --yes --purge
 ```
+
+卸载验证结果：
+- ✅ RPM 包已卸载
+- ✅ 进程已停止（0 个）
+- ✅ 目录已清理（/usr/lib/opentenbase、/var/lib/opentenbase、/etc/opentenbase）
 
 ---
 
