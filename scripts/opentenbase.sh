@@ -124,6 +124,30 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_step()  { echo -e "\n${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; echo -e "${BLUE}${BOLD}  $*${NC}"; echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"; }
 log_ok()    { echo -e "${GREEN}${BOLD}  ✓${NC} $*"; }
 
+# 检测实际安装的 OpenTenBase 版本（供 status/test 子命令用）
+# 优先级：rpm 查询 > /usr/lib/opentenbase 目录扫描 > 默认 5.0
+# 不能依赖 opentenbase-switch-version（可能未安装），否则会误判为 5.0。
+detect_installed_version() {
+    local ver=""
+    # 1) rpm 元包查询最可靠（version-release，取 release 前的 version）
+    if command -v rpm >/dev/null 2>&1; then
+        ver=$(rpm -q --qf '%{VERSION}' opentenbase 2>/dev/null | grep -E '^(5\.0|2\.6\.0|2\.5\.0)$' | head -1)
+    fi
+    # 2) 扫描安装目录（apt 系统或 nodeps 安装 rpm 查询不到时）
+    if [ -z "$ver" ]; then
+        local d
+        for d in /usr/lib/opentenbase/5.0 /usr/lib/opentenbase/2.6.0 /usr/lib/opentenbase/2.5.0; do
+            if [ -x "$d/bin/postgres" ] || [ -x "$d/bin/pgxc_ctl" ] || [ -x "$d/bin/opentenbase_ctl" ]; then
+                ver=$(basename "$d")
+                break
+            fi
+        done
+    fi
+    # 3) 兜底
+    [ -n "$ver" ] || ver="5.0"
+    echo "$ver"
+}
+
 # 交互式提问（带默认值）
 ask() {
     local prompt="$1"
@@ -227,6 +251,12 @@ case "$OTB_VERSION" in
 esac
 
 INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
+# status/test 子命令不传 --version，这里按实际安装版本显示，避免 banner 误报 5.0
+if [[ "$OTB_COMMAND" != "install" ]]; then
+    OTB_VERSION=$(detect_installed_version)
+    USE_PGXC_CTL=false
+    [[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
+fi
 echo -e "  版本: ${GREEN}${OTB_VERSION}${NC}  链路: ${GREEN}$([[ "$USE_PGXC_CTL" == "true" ]] && echo 'pgxc_ctl' || echo 'opentenbase_ctl')${NC}"
 echo ""
 
@@ -916,29 +946,6 @@ fi  # end of "if [[ "$OTB_COMMAND" == "install" ]]" 部署主体守卫
 # ====================================================================
 # 新增功能函数（子命令实现）
 # ====================================================================
-
-# 检测实际安装的 OpenTenBase 版本（供 status/test 子命令用）
-# 优先级：rpm 查询 > /usr/lib/opentenbase 目录扫描 > 默认 5.0
-# 不能依赖 opentenbase-switch-version（可能未安装），否则会误判为 5.0。
-detect_installed_version() {
-    local ver=""
-    # 1) rpm 元包查询最可靠（version-release，取 release 前的 version）
-    if command -v rpm >/dev/null 2>&1; then
-        ver=$(rpm -q --qf '%{VERSION}' opentenbase 2>/dev/null | grep -E '^(5\.0|2\.6\.0|2\.5\.0)$' | head -1)
-    fi
-    # 2) 扫描安装目录（apt 系统或 nodeps 安装 rpm 查询不到时）
-    if [ -z "$ver" ]; then
-        for d in /usr/lib/opentenbase/5.0 /usr/lib/opentenbase/2.6.0 /usr/lib/opentenbase/2.5.0; do
-            if [ -x "$d/bin/postgres" ] || [ -x "$d/bin/pgxc_ctl" ] || [ -x "$d/bin/opentenbase_ctl" ]; then
-                ver=$(basename "$d")
-                break
-            fi
-        done
-    fi
-    # 3) 兜底
-    [ -n "$ver" ] || ver="5.0"
-    echo "$ver"
-}
 
 # 显示使用帮助
 show_usage() {
