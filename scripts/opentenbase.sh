@@ -1283,6 +1283,11 @@ show_cluster_status() {
 	# 检测使用的链路
 	USE_PGXC_CTL=false
 	[[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
+	# EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（避免端口 bug）
+	if [[ "$OTB_VERSION" == "5.0" ]]; then
+		OS_TYPE=$(detect_os_type)
+		[[ "$OS_TYPE" == "euler" ]] && USE_PGXC_CTL=true
+	fi
 
 	if [[ "$USE_PGXC_CTL" == "true" ]]; then
 		log_info "使用 pgxc_ctl 链路（v${OTB_VERSION}）"
