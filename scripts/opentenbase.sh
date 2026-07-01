@@ -411,11 +411,27 @@ else
 
         # 安装
         log_info "安装 opentenbase..."
-        $YUM install -y opentenbase 2>/dev/null || \
-        $YUM install -y --nogpgcheck opentenbase 2>/dev/null || {
-            log_error "$YUM 安装失败，请手动运行: $YUM install opentenbase"
-            exit 1
-        }
+        if ! $YUM install -y opentenbase 2>/dev/null && \
+           ! $YUM install -y --nogpgcheck --nobest opentenbase 2>/dev/null; then
+            # 兜底：某些发行版（如 OpenCloudOS/RHEL）缺少 RPM 构建时记录的
+            # Red Hat 特有符号依赖（libpq.so.5(RHPG_10) 等），导致 dnf 拒绝安装。
+            # 但 opentenbase 包自带完整 libpq（在 INSTALL_DIR/lib/），运行时不依赖
+            # 系统 libpq，所以用 rpm --nodeps 强制安装是安全的。
+            log_warn "$YUM 安装因依赖符号失败，降级用 rpm --nodeps 强制安装..."
+            rm -f /tmp/opentenbase-*.rpm 2>/dev/null
+            ( cd /tmp && $YUM download opentenbase >/dev/null 2>&1 )
+            OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*.rpm 2>/dev/null | head -1)
+            if [ -n "$OTB_PKG_RPM" ] && [ -f "$OTB_PKG_RPM" ]; then
+                rpm -ivh --nodeps "$OTB_PKG_RPM" || {
+                    log_error "rpm 强制安装失败: $OTB_PKG_RPM"
+                    exit 1
+                }
+                log_ok "已通过 rpm --nodeps 安装 (跳过 RHPG 符号依赖)"
+            else
+                log_error "$YUM 安装失败且无法下载包，请手动运行: $YUM install opentenbase"
+                exit 1
+            fi
+        fi
     else
         log_error "不支持的系统（无 apt/dnf/yum）"
         exit 1
