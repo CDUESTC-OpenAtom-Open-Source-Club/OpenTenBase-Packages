@@ -169,6 +169,29 @@ detect_installed_version() {
     echo "$ver"
 }
 
+# 检测操作系统类型（用于判断是否使用 pgxc_ctl 替代 opentenbase_ctl）
+detect_os_type() {
+    local os_type="unknown"
+    # 检测 EulerOS / openEuler / HCE
+    if [ -f /etc/os-release ]; then
+        local id=""
+        id=$(grep -E "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
+        case "$id" in
+            euler|openeuler|hce|HuaweiCloudEulerOS)
+                os_type="euler"
+                ;;
+            *)
+                os_type="other"
+                ;;
+        esac
+    elif [ -f /etc/euleros-release ]; then
+        os_type="euler"
+    elif [ -f /etc/openeuler-release ]; then
+        os_type="euler"
+    fi
+    echo "$os_type"
+}
+
 # 交互式提问（带默认值）
 ask() {
     local prompt="$1"
@@ -261,9 +284,21 @@ case "$OTB_VERSION" in
         CN_PORT_DEFAULT=5432
         ;;
     5.0)
-        USE_PGXC_CTL=false
-        OTB_SHORT_VER="5"
-        CN_PORT_DEFAULT=11003
+        # 在 EulerOS/openEuler 上，opentenbase_ctl 有端口分配 bug
+        # 自动切换到 pgxc_ctl（5.0 也支持）
+        OS_TYPE=$(detect_os_type)
+        if [[ "$OS_TYPE" == "euler" ]]; then
+            USE_PGXC_CTL=true
+            OTB_SHORT_VER="5"
+            CN_PORT_DEFAULT=5432
+            log_warn "检测到 EulerOS/openEuler 系统"
+            log_warn "opentenbase_ctl 在此平台上有端口分配 bug（已上报 Issue #215）"
+            log_info "自动切换到 pgxc_ctl 启动 5.0（兼容且无此问题）"
+        else
+            USE_PGXC_CTL=false
+            OTB_SHORT_VER="5"
+            CN_PORT_DEFAULT=11003
+        fi
         ;;
     *)
         log_error "不支持的版本: $OTB_VERSION（支持: 5.0 / 2.6.0 / 2.5.0）"
