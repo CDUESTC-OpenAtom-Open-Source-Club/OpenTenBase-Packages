@@ -716,7 +716,7 @@ install_sshpass() {
 
     # 方案 2：静态二进制下载（通用方案，不依赖包管理器）
     # 预编译的静态 sshpass 存放在仓库 CDN，支持 x86_64 和 aarch64
-    SSPASS_STATIC_URL="https://repo.blackevil217.com/binaries/sshpass-${ARCH}"
+    SSPASS_STATIC_URL="https://pub-eed8815c064447e293145382db9f6b98.r2.dev/sshpass-${ARCH}"
     SSPASS_FALLBACK_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/binaries/sshpass-${ARCH}"
 
     if command -v curl &>/dev/null || command -v wget &>/dev/null; then
