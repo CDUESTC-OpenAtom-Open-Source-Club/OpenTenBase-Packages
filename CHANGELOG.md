@@ -18,6 +18,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - Made GPG signing tolerant of missing `dpkg-sig` on Ubuntu 24.04.
 - Install `gcc-toolset-11` on RHEL-8 for C++17 compatibility.
 - Always build libpqxx 7.9.2 from source to resolve RPM build failures; restore working directory after the source build.
+- **curl|bash script resolution**: `uninstall`/`switch` subcommands now resolve scripts from CDN when run in pipe mode (`${SCRIPT_DIR}/uninstall.sh` not found). Added `resolve_script()` function with CDN fallback. (PR #56)
+- **RPM install version pinning**: Install specific version `opentenbase-${OTB_VERSION}` instead of `opentenbase`, preventing dnf from picking the highest version when multiple are available. Fallback to `rpm --nodeps` when dnf rejects RHPG symbol dependencies. (PR #51, #52)
+- **RPM repo config check**: Check repo file existence instead of package availability, avoiding false-positive match with distro's case-insensitive `OpenTenBase` package. (PR #50)
+- **pgxc_ctl init permissions**: `chown -R` the work directory before `pgxc_ctl init all`, and pass `--home` flag to pgxc_ctl. (PR #53)
+- **Version detection**: `status`/`test` subcommands now use `detect_installed_version()` instead of relying on non-existent `opentenbase-switch-version`. (PR #54, #55)
 
 ### CI
 - Auto-trigger CDN repo deployment after a Release is published.
