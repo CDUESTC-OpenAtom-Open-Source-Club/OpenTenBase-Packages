@@ -1,108 +1,57 @@
 name: Build Static sshpass Binaries
 
 on:
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - '.github/workflows/build-sshpass.yml'
-      - 'binaries/VERSION'
-
-permissions:
-  contents: write
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-latest
-            platform: linux/amd64
-          - arch: aarch64
-            runner: ubuntu-latest
-            platform: linux/arm64
-
-    runs-on: ${{ matrix.runner }}
-
+  build-x86_64:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU for cross-compilation
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: ${{ matrix.platform }}
-
-      - name: Build sshpass static binary
+      - name: Build sshpass static binary (x86_64)
         run: |
-          # 使用 Alpine 容器编译静态 sshpass
-          docker run --rm --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}/binaries:/output \
-            alpine:latest sh -c "
-              apk add gcc make curl musl-dev &&
-              cd /tmp &&
-              curl -fsSL https://sourceforge.net/projects/sshpass/files/sshpass/1.10/sshpass-1.10.tar.gz/download -o sshpass.tar.gz &&
-              tar -xzf sshpass.tar.gz &&
-              cd sshpass-1.10 &&
-              CC='gcc -static' ./configure --prefix=/usr/local &&
-              make LDFLAGS='-static -s' &&
-              cp sshpass /output/sshpass-${{ matrix.arch }} &&
-              cd /output &&
-              chmod +x sshpass-${{ matrix.arch }} &&
-              file sshpass-${{ matrix.arch }}
-            "
-
-      - name: Verify static linking
-        run: |
-          file binaries/sshpass-${{ matrix.arch }}
-          # 检查是否是静态链接
-          output=$(file binaries/sshpass-${{ matrix.arch }})
-          if echo "$output" | grep -q "statically linked"; then
-            echo "✓ Static binary confirmed"
-          else
-            echo "✗ Not static: $output"
-            exit 1
-          fi
+          cd /tmp
+          curl -fsSL https://sourceforge.net/projects/sshpass/files/sshpass/1.10/sshpass-1.10.tar.gz/download -o sshpass.tar.gz
+          tar -xzf sshpass.tar.gz
+          cd sshpass-1.10
+          ./configure --prefix=/usr/local LDFLAGS="-static"
+          make
+          strip sshpass
+          cp sshpass $GITHUB_WORKSPACE/binaries/sshpass-x86_64
+          chmod +x $GITHUB_WORKSPACE/binaries/sshpass-x86_64
+          file $GITHUB_WORKSPACE/binaries/sshpass-x86_64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sshpass-${{ matrix.arch }}
-          path: binaries/sshpass-${{ matrix.arch }}
-          retention-days: 30
+          name: sshpass-x86_64
+          path: binaries/sshpass-x86_64
 
   commit:
-    needs: build
+    needs: build-x86_64
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
+          name: sshpass-x86_64
           path: binaries/
-          pattern: sshpass-*
-          merge-multiple: true
 
-      - name: Verify binaries
-        run: |
-          ls -la binaries/
-          for f in binaries/sshpass-*; do
-            echo "=== $f ==="
-            file "$f"
-          done
-
-      - name: Commit binaries
+      - name: Commit binary
         run: |
           git config user.name "CI"
           git config user.email "ci@github.com"
-          git add binaries/sshpass-*
-          git diff --staged --quiet || git commit -m "feat: 添加 sshpass 静态二进制（CI 编译）
-
-- 由 GitHub Actions 自动编译
-- 静态链接，无动态依赖
-- 支持 x86_64 和 aarch64 架构"
+          git add binaries/sshpass-x86_64
+          git diff --staged --quiet || git commit -m "feat: 添加 sshpass-x86_64 静态二进制"
           git push
