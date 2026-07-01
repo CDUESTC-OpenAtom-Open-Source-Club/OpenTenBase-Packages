@@ -211,27 +211,35 @@ override_dh_installsystemd:
 	dh_installsystemd --no-enable --no-start
 
 override_dh_install:
-	# Remove unbuilt binaries from .install files before dh_install runs
-	for bin in opentenbase_ctl opentenbase_tool pg_license; do \
-	    if [ ! -e debian/tmp$(PREFIX)/bin/$$bin ]; then \
-	        sed -i "/$$bin/d" debian/*.install; \
-	    fi; \
-	done; \
-	# Remove opentenbase-ctl symlink from .install if opentenbase_ctl wasn't built
-	if [ ! -e debian/tmp$(PREFIX)/bin/opentenbase_ctl ]; then \
-	    sed -i '/opentenbase-ctl/d' debian/*.install; \
-	fi
-	# For v2.6.0 and v2.5.0, skip files that don't exist in older versions
-	if [ "$(OTB_VERSION)" != "5.0" ]; then \
-	    dh_install \
-	        -Xopentenbase_ora.bki \
-	        -Xopentenbase_ora.description \
-	        -Xopentenbase_ora.shdescription \
-	        -Xsystem_views_opentenbase_ora.sql \
-	        -Xsystem_views_pg.sql; \
-	else \
-	    dh_install; \
-	fi
+		# Dynamically replace hardcoded 5.0 version paths with actual version
+		# debian/*.install files have hardcoded 5.0 paths; replace with $(OTB_VERSION)
+		for f in debian/*.install; do \
+		    if grep -q 'usr/lib/opentenbase/5.0' "$$f" 2>/dev/null; then \
+		        sed -i 's|usr/lib/opentenbase/5.0|usr/lib/opentenbase/$(OTB_VERSION)|g' "$$f"; \
+		        sed -i 's|etc/opentenbase/5.0|etc/opentenbase/$(OTB_VERSION)|g' "$$f"; \
+		    fi; \
+		done
+		# Remove unbuilt binaries from .install files before dh_install runs
+		for bin in opentenbase_ctl opentenbase_tool pg_license; do \
+		    if [ ! -e debian/tmp$(PREFIX)/bin/$$bin ]; then \
+		        sed -i "/$$bin/d" debian/*.install; \
+		    fi; \
+		done; \
+		# Remove opentenbase-ctl symlink from .install if opentenbase_ctl wasn't built
+		if [ ! -e debian/tmp$(PREFIX)/bin/opentenbase_ctl ]; then \
+		    sed -i '/opentenbase-ctl/d' debian/*.install; \
+		fi
+		# For v2.6.0 and v2.5.0, skip files that don't exist in older versions
+		if [ "$(OTB_VERSION)" != "5.0" ]; then \
+		    dh_install \
+		        -Xopentenbase_ora.bki \
+		        -Xopentenbase_ora.description \
+		        -Xopentenbase_ora.shdescription \
+		        -Xsystem_views_opentenbase_ora.sql \
+		        -Xsystem_views_pg.sql; \
+		else \
+		    dh_install; \
+		fi
 
 override_dh_installdocs:
 	# v2.5.0 may not have CONTRIBUTORS.md; install what exists
