@@ -46,10 +46,11 @@ jobs:
 
       - name: Build sshpass static binary (aarch64)
         run: |
+          mkdir -p binaries
           docker run --rm --platform linux/arm64 \
-            -v $GITHUB_WORKSPACE:/workspace \
+            -v $(pwd):/workspace \
             alpine:latest sh -c "
-              apk add gcc make curl musl-dev &&
+              apk add gcc make curl musl-dev file &&
               cd /tmp &&
               curl -fsSL https://sourceforge.net/projects/sshpass/files/sshpass/1.10/sshpass-1.10.tar.gz/download -o sshpass.tar.gz &&
               tar -xzf sshpass.tar.gz &&
@@ -58,8 +59,12 @@ jobs:
               make LDFLAGS='-static -s' &&
               cp sshpass /workspace/binaries/sshpass-aarch64 &&
               chmod +x /workspace/binaries/sshpass-aarch64 &&
-              file /workspace/binaries/sshpass-aarch64
+              cd /workspace &&
+              file binaries/sshpass-aarch64
             "
+
+      - name: Verify binary
+        run: file binaries/sshpass-aarch64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
