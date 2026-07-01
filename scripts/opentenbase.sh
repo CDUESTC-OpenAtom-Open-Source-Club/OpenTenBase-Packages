@@ -678,7 +678,9 @@ datanodeSlave=n
 datanodeSpecificExtraConfig=none
 datanodeSpecificExtraPgHba=none
 PGXCEOF
-    chown "$SSH_USER":"$SSH_USER" "${PGXC_CONF_DIR}/pgxc_ctl.conf"
+    # 整个 pgxc_ctl 工作目录都要归 opentenbase 用户所有，否则 pgxc_ctl 以该用户
+    # 运行时无法在里面安装 pgxc_ctl_bash 脚本、写日志（Permission denied）。
+    chown -R "$SSH_USER":"$SSH_USER" "$PGXC_CONF_DIR"
     CONFIG_FILE="${PGXC_CONF_DIR}/pgxc_ctl.conf"
     log_ok "pgxc_ctl.conf 已生成: $CONFIG_FILE"
 else
@@ -723,10 +725,12 @@ fi
 if [[ "$USE_PGXC_CTL" == "true" ]]; then
     log_step "Step 5/6: 安装集群（pgxc_ctl init all）"
 
-    echo -e "  正在执行: ${CYAN}pgxc_ctl init all${NC}"
+    echo -e "  正在执行: ${CYAN}pgxc_ctl --home ${PGXC_CONF_DIR} init all${NC}"
     echo -e "  ${YELLOW}这可能需要几分钟（initdb + 配置 + 节点注册）...${NC}\n"
 
-    if su - "$SSH_USER" -c "export PATH=${INSTALL_DIR}/bin:\$PATH && export LD_LIBRARY_PATH=${INSTALL_DIR}/lib && cd /var/lib/opentenbase && pgxc_ctl init all" < /dev/null 2>&1; then
+    # 必须显式 --home 指向 PGXC_CONF_DIR：pgxc_ctl 首次运行要在 home 目录安装
+    # pgxc_ctl_bash 驱动脚本，不指定时会落到 ~/pgxc_ctl 找不到配置。
+    if su - "$SSH_USER" -c "export PATH=${INSTALL_DIR}/bin:\$PATH && export LD_LIBRARY_PATH=${INSTALL_DIR}/lib && cd ${PGXC_CONF_DIR} && pgxc_ctl --home ${PGXC_CONF_DIR} --configuration ${CONFIG_FILE} init all" < /dev/null 2>&1; then
         echo ""
         log_ok "集群安装成功（pgxc_ctl init all）"
     else
