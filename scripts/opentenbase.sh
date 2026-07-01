@@ -426,11 +426,15 @@ else
 
         # 安装（指定版本号 opentenbase=<ver>，避免装到非目标版本）
         log_info "安装 opentenbase=${OTB_VERSION}..."
-        # Try installing specific version first, don't fallback to unspecified version
-        apt-get install -y "opentenbase=${OTB_VERSION}" "opentenbase-server=${OTB_VERSION}" "opentenbase-client=${OTB_VERSION}" 2>/dev/null || \
-        apt-get install -y --allow-unauthenticated "opentenbase=${OTB_VERSION}" "opentenbase-server=${OTB_VERSION}" "opentenbase-client=${OTB_VERSION}" 2>/dev/null || {
+        # DEB version format: X.Y-1ubuntu1, so try both short and full format
+        # First try exact version, then try with wildcard suffix
+        apt-get install -y "opentenbase=${OTB_VERSION}-1ubuntu1" "opentenbase-server=${OTB_VERSION}-1ubuntu1" "opentenbase-client=${OTB_VERSION}-1ubuntu1" 2>/dev/null || \
+        apt-get install -y "opentenbase=${OTB_VERSION}*" "opentenbase-server=${OTB_VERSION}*" "opentenbase-client=${OTB_VERSION}*" 2>/dev/null || \
+        apt-get install -y --allow-unauthenticated "opentenbase=${OTB_VERSION}-1ubuntu1" "opentenbase-server=${OTB_VERSION}-1ubuntu1" "opentenbase-client=${OTB_VERSION}-1ubuntu1" 2>/dev/null || \
+        apt-get install -y --allow-unauthenticated "opentenbase=${OTB_VERSION}*" "opentenbase-server=${OTB_VERSION}*" "opentenbase-client=${OTB_VERSION}*" 2>/dev/null || {
             log_error "apt 安装指定版本失败，请手动运行:"
-            log_error "  apt-get install opentenbase=${OTB_VERSION} opentenbase-server=${OTB_VERSION} opentenbase-client=${OTB_VERSION}"
+            log_error "  apt-cache policy opentenbase  # 查看可用版本"
+            log_error "  apt-get install opentenbase=<完整版本号>"
             exit 1
         }
 
