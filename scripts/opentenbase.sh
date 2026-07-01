@@ -373,11 +373,13 @@ else
             apt-get update -qq 2>/dev/null || true
         fi
 
-        # 安装
-        log_info "安装 opentenbase..."
+        # 安装（指定版本号 opentenbase=<ver>，避免装到非目标版本）
+        log_info "安装 opentenbase=${OTB_VERSION}..."
+        apt-get install -y "opentenbase=${OTB_VERSION}" 2>/dev/null || \
+        apt-get install -y --allow-unauthenticated "opentenbase=${OTB_VERSION}" 2>/dev/null || \
         apt-get install -y opentenbase 2>/dev/null || \
         apt-get install -y --allow-unauthenticated opentenbase 2>/dev/null || {
-            log_error "apt 安装失败，请手动运行: apt install opentenbase"
+            log_error "apt 安装失败，请手动运行: apt install opentenbase=${OTB_VERSION}"
             exit 1
         }
 
@@ -409,26 +411,30 @@ else
             fi
         fi
 
-        # 安装
-        log_info "安装 opentenbase..."
-        if ! $YUM install -y opentenbase 2>/dev/null && \
-           ! $YUM install -y --nogpgcheck --nobest opentenbase 2>/dev/null; then
+        # 安装（指定版本号 opentenbase-<ver>，避免 dnf 装到最高版 5.0）
+        # 三版本共用同一包名 opentenbase，dnf 默认选最高版，故必须 pin 版本。
+        # 若已有不同版本残留，先移除避免冲突。
+        rpm -q opentenbase >/dev/null 2>&1 && rpm -e --nodeps opentenbase >/dev/null 2>&1 || true
+        log_info "安装 opentenbase-${OTB_VERSION}..."
+        if ! $YUM install -y "opentenbase-${OTB_VERSION}" 2>/dev/null && \
+           ! $YUM install -y --nogpgcheck --nobest "opentenbase-${OTB_VERSION}" 2>/dev/null; then
             # 兜底：某些发行版（如 OpenCloudOS/RHEL）缺少 RPM 构建时记录的
             # Red Hat 特有符号依赖（libpq.so.5(RHPG_10) 等），导致 dnf 拒绝安装。
             # 但 opentenbase 包自带完整 libpq（在 INSTALL_DIR/lib/），运行时不依赖
             # 系统 libpq，所以用 rpm --nodeps 强制安装是安全的。
             log_warn "$YUM 安装因依赖符号失败，降级用 rpm --nodeps 强制安装..."
             rm -f /tmp/opentenbase-*.rpm 2>/dev/null
-            ( cd /tmp && $YUM download opentenbase >/dev/null 2>&1 )
-            OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*.rpm 2>/dev/null | head -1)
+            ( cd /tmp && $YUM download "opentenbase-${OTB_VERSION}" >/dev/null 2>&1 )
+            OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*${OTB_VERSION}*.rpm 2>/dev/null | head -1)
+            [ -z "$OTB_PKG_RPM" ] && OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*.rpm 2>/dev/null | head -1)
             if [ -n "$OTB_PKG_RPM" ] && [ -f "$OTB_PKG_RPM" ]; then
                 rpm -ivh --nodeps "$OTB_PKG_RPM" || {
                     log_error "rpm 强制安装失败: $OTB_PKG_RPM"
                     exit 1
                 }
-                log_ok "已通过 rpm --nodeps 安装 (跳过 RHPG 符号依赖)"
+                log_ok "已通过 rpm --nodeps 安装 opentenbase-${OTB_VERSION} (跳过 RHPG 符号依赖)"
             else
-                log_error "$YUM 安装失败且无法下载包，请手动运行: $YUM install opentenbase"
+                log_error "$YUM 安装失败且无法下载 opentenbase-${OTB_VERSION}，请手动安装"
                 exit 1
             fi
         fi
