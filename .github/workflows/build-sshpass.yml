@@ -33,8 +33,42 @@ jobs:
           name: sshpass-x86_64
           path: binaries/sshpass-x86_64
 
+  build-aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Build sshpass static binary (aarch64)
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v $GITHUB_WORKSPACE:/workspace \
+            alpine:latest sh -c "
+              apk add gcc make curl musl-dev &&
+              cd /tmp &&
+              curl -fsSL https://sourceforge.net/projects/sshpass/files/sshpass/1.10/sshpass-1.10.tar.gz/download -o sshpass.tar.gz &&
+              tar -xzf sshpass.tar.gz &&
+              cd sshpass-1.10 &&
+              CC='gcc -static' ./configure --prefix=/usr/local &&
+              make LDFLAGS='-static -s' &&
+              cp sshpass /workspace/binaries/sshpass-aarch64 &&
+              chmod +x /workspace/binaries/sshpass-aarch64 &&
+              file /workspace/binaries/sshpass-aarch64
+            "
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sshpass-aarch64
+          path: binaries/sshpass-aarch64
+
   commit:
-    needs: build-x86_64
+    needs: [build-x86_64, build-aarch64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -42,16 +76,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download artifact
+      - name: Download x86_64 artifact
         uses: actions/download-artifact@v4
         with:
           name: sshpass-x86_64
           path: binaries/
 
-      - name: Commit binary
+      - name: Download aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sshpass-aarch64
+          path: binaries/
+
+      - name: Verify binaries
+        run: |
+          ls -la binaries/
+          for f in binaries/sshpass-*; do
+            echo "=== $f ==="
+            file "$f"
+          done
+
+      - name: Commit binaries
         run: |
           git config user.name "CI"
           git config user.email "ci@github.com"
-          git add binaries/sshpass-x86_64
-          git diff --staged --quiet || git commit -m "feat: 添加 sshpass-x86_64 静态二进制"
+          git add binaries/sshpass-*
+          git diff --staged --quiet || git commit -m "feat: 更新 sshpass 静态二进制（x86_64 + aarch64）"
           git push
