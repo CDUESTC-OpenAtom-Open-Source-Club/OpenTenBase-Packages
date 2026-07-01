@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # GTM - Global Transaction Manager
+  gtm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opentenbase:5.0
+    container_name: opentenbase-gtm
+    hostname: gtm
+    command: >
+      bash -c "
+        gtm -D /data/gtm -p 6666 &
+        tail -f /data/gtm/gtm.log
+      "
+    volumes:
+      - gtm-data:/data
+    ports:
+      - "6666:6666"
+    networks:
+      - opentenbase-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "pgrep gtm || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Coordinator
+  coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opentenbase:5.0
+    container_name: opentenbase-coordinator
+    hostname: coordinator
+    command: >
+      bash -c "
+        postgres --coordinator -D /data/coord -i -p 5432 &
+        tail -f /data/coord/pg_log/*.log
+      "
+    volumes:
+      - coord-data:/data
+    ports:
+      - "5432:5432"
+    networks:
+      - opentenbase-net
+    depends_on:
+      gtm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "pg_isready -h localhost -p 5432 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Datanode
+  datanode:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opentenbase:5.0
+    container_name: opentenbase-datanode
+    hostname: datanode
+    command: >
+      bash -c "
+        postgres --datanode -D /data/dn1 -i -p 15432 &
+        tail -f /data/dn1/pg_log/*.log
+      "
+    volumes:
+      - dn-data:/data
+    ports:
+      - "15432:15432"
+    networks:
+      - opentenbase-net
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "pg_isready -h localhost -p 15432 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  opentenbase-net:
+    driver: bridge
+
+volumes:
+  gtm-data:
+  coord-data:
+  dn-data:
