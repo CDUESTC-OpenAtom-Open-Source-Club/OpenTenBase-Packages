@@ -12,6 +12,16 @@ FROM ubuntu:24.04
 ARG OTB_VERSION=5.0
 ENV DEBIAN_FRONTEND=noninteractive
 
+# GTM 线程绑定 workaround（CDN 包尚未包含 PR #69 修复）
+RUN if [ "$(nproc)" -le 2 ]; then \
+        apt-get install -y gcc && \
+        echo 'int pthread_setaffinity_np(void* t, long s, const void* c) { return 0; }' > /tmp/noaffinity.c && \
+        gcc -shared -fPIC -o /usr/lib/opentenbase/noaffinity.so /tmp/noaffinity.c && \
+        rm -f /tmp/noaffinity.c && \
+        apt-get remove -y gcc; \
+    fi
+ENV LD_PRELOAD=/usr/lib/opentenbase/noaffinity.so
+
 # 运行时依赖（libatomic1 供 GTM/原子操作使用）
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \

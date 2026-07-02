@@ -10,8 +10,18 @@ FROM openeuler/openeuler:22.03
 
 ARG OTB_VERSION=5.0
 
+# GTM 线程绑定 workaround（CDN 包尚未包含 PR #69 修复）
+RUN if [ "$(nproc)" -le 2 ]; then \
+        dnf install -y gcc && \
+        echo 'int pthread_setaffinity_np(void* t, long s, const void* c) { return 0; }' > /tmp/noaffinity.c && \
+        gcc -shared -fPIC -o /usr/lib/opentenbase/noaffinity.so /tmp/noaffinity.c && \
+        rm -f /tmp/noaffinity.c && \
+        dnf remove -y gcc; \
+    fi
+ENV LD_PRELOAD=/usr/lib/opentenbase/noaffinity.so
+
 # openEuler 22.03 基础镜像已含 openssl-libs(1.1)、glibc、libxml2、libcurl
-RUN dnf install -y \
+RUN dnf install -y --allowerasing \
         curl \
         libssh \
         libatomic \

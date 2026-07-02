@@ -10,8 +10,23 @@ FROM rockylinux:9
 
 ARG OTB_VERSION=5.0
 
+# GTM 线程绑定 workaround（CDN 包尚未包含 PR #69 修复）
+# 在低核服务器上，GTM 的 pthread_setaffinity_np 会失败导致启动崩溃
+# 创建 noaffinity.so stub 使其始终返回成功
+RUN if [ "$(nproc)" -le 2 ]; then \
+        echo "Creating noaffinity.so stub for low-core systems"; \
+        dnf install -y gcc && \
+        echo 'int pthread_setaffinity_np(void* t, long s, const void* c) { return 0; }' > /tmp/noaffinity.c && \
+        gcc -shared -fPIC -o /usr/lib/opentenbase/noaffinity.so /tmp/noaffinity.c && \
+        rm -f /tmp/noaffinity.c && \
+        dnf remove -y gcc; \
+    fi
+ENV LD_PRELOAD=/usr/lib/opentenbase/noaffinity.so
+
 # 运行时依赖（RPM 包自带 libssh2.so.1，libatomic 供原子操作）
-RUN dnf install -y \
+# Rocky 9 base image has curl-minimal which conflicts with curl, use --allowerasing
+# 安装 EPEL 以获取 libssh2
+RUN dnf install -y --allowerasing \
         curl \
         gnupg2 \
         libatomic \
@@ -22,13 +37,22 @@ RUN dnf install -y \
         hostname \
         util-linux \
         procps-ng \
+    && dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
+    && dnf install -y libssh2 \
     && dnf clean all
 
-# 配置 OpenTenBase DNF 仓库（含 GPG 校验 + 镜像自动选择）
-RUN curl -fsSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
+# 配置 OpenTenBase DNF 仓库（运行时镜像仅需仓库配置）
+RUN ARCH=$(uname -m) && \
+    curl -fsSL https://repo.blackevil217.com/rpm/gpg-key.asc -o /tmp/gpg-key.asc && \
+    rpm --import /tmp/gpg-key.asc && rm -f /tmp/gpg-key.asc && \
+    printf '[opentenbase]\nname=OpenTenBase Packages\nbaseurl=https://repo.blackevil217.com/rpm/el9/%s\nenabled=1\ngpgcheck=1\ngpgkey=https://repo.blackevil217.com/rpm/gpg-key.asc\n' "$ARCH" > /etc/yum.repos.d/opentenbase.repo && \
+    chmod 644 /etc/yum.repos.d/opentenbase.repo
 
-# 安装 OpenTenBase（meta 包）
-RUN dnf install -y opentenbase-${OTB_VERSION} && dnf clean all
+# 安装 OpenTenBase（meta 包或核心组件）
+RUN dnf makecache && \
+    dnf install -y opentenbase-${OTB_VERSION} || \
+    dnf install -y opentenbase-server-${OTB_VERSION} opentenbase-client-${OTB_VERSION} opentenbase-contrib-${OTB_VERSION} \
+    && dnf clean all
 
 # 创建运行用户
 RUN id opentenbase 2>/dev/null || useradd -m -s /bin/bash opentenbase \
@@ -38,7 +62,7 @@ RUN id opentenbase 2>/dev/null || useradd -m -s /bin/bash opentenbase \
 ENV PATH="/usr/lib/opentenbase/${OTB_VERSION}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib"
 
-# 集群入口
+# 集群入口（构建上下文为仓库根目录）
 COPY docker/runtime/entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 
