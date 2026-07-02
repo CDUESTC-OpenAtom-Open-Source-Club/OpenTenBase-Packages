@@ -7,7 +7,7 @@ on:
       - 'deps/**'
   schedule:
     # Monthly rebuild to catch any security updates
-    - cron: '0 2 1 *'
+    - cron: '0 2 1 * *'
 
 permissions:
   contents: write
