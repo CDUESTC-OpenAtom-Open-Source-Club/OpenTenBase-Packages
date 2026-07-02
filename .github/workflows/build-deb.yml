@@ -242,10 +242,14 @@ jobs:
   build-deb-arm64:
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 4
       matrix:
         include:
-          # v5.0 arm64
+          # v5.0 arm64 - full coverage (7 distros)
+          - version: '5.0'
+            distro: 'ubuntu-20.04'
+            container: 'ubuntu:20.04'
+            codename: 'focal'
           - version: '5.0'
             distro: 'ubuntu-22.04'
             container: 'ubuntu:22.04'
@@ -255,14 +259,26 @@ jobs:
             container: 'ubuntu:24.04'
             codename: 'noble'
           - version: '5.0'
-            distro: 'debian-12'
-            container: 'debian:bookworm'
-            codename: 'bookworm'
+            distro: 'ubuntu-25.04'
+            container: 'ubuntu:25.04'
+            codename: 'plucky'
           - version: '5.0'
             distro: 'debian-11'
             container: 'debian:bullseye'
             codename: 'bullseye'
-          # v2.6.0 arm64
+          - version: '5.0'
+            distro: 'debian-12'
+            container: 'debian:bookworm'
+            codename: 'bookworm'
+          - version: '5.0'
+            distro: 'debian-13'
+            container: 'debian:trixie'
+            codename: 'trixie'
+          # v2.6.0 arm64 - full coverage (7 distros)
+          - version: '2.6.0'
+            distro: 'ubuntu-20.04'
+            container: 'ubuntu:20.04'
+            codename: 'focal'
           - version: '2.6.0'
             distro: 'ubuntu-22.04'
             container: 'ubuntu:22.04'
@@ -272,10 +288,26 @@ jobs:
             container: 'ubuntu:24.04'
             codename: 'noble'
           - version: '2.6.0'
+            distro: 'ubuntu-25.04'
+            container: 'ubuntu:25.04'
+            codename: 'plucky'
+          - version: '2.6.0'
+            distro: 'debian-11'
+            container: 'debian:bullseye'
+            codename: 'bullseye'
+          - version: '2.6.0'
             distro: 'debian-12'
             container: 'debian:bookworm'
             codename: 'bookworm'
-          # v2.5.0 arm64
+          - version: '2.6.0'
+            distro: 'debian-13'
+            container: 'debian:trixie'
+            codename: 'trixie'
+          # v2.5.0 arm64 - full coverage (7 distros)
+          - version: '2.5.0'
+            distro: 'ubuntu-20.04'
+            container: 'ubuntu:20.04'
+            codename: 'focal'
           - version: '2.5.0'
             distro: 'ubuntu-22.04'
             container: 'ubuntu:22.04'
@@ -285,9 +317,21 @@ jobs:
             container: 'ubuntu:24.04'
             codename: 'noble'
           - version: '2.5.0'
+            distro: 'ubuntu-25.04'
+            container: 'ubuntu:25.04'
+            codename: 'plucky'
+          - version: '2.5.0'
+            distro: 'debian-11'
+            container: 'debian:bullseye'
+            codename: 'bullseye'
+          - version: '2.5.0'
             distro: 'debian-12'
             container: 'debian:bookworm'
             codename: 'bookworm'
+          - version: '2.5.0'
+            distro: 'debian-13'
+            container: 'debian:trixie'
+            codename: 'trixie'
 
     name: ${{ matrix.distro }}-${{ matrix.version }}-arm64
     runs-on: ubuntu-24.04-arm
@@ -364,51 +408,75 @@ jobs:
           fi
 
       - name: Build DEB package
+        shell: bash
+        env:
+          OTB_VERSION: ${{ matrix.version }}
         run: |
-          VERSION="${{ matrix.version }}"
-          CODENAME="${{ matrix.codename }}"
-
-          # Use absolute path that works on both host and container
-          OUTPUT_DIR="/tmp/otb-debs"
-          mkdir -p "$OUTPUT_DIR"
-
-          # Copy debian directory and patches to source
-          cp -r opentenbase-pkg/debian/ /tmp/source/OpenTenBase/debian/
-          mkdir -p /tmp/source/OpenTenBase/debian/patches
-          cp opentenbase-pkg/patches/*.patch /tmp/source/OpenTenBase/debian/patches/ 2>/dev/null || true
-
-          # Copy config files to source (required by debian/rules)
-          mkdir -p /tmp/source/OpenTenBase/config
+          cd /tmp/source/OpenTenBase
+          cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/debian/" ./debian/
           for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template opentenbase_config.ini.example; do
-            if [ -f "opentenbase-pkg/config/$f" ]; then
-              cp "opentenbase-pkg/config/$f" /tmp/source/OpenTenBase/config/
+            if [ -f "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ]; then
+              cp "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ./config/
             fi
           done
+          # Copy version-specific config if available
+          if [ -d "$GITHUB_WORKSPACE/opentenbase-pkg/config/$OTB_VERSION" ]; then
+            mkdir -p "./config/$OTB_VERSION"
+            cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/config/$OTB_VERSION/"* "./config/$OTB_VERSION/" 2>/dev/null || true
+          fi
+          if [ -d "$GITHUB_WORKSPACE/opentenbase-pkg/scripts" ]; then
+            mkdir -p ./scripts
+            cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/scripts/"* ./scripts/ 2>/dev/null || true
+          fi
+          ls -la config/opentenbase-ctl 2>&1 || echo "WARNING: config/opentenbase-ctl not found"
+          # Replace version in debian/rules
+          if [ -n "$OTB_VERSION" ] && [ "$OTB_VERSION" != "5.0" ]; then
+            sed -i "s/^OTB_VERSION := .*/OTB_VERSION := $OTB_VERSION/" debian/rules
+          fi
+          # Substitute the packaging version into debian/ files for non-5.0 builds
+          if [ "$OTB_VERSION" != "5.0" ]; then
+            files=$(find debian/ -type f \( -name '*.install' -o -name '*.dirs' \
+              -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \
+              -o -name 'changelog' -o -name 'control' \))
+            sed -i "s|opentenbase/5\.0/|opentenbase/${OTB_VERSION}/|g" $files
+            sed -i "s|^OTB_VERSION=\"5\.0\"|OTB_VERSION=\"${OTB_VERSION}\"|" $files
+            sed -i "s|^opentenbase (5\.0-|opentenbase (${OTB_VERSION}-|" $files
+          fi
+          set -o pipefail
+          fakeroot debian/rules binary 2>&1 | tee /tmp/build.log; EXIT_CODE=$?; if [ $EXIT_CODE -ne 0 ]; then echo "=== BUILD FAILED (last 300 lines) ==="; tail -300 /tmp/build.log; fi; exit $EXIT_CODE
 
-          # Copy scripts to source (required by debian/rules)
-          mkdir -p /tmp/source/OpenTenBase/scripts
-          cp opentenbase-pkg/scripts/*.sh /tmp/source/OpenTenBase/scripts/ 2>/dev/null || true
-
-          bash opentenbase-pkg/scripts/build-deb.sh \
-            --source-dir /tmp/source/OpenTenBase \
-            --version "$VERSION" \
-            --codename "$CODENAME" \
-            --output-dir "$OUTPUT_DIR"
-
-          # Copy to workspace for upload
-          mkdir -p debs
-          cp "$OUTPUT_DIR"/*.deb debs/
-
-      - name: List built packages
+      - name: Collect DEB packages
+        if: always()
         run: |
-          echo "=== Built DEB packages ==="
-          ls -la debs/*.deb || echo "No packages found"
+          mkdir -p "$GITHUB_WORKSPACE/debs"
+          cp /tmp/source/*.deb "$GITHUB_WORKSPACE/debs/" 2>/dev/null || true
+          cd "$GITHUB_WORKSPACE/debs"
+          VERSION="${{ matrix.version }}"
+          for deb in *.deb; do
+            [ -f "$deb" ] || continue
+            # Add codename suffix to prevent collisions
+            newname=$(echo "$deb" | sed "s/_${VERSION}-1ubuntu1_/_${VERSION}-1ubuntu1~${{ matrix.codename }}_/")
+            if [ "$newname" != "$deb" ]; then
+              mv "$deb" "$newname"
+            fi
+          done
+          ls -la *.deb 2>/dev/null || true
+
+      - name: Run lintian
+        if: always()
+        run: |
+          apt-get install -y lintian 2>/dev/null || true
+          if ls "$GITHUB_WORKSPACE/debs/"*.deb 1>/dev/null 2>&1; then
+            lintian "$GITHUB_WORKSPACE/debs/"*.deb 2>&1 || true
+          else
+            echo "No .deb packages found to lint"
+          fi
 
       - name: Upload DEB packages
         uses: actions/upload-artifact@v4
         with:
           name: debs-${{ matrix.distro }}-${{ matrix.version }}-arm64
-          path: debs/*.deb
+          path: ${{ github.workspace }}/debs/*.deb
           retention-days: 30
 
       - name: Cleanup
