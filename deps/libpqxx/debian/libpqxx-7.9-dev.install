@@ -1,3 +1,4 @@
 usr/include/pqxx/
 usr/lib/*/libpqxx.so
 usr/lib/*/cmake/libpqxx/
+usr/lib/*/pkgconfig/libpqxx.pc
