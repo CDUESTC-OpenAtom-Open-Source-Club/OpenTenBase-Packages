@@ -88,6 +88,16 @@ for f in opentenbase-psql pg_hba.conf.template; do
     fi
 done
 
+# Copy libssh2 source (Source3 in spec - for Rocky 9 compatibility)
+# Rocky 9 lacks libssh2, so we bundle it with the package
+LIBSSH2_SRC="libssh2-1.11.1.tar.gz"
+if [ -f "$SCRIPT_DIR/$LIBSSH2_SRC" ]; then
+    cp "$SCRIPT_DIR/$LIBSSH2_SRC" "$RPMBUILD_DIR/SOURCES/"
+    log "Copied libssh2 source to SOURCES/"
+else
+    log "WARNING: libssh2 source not found at $SCRIPT_DIR/$LIBSSH2_SRC"
+fi
+
 # Copy spec file and set version
 cp "$SCRIPT_DIR/opentenbase.spec" "$RPMBUILD_DIR/SPECS/"
 
