@@ -3,9 +3,8 @@
 
 FROM rockylinux:9
 
-# 安装依赖
+# 安装依赖（curl-minimal 已在基础镜像中）
 RUN yum install -y \
-    curl \
     gnupg2 \
     libatomic \
     libpq \
