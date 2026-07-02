@@ -70,6 +70,7 @@ jobs:
         run: |
           cd /tmp/libpqxx-7.9.2
           cp -r $GITHUB_WORKSPACE/deps/libpqxx/debian ./debian/
+          chmod +x debian/rules
           sed -i "s/unstable/${{ matrix.codename }}/" debian/changelog
           fakeroot debian/rules binary
 
@@ -136,6 +137,7 @@ jobs:
         run: |
           cd /tmp/libpqxx-7.9.2
           cp -r $GITHUB_WORKSPACE/deps/libpqxx/debian ./debian/
+          chmod +x debian/rules
           sed -i "s/unstable/${{ matrix.codename }}/" debian/changelog
           fakeroot debian/rules binary
 
