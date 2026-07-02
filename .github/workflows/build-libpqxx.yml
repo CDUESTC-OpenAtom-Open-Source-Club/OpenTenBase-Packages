@@ -1,0 +1,233 @@
+name: Build libpqxx Dependencies
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'deps/**'
+  schedule:
+    # Monthly rebuild to catch any security updates
+    - cron: '0 2 1 *'
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - distro: 'ubuntu-20.04'
+            container: 'ubuntu:20.04'
+            codename: 'focal'
+          - distro: 'ubuntu-22.04'
+            container: 'ubuntu:22.04'
+            codename: 'jammy'
+          - distro: 'ubuntu-24.04'
+            container: 'ubuntu:24.04'
+            codename: 'noble'
+          - distro: 'ubuntu-25.04'
+            container: 'ubuntu:25.04'
+            codename: 'plucky'
+          - distro: 'debian-11'
+            container: 'debian:bullseye'
+            codename: 'bullseye'
+          - distro: 'debian-12'
+            container: 'debian:bookworm'
+            codename: 'bookworm'
+          - distro: 'debian-13'
+            container: 'debian:trixie'
+            codename: 'trixie'
+
+    name: ${{ matrix.distro }}-libpqxx
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y \
+            build-essential debhelper fakeroot cmake \
+            libpq-dev g++ git curl ca-certificates
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download libpqxx source
+        run: |
+          cd /tmp
+          curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o libpqxx.tar.gz
+          tar xzf libpqxx.tar.gz
+          cd libpqxx-7.9.2
+
+      - name: Build DEB package
+        run: |
+          cd /tmp/libpqxx-7.9.2
+          cp -r $GITHUB_WORKSPACE/deps/libpqxx/debian ./debian/
+          sed -i "s/unstable/${{ matrix.codename }}/" debian/changelog
+          fakeroot debian/rules binary
+
+      - name: Collect packages
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/output
+          cd /tmp
+          for deb in *.deb; do
+            [ -f "$deb" ] || continue
+            arch=$(dpkg --print-architecture)
+            newname=$(echo "$deb" | sed "s/_7.9.2-1opentenbase1_/_7.9.2-1opentenbase1~${{ matrix.codename }}_${arch}_/")
+            cp "$deb" "$GITHUB_WORKSPACE/output/$newname"
+          done
+          ls -la $GITHUB_WORKSPACE/output/
+
+      - name: Upload DEB packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: libpqxx-${{ matrix.distro }}
+          path: output/*.deb
+          retention-days: 30
+
+  build-arm64:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - distro: 'ubuntu-22.04'
+            container: 'ubuntu:22.04'
+            codename: 'jammy'
+          - distro: 'ubuntu-24.04'
+            container: 'ubuntu:24.04'
+            codename: 'noble'
+          - distro: 'debian-12'
+            container: 'debian:bookworm'
+            codename: 'bookworm'
+
+    name: ${{ matrix.distro }}-libpqxx-arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y \
+            build-essential debhelper fakeroot cmake \
+            libpq-dev g++ git curl ca-certificates
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download libpqxx source
+        run: |
+          cd /tmp
+          curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o libpqxx.tar.gz
+          tar xzf libpqxx.tar.gz
+
+      - name: Build DEB package
+        run: |
+          cd /tmp/libpqxx-7.9.2
+          cp -r $GITHUB_WORKSPACE/deps/libpqxx/debian ./debian/
+          sed -i "s/unstable/${{ matrix.codename }}/" debian/changelog
+          fakeroot debian/rules binary
+
+      - name: Collect packages
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/output
+          cd /tmp
+          for deb in *.deb; do
+            [ -f "$deb" ] || continue
+            arch=$(dpkg --print-architecture)
+            newname=$(echo "$deb" | sed "s/_7.9.2-1opentenbase1_/_7.9.2-1opentenbase1~${{ matrix.codename }}_${arch}_/")
+            cp "$deb" "$GITHUB_WORKSPACE/output/$newname"
+          done
+
+      - name: Upload DEB packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: libpqxx-${{ matrix.distro }}-arm64
+          path: output/*.deb
+          retention-days: 30
+
+  collect-and-release:
+    needs: [build-deb, build-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: libpqxx-*
+          path: all-packages/
+          merge-multiple: true
+
+      - name: List all packages
+        run: |
+          echo "=== All libpqxx packages ==="
+          ls -la all-packages/*.deb || true
+
+      - name: Create checksums
+        run: |
+          cd all-packages
+          sha256sum *.deb > checksums.sha256
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: libpqxx-7.9.2
+          name: libpqxx 7.9.2 - OpenTenBase Dependency
+          body: |
+            ## libpqxx 7.9.2 Packages
+
+            Pre-built libpqxx packages for OpenTenBase opentenbase_ctl.
+
+            **Why this version?**
+            - libpqxx 7.9.2 fixes range.hxx bugs that break opentenbase_ctl
+            - System packages (7.6.x/7.7.x) are incompatible
+            - Ubuntu 24.04 / Debian 13 do not have libpqxx 7.9 in repos
+
+            **Installation:**
+            ```bash
+            # Download and install for your distro
+            dpkg -i libpqxx-7.9_7.9.2-1opentenbase1~<codename>_<arch>.deb
+            dpkg -i libpqxx-7.9-dev_7.9.2-1opentenbase1~<codename>_<arch>.deb
+            ```
+
+            **Supported distributions:**
+            - Ubuntu 20.04 (focal), 22.04 (jammy), 24.04 (noble), 25.04 (plucky)
+            - Debian 11 (bullseye), 12 (bookworm), 13 (trixie)
+            - Both amd64 and arm64 architectures
+          files: |
+            all-packages/*.deb
+            all-packages/checksums.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-cdn:
+    needs: collect-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: libpqxx-*
+          path: packages/
+          merge-multiple: true
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Deploy to CDN
+        run: |
+          echo "=== Deploying libpqxx packages to CDN ==="
+          # This would be implemented with your CDN deployment logic
+          # For now, packages are available via GitHub Release
+          echo "Packages available at:"
+          echo "https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/tag/libpqxx-7.9.2"
