@@ -9,7 +9,7 @@ RUN yum install -y \
     gnupg2 \
     libatomic \
     libpq \
-    libssh2-devel \
+    libssh-devel \
     && yum clean all
 
 # 配置 OpenTenBase 仓库
