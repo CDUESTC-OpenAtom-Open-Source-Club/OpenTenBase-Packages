@@ -41,56 +41,38 @@ English | [中文](README_zh.md)
 
 ## Quick Install
 
-### One-Click Deploy (Recommended)
+### 一键安装（推荐）
 
-**Blank machine → running cluster in one command.** Supports both interactive and non-interactive modes:
+只需一条命令即可完成安装和配置：
 
 ```bash
-# CDN accelerated (recommended, global fast)
-curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash
-
-# GitHub direct (fallback)
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
-
-# Non-interactive (all defaults, single-node, for CI/automation)
-curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash -s -- install --yes
+curl -sSL https://get.opentenbase.com | sudo bash
 ```
 
-The script handles everything: install packages → create user → configure sshpass → path symlink → generate INI → `opentenbase_ctl install -c <config.ini>` → start, status check, and SQL verification.
-
-### Package Repository (Manual)
-
-#### APT (Ubuntu / Debian)
+安装完成后，只需两条命令即可运行：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+opentenbase init    # 初始化集群
+opentenbase start   # 启动服务
+```
+
+### 手动安装（可选）
+
+**Ubuntu/Debian:**
+```bash
+curl -sSL https://repo.blackevil217.com/apt/gpg-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/opentenbase.gpg
+echo "deb [signed-by=/usr/share/keyrings/opentenbase.gpg] https://repo.blackevil217.com/apt noble main" | sudo tee /etc/apt/sources.list.d/opentenbase.list
 sudo apt update && sudo apt install -y opentenbase
 ```
 
-#### YUM/DNF (RHEL / CentOS / Fedora / openEuler / EulerOS)
-
+**Rocky/Alma/CentOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
+sudo rpm --import https://repo.blackevil217.com/rpm/gpg-key.asc
+sudo dnf config-manager --add-repo https://repo.blackevil217.com/rpm/el9/x86_64
 sudo dnf install -y opentenbase
 ```
 
-After package installation, deploy the cluster:
-
-```bash
-opentenbase_ctl install -c /tmp/otb_config.ini
-opentenbase_ctl start
-opentenbase_ctl status
-```
-
-> **Version control path note**:
-> - `5.0` uses the `opentenbase_ctl` workflow with an INI file.
-> - `2.5` / `2.6` use the `pgxc_ctl` workflow with `pgxc_ctl.conf` as the formal control path.
-> - **On EulerOS / openEuler**, the one-click script automatically uses `pgxc_ctl` for v5.0
->   to work around an `opentenbase_ctl` port-allocation bug (see
->   [Issue #215](https://github.com/OpenTenBase/OpenTenBase/issues/215)). v5.0 supports
->   both `pgxc_ctl` and `opentenbase_ctl` as startup methods.
-
-### Manual Download
+### 常用命令
 
 ```bash
 # Download from releases: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases
