@@ -30,19 +30,17 @@ RUN cd /tmp && \
 # 创建 libssh2 虚拟 RPM 包 (让 RPM 包管理器"看到"libssh2.so.1)
 # 实际库文件由上面的源码编译提供
 RUN mkdir -p /tmp/libssh2-dummy/SPECS && \
-    cat > /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec << 'SPECEOF'
-Name:           libssh2-dummy
-Version:        1.11.1
-Release:        1
-Summary:        Dummy package providing libssh2.so.1 (built from source)
-License:        BSD
-Provides:       libssh2.so.1()(64bit)
-Provides:       libssh2 = %{version}
-%description
-Dummy RPM package that provides libssh2.so.1 capability.
-The actual library is built from source and installed outside RPM.
-%files
-SPECEOF
+    echo 'Name:           libssh2-dummy' > /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'Version:        1.11.1' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'Release:        1' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'Summary:        Dummy package providing libssh2.so.1 (built from source)' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'License:        BSD' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'Provides:       libssh2.so.1()(64bit)' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'Provides:       libssh2 = %{version}' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo '%description' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'Dummy RPM package that provides libssh2.so.1 capability.' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo 'The actual library is built from source and installed outside RPM.' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    echo '%files' >> /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
     rpmbuild --define '_rpmdir /tmp/libssh2-dummy/RPMS' \
              --define '_builddir /tmp/libssh2-dummy/BUILD' \
              --define '_sourcedir /tmp/libssh2-dummy/SOURCES' \
