@@ -18,7 +18,7 @@ RUN yum install -y \
 # 编译安装 libssh2 (Rocky 9 不提供 libssh2，只有新版 libssh)
 # OpenTenBase 运行时依赖 libssh2.so.1
 RUN cd /tmp && \
-    curl -fsSL https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/libssh2-1.11.1.tar.gz -o libssh2.tar.gz && \
+    curl -fsSL https://www.libssh2.org/download/libssh2-1.11.1.tar.gz -o libssh2.tar.gz && \
     tar xzf libssh2.tar.gz && \
     cd libssh2-1.11.1 && \
     cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON && \
