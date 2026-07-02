@@ -7,6 +7,7 @@ URL:            https://github.com/OpenTenBase/OpenTenBase
 Source0:        opentenbase-%{version}-%{_arch}.tar.gz
 Source1:        pg_hba.conf.template
 Source2:        opentenbase-psql
+Source3:        libssh2-1.11.1.tar.gz
 
 %define otb_ver %{version}
 %define otb_prefix /usr/lib/opentenbase/%{otb_ver}
@@ -19,13 +20,15 @@ Source2:        opentenbase-psql
 %undefine _lto_cflags
 
 # Filter out GLIBC_PRIVATE dependency (false positive from RPM auto-detection)
-%global __requires_exclude ^libc\\.so\\.6\\(GLIBC_PRIVATE\\)
+# Also filter out libssh2 dependency (we bundle it into %{otb_prefix}/lib)
+%global __requires_exclude ^libc\\.so\\.6\\(GLIBC_PRIVATE\\)|libssh2
 
-BuildRequires:  gcc gcc-c++ make bison flex perl
+BuildRequires:  gcc gcc-c++ make bison flex perl cmake
 BuildRequires:  readline-devel zlib-devel openssl-devel pam-devel
 BuildRequires:  libxml2-devel openldap-devel libuuid-devel
 BuildRequires:  libcurl-devel lz4-devel
-BuildRequires:  libssh2-devel pkg-config libtool
+BuildRequires:  pkg-config libtool
+# libssh2-devel is optional - we build from Source3 if not available
 # opentenbase_ctl also needs CLI11, indicators (header-only, auto-installed in %build)
 # and libpqxx (auto-built from source in %build if not in repos)
 
@@ -398,10 +401,36 @@ fi
 # All deps are auto-installed; build FAILS if any are missing
 # ============================================================
 
-# 1. Verify libssh2 (should be installed via BuildRequires)
-if [ ! -f /usr/lib64/libssh2.so ] && [ ! -f /usr/lib/libssh2.so ]; then
-    echo "ERROR: libssh2 not found — opentenbase_ctl requires it. Install libssh2-devel."
-    exit 1
+# 1. Build libssh2 from source if not available (Rocky 9 lacks libssh2)
+# Source3 provides libssh2-1.11.1.tar.gz for self-contained build
+LIBSSH2_FOUND=0
+if [ -f /usr/lib64/libssh2.so.1 ] || [ -f /usr/lib/libssh2.so.1 ]; then
+    LIBSSH2_FOUND=1
+    echo "NOTE: libssh2 already installed from system packages"
+else
+    echo "NOTE: libssh2 not found, building from Source3"
+    cd /tmp && rm -rf libssh2-build
+    tar xzf %{SOURCE3} -C /tmp
+    cd /tmp/libssh2-1.11.1
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_INSTALL_LIBDIR=lib64
+    cmake --build build -j$(nproc)
+    cmake --install build
+    ldconfig
+    cd /tmp && rm -rf libssh2-build libssh2-1.11.1
+    # Verify installation
+    if [ -f /usr/local/lib64/libssh2.so.1 ]; then
+        LIBSSH2_FOUND=1
+        echo "NOTE: libssh2 built and installed to /usr/local/lib64"
+        # Also create symlink in standard path for build compatibility
+        mkdir -p /usr/lib64
+        ln -sf /usr/local/lib64/libssh2.so.1 /usr/lib64/libssh2.so.1
+        ln -sf /usr/local/lib64/libssh2.so /usr/lib64/libssh2.so
+        ln -sf /usr/local/lib64/libssh2.so.1.0.1 /usr/lib64/libssh2.so.1.0.1
+    else
+        echo "ERROR: libssh2 build failed — opentenbase_ctl cannot be built"
+        exit 1
+    fi
 fi
 
 # 2. Install CLI11 single-header from GitHub if not present
@@ -534,6 +563,17 @@ for libpath in /usr/lib64/libpqxx.so /usr/lib/libpqxx.so /usr/local/lib/libpqxx.
     if [ -f "$libpath" ]; then
         cp -L "$libpath" %{buildroot}%{otb_prefix}/lib/
         echo "Bundled $libpath into package"
+        break
+    fi
+done
+
+# Bundle libssh2.so.1 into OpenTenBase lib dir (for Rocky 9 compatibility)
+# Rocky 9 lacks libssh2, so we bundle it with the package
+for libpath in /usr/local/lib64/libssh2.so.1 /usr/lib64/libssh2.so.1 /usr/lib/libssh2.so.1; do
+    if [ -f "$libpath" ]; then
+        # Copy the actual library file (not symlink)
+        cp -L "$libpath" %{buildroot}%{otb_prefix}/lib/
+        echo "Bundled libssh2.so.1 into package from $libpath"
         break
     fi
 done
