@@ -1,2 +1,1 @@
-usr/lib/*/libpqxx.so.*
-usr/share/doc/libpqxx/
+usr/lib/*/libpqxx-7.9.so
