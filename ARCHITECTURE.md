@@ -484,6 +484,8 @@ GitHub Actions 完成构建
   - `docker/runtime/Dockerfile.debian-12` — apt 直装版
   - `docker/runtime/Dockerfile.rockylinux-9` — dnf 直装版
   - `docker/runtime/Dockerfile.openeuler-22.03` — dnf 直装版（替代旧 rpm2cpio 解包版）
+- [x] **v5.0-p33 Release 发布** — 172 packages (DEB v5.0/v2.6/v2.5 全版本 + 部分 RPM)，含 PR #69 GTM 修复
+- [x] **移除 Dockerfile LD_PRELOAD workaround** — v5.0-p33 包含 PR #69 修复，无需 noaffinity.so stub
 
 ### 短期 (可立即实施)
 

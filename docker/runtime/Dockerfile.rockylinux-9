@@ -10,19 +10,6 @@ FROM rockylinux:9
 
 ARG OTB_VERSION=5.0
 
-# GTM 线程绑定 workaround（CDN 包尚未包含 PR #69 修复）
-# 在低核服务器上，GTM 的 pthread_setaffinity_np 会失败导致启动崩溃
-# 创建 noaffinity.so stub 使其始终返回成功
-RUN if [ "$(nproc)" -le 2 ]; then \
-        echo "Creating noaffinity.so stub for low-core systems"; \
-        dnf install -y gcc && \
-        echo 'int pthread_setaffinity_np(void* t, long s, const void* c) { return 0; }' > /tmp/noaffinity.c && \
-        gcc -shared -fPIC -o /usr/lib/opentenbase/noaffinity.so /tmp/noaffinity.c && \
-        rm -f /tmp/noaffinity.c && \
-        dnf remove -y gcc; \
-    fi
-ENV LD_PRELOAD=/usr/lib/opentenbase/noaffinity.so
-
 # 运行时依赖（RPM 包自带 libssh2.so.1，libatomic 供原子操作）
 # Rocky 9 base image has curl-minimal which conflicts with curl, use --allowerasing
 # 安装 EPEL 以获取 libssh2
