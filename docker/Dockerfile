@@ -3,7 +3,7 @@
 
 FROM rockylinux:9
 
-# 安装构建依赖 + 运行依赖
+# 安装构建依赖 + 运行依赖 + RPM 构建工具
 RUN yum install -y \
     gcc \
     make \
@@ -12,6 +12,7 @@ RUN yum install -y \
     gnupg2 \
     libatomic \
     libpq \
+    rpm-build \
     && yum clean all
 
 # 编译安装 libssh2 (Rocky 9 不提供 libssh2，只有新版 libssh)
@@ -25,6 +26,31 @@ RUN cd /tmp && \
     cmake --install build && \
     ldconfig && \
     cd /tmp && rm -rf libssh2-*
+
+# 创建 libssh2 虚拟 RPM 包 (让 RPM 包管理器"看到"libssh2.so.1)
+# 实际库文件由上面的源码编译提供
+RUN mkdir -p /tmp/libssh2-dummy/SPECS && \
+    cat > /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec << 'SPECEOF'
+Name:           libssh2-dummy
+Version:        1.11.1
+Release:        1
+Summary:        Dummy package providing libssh2.so.1 (built from source)
+License:        BSD
+Provides:       libssh2.so.1()(64bit)
+Provides:       libssh2 = %{version}
+%description
+Dummy RPM package that provides libssh2.so.1 capability.
+The actual library is built from source and installed outside RPM.
+%files
+SPECEOF
+    rpmbuild --define '_rpmdir /tmp/libssh2-dummy/RPMS' \
+             --define '_builddir /tmp/libssh2-dummy/BUILD' \
+             --define '_sourcedir /tmp/libssh2-dummy/SOURCES' \
+             --define '_specdir /tmp/libssh2-dummy/SPECS' \
+             --define '_srcrpmdir /tmp/libssh2-dummy/SRPMS' \
+             -bb /tmp/libssh2-dummy/SPECS/libssh2-dummy.spec && \
+    yum install -y /tmp/libssh2-dummy/RPMS/x86_64/libssh2-dummy-*.rpm && \
+    rm -rf /tmp/libssh2-dummy
 
 # 配置 OpenTenBase 仓库
 RUN curl -fsSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
