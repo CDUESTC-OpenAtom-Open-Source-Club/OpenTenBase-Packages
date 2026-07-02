@@ -1,0 +1,2 @@
+# Documentation files - not needed for runtime or development
+usr/share/doc/libpqxx/*.md
