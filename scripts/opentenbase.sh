@@ -472,9 +472,13 @@ log_ok "CPU ${CPU_CORES} 核"
 
 # Low-core fix: GTM uses pthread_setaffinity_np which fails on ≤2 core machines
 # with EINVAL, causing GTM to crash. Create a stub .so that makes the call a no-op.
+# NOTE: OpenTenBase-Packages PR #69 (2026-07-02) fixes this in source code:
+#   - bind_service_threads() skips binding when cpu_num <= 2
+#   - bind_thread_to_cores() logs WARNING instead of FATAL on failure
+# New packages (built after PR #69) do NOT need this LD_PRELOAD hack.
 NOAFFINITY_SO=""
 if [[ "$CPU_CORES" -le 2 ]]; then
-    log_warn "CPU ≤ 2 核，创建 noaffinity.so 绕过 GTM CPU 亲和性问题"
+    log_warn "CPU ≤ 2 核，创建 noaffinity.so 绕过 GTM CPU 亲和性问题（旧版本 fallback）"
     NOAFFINITY_SO="/usr/lib/opentenbase/noaffinity.so"
     cat > /tmp/noaffinity.c << 'NOAFEOF'
 #define _GNU_SOURCE
