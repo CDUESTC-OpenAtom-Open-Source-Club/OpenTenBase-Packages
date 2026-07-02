@@ -10,6 +10,9 @@
 *.dsc
 *.build
 *.changes
+
+# Exception: vendored source tarballs (needed at build time)
+!vendor/*.tar.gz
 /build/
 
 # IDE
