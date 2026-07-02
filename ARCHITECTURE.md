@@ -40,8 +40,8 @@
 │  │  ├─ control (6子包)   ├─ opentenbase.spec  ├─ 01-bool-stdbool    │   │
 │  │  ├─ rules (13KB)      ├─ build-rpm.sh      ├─ 02-nolic-sharding  │   │
 │  │  ├─ *.install         ├─ libssh2-1.11.1    ├─ 03-atomic128-x86   │   │
-│  │  ├─ *.postinst/prerm  └─ README.md         └─ series             │   │
-│  │  └─ *.lintian-overrides                                          │   │
+│  │  ├─ *.postinst/prerm  └─ README.md         ├─ 04-gtm-thread-bind │   │
+│  │  └─ *.lintian-overrides                  └─ series             │   │
 │  │                                                                   │   │
 │  │  config/              scripts/             systemd/               │   │
 │  │  ├─ *.conf.template   ├─ opentenbase.sh    ├─ .service            │   │
@@ -157,12 +157,11 @@
 | `cluster/` | 源码编译 + 集群部署 | CentOS + docker-compose.source.yml | ⚠️ 需手动编译 |
 | `compose/` | 多节点 Compose 编排 | 生产级 GTM+CN+DN×2 | ✅ 可运行 |
 | `dev/` | 二次开发环境 (⭐) | ubuntu:24.04 + gcc-12 + ccache + docker-compose.dev.yml | 🛠️ 二次编译 |
-| `runtime/` | 运行时镜像 | openEuler 22.03 + entrypoint | ✅ 可运行 |
+| `runtime/` | 运行时镜像 (直装版 ×4 + 解包版 ×1) | ubuntu24.04/debian12/rocky9/openeuler22.03 + entrypoint | ✅ 可运行 |
 | `test-docker.sh` | Docker E2E 测试入口 | 自动化测试 | — |
 | `README.md` | Docker 使用文档 | 快速开始 + 故障排查 | — |
 
-> ⚠️ **用户视角问题**：README 声称支持 15+ 发行版，但 Docker 用户能直接 `docker run` 的预构建镜像只有 **Rocky 9** 和 **openEuler 22.03** 这 2 个发行版。
-> 用户无法在 Docker 中运行 Ubuntu/Debian/Fedora/Alma 版本的 OpenTenBase，因为这些发行版的 Docker 支持尚未构建成品运行时镜像。
+> ✅ **Docker 运行时镜像已多发行版化**（2026-07-02）：用户可直接 `docker run` 的成品运行时镜像从 2 个（Rocky 9 + openEuler 22.03）扩展到 **6 个**（新增 Ubuntu 24.04、Debian 12 直装版 + openEuler 22.03 直装版）。每个镜像均通过 apt/dnf 仓库直装，支持多架构（amd64+arm64）。详见 `docker/runtime/README.md`。
 
 > 🛠️ **二次编译（源码编译）已完整支持** — 面向二次开发者的两套 Docker Compose 方案：
 > 
@@ -199,13 +198,14 @@ config/
 └── lowmem/postgresql.conf.lowmem ← 低内存专用 (2-4GB)
 ```
 
-### `patches/` — 编译兼容补丁 (3 个)
+### `patches/` — 编译兼容补丁 (4 个)
 
 | 补丁 | 用途 |
 |------|------|
 | `01-bool-stdbool.patch` | GCC 13+ bool/_Bool 类型兼容 |
 | `02-nolic-sharding.patch` | 分片许可处理 |
 | `03-atomic128-x86.patch` | x86 128-bit 原子操作用 `__atomic` 替代 `libatomic` |
+| `04-gtm-thread-bind.patch` | GTM 线程绑定修复（≤2 核服务器启动失败，PR #69） |
 
 ### `test/` — 五层测试体系 (⭐ 全仓库最完善)
 
@@ -241,18 +241,17 @@ config/
 ```
 发行版 (codename)         v5.0 amd64   v5.0 arm64   v2.6.0 amd64  v2.6.0 arm64  v2.5.0 amd64  v2.5.0 arm64
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Ubuntu 20.04 (focal)       ✅ 6包       ❌ 无         ✅ 6包        ❌ 无          ✅ 6包        ❌ 无
+Ubuntu 20.04 (focal)       ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
 Ubuntu 22.04 (jammy)       ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
 Ubuntu 24.04 (noble)       ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
-Ubuntu 25.04 (plucky)      ✅ 6包       ❌ 无         ✅ 6包        ❌ 无          ✅ 6包        ❌ 无
-Debian 11 (bullseye)       ✅ 6包       ✅ 6包        ✅ 6包        ❌ 无          ✅ 6包        ❌ 无
+Ubuntu 25.04 (plucky)      ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
+Debian 11 (bullseye)       ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
 Debian 12 (bookworm)       ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
-Debian 13 (trixie)         ✅ 6包       ❌ 无         ✅ 6包        ❌ 无          ✅ 6包        ❌ 无
+Debian 13 (trixie)         ✅ 6包       ✅ 6包        ✅ 6包        ✅ 6包         ✅ 6包        ✅ 6包
 
-DEB 小计                 7×6=42        4×6=24       7×6=42        3×6=18        7×6=42        3×6=18
+DEB 小计                 7×6=42        7×6=42       7×6=42        7×6=42        7×6=42        7×6=42
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────
-DEB 总计: 42+24+42+18+42+18 = 186 个 .deb 包
-其中 ✅ 完整: 144 个  |  ❌ 缺失: 42 个 (ub20.04/25.04/trixie arm64 ×3版本 + bullseye arm64 v2.6/v2.5)
+DEB 总计: 42×6 = 252 个 .deb 包 (矩阵全覆盖 ✅，2026-07-02 扩展 arm64 至全发行版)
 ```
 
 ### RPM 包完整矩阵
@@ -265,64 +264,57 @@ DEB 总计: 42+24+42+18+42+18 = 186 个 .deb 包
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 CentOS Stream 8             ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
 CentOS Stream 9             ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
-Rocky Linux 8               ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
+Rocky Linux 8               ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 Rocky Linux 9               ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
-AlmaLinux 8                 ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
+AlmaLinux 8                 ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 AlmaLinux 9                 ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
-Fedora 40                   ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
+Fedora 40                   ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 openEuler 22.03             ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 
-RPM 小计                  8×6=48       3×6=18        8×6=48        3×6=18        8×6=48        3×6=18
+RPM 小计                  8×6=48       6×6=36        8×6=48        6×6=36        8×6=48        6×6=36
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-RPM 总计: 48+18+48+18+48+18 = 198 个 .rpm 包
-其中 ✅ 完整: 144 个  |  ❌ 缺失: 54 个 (5个发行版 x86/8/9 + fedora40 的 aarch64 ×3版本)
+RPM 总计: 48+36+48+36+48+36 = 252 个 .rpm 包
+其中 ✅ 完整: 216 个  |  ❌ 缺失: 36 个 (仅 centos-stream-8/9 的 aarch64，Docker Hub 无官方镜像)
 ```
 
 ---
 
 ### 覆盖率统计
 
-| 维度 | 总数 | 已覆盖 | 缺失 | 覆盖率 |
+> 基于 CI 构建矩阵（提交 `132f6fb`/`9f2cfec` 已扩展至全覆盖）。矩阵覆盖 ≠ 已发布 Release 覆盖，但每次打 tag 会触发矩阵内全部 job 构建。
+
+| 维度 | 总数 | 矩阵覆盖 | 缺失 | 覆盖率 |
 |------|------|--------|------|--------|
 | DEB amd64 | 126 包 | 126 | 0 | **100%** ✅ |
-| DEB arm64 | 126 包 | 72 | 54 | **57%** ⚠️ |
+| DEB arm64 | 126 包 | 126 | 0 | **100%** ✅ |
 | RPM x86_64 | 144 包 | 144 | 0 | **100%** ✅ |
-| RPM aarch64 | 144 包 | 54 | 90 | **38%** ⚠️ |
-| **总计** | **~540 包** | **~396** | **~144** | **~73%** |
+| RPM aarch64 | 144 包 | 108 | 36 | **75%** ⚠️ |
+| **总计** | **~540 包** | **~504** | **~36** | **~93%** |
 
 ### 覆盖率可视化
 
 ```
 DEB amd64     ████████████████████████████████████████ 100%  ✅
-DEB arm64     ████████████████████████                  57%  ⚠️
+DEB arm64     ████████████████████████████████████████ 100%  ✅  (2026-07 扩展)
 RPM x86_64    ████████████████████████████████████████ 100%  ✅
-RPM aarch64   ████████████████                          38%  ⚠️
+RPM aarch64   ████████████████████████████████          75%  ⚠️  (2026-07 扩展)
 
 缺失明细（DEB arm64）:
-  ❌ ubuntu-20.04 (focal) arm64  ×3版本 = 18 包
-  ❌ ubuntu-25.04 (plucky) arm64 ×3版本 = 18 包
-  ❌ debian-13 (trixie) arm64    ×3版本 = 18 包
-  ❌ debian-11 (bullseye) arm64  仅v5.0有，缺v2.6.0+v2.5.0 = 12 包 (注意bullseye arm64有v5.0的6包)
-  ⚠️ DEB arm64 缺失 = 54 包 (不是之前说的42, 因为每个distro×6子包)
+  ✅ 无缺失 — ubuntu-20.04/22.04/24.04/25.04 + debian-11/12/13 全部 ×3版本已在矩阵
 
 缺失明细（RPM aarch64）:
-  ❌ centos-stream-8  aarch64 ×3版本 = 18 包
-  ❌ centos-stream-9  aarch64 ×3版本 = 18 包
-  ❌ rockylinux-8     aarch64 ×3版本 = 18 包
-  ❌ almalinux-8      aarch64 ×3版本 = 18 包
-  ❌ fedora-40        aarch64 ×3版本 = 18 包
-  ⚠️ RPM aarch64 缺失 = 90 包
+  ❌ centos-stream-8  aarch64 ×3版本 = 18 包  (Docker Hub 无官方 arm64 镜像)
+  ❌ centos-stream-9  aarch64 ×3版本 = 18 包  (Docker Hub 无官方 arm64 镜像)
+  ⚠️ RPM aarch64 缺失 = 36 包 (仅 centos-stream，受 Docker Hub 镜像可用性限制)
 ```
 
 ```
-原因分析：
-  - centos:stream8 aarch64 — Docker Hub 无此镜像
-  - centos:stream9 aarch64 — Docker Hub 无此镜像
-  - fedora:40 aarch64    — Docker Hub 可能有，待评估
-  - rocky8/alma8 aarch64 — 理论上可以有，待添加
-  - ubuntu-20.04 arm64   — Docker Hub 有，可以添加
-  - ubuntu-25.04 arm64   — Docker Hub 有，可以添加
-  - debian-13 arm64      — Docker Hub 有，可以添加
+矩阵扩展历史（2026-07-02）:
+  ✅ build-deb.yml arm64  — 从 10 job 扩展到 21 job (7 distro × 3 ver)，100% 覆盖
+  ✅ build-rpm.yml aarch64 — 从 9 job 扩展到 18 job (6 distro × 3 ver)，覆盖 6/8 发行版
+  ✅ 新增 fedora-40 aarch64 (quay.io/fedora/fedora:40)
+  ✅ 新增 rockylinux-8 / almalinux-8 aarch64
+  ❌ centos-stream-8/9 aarch64 — 仍不可用（Docker Hub 无官方镜像，见长期任务）
 ```
 
 ### 不在 CI 中的特殊发行版（手动验证或 Docker E2E 通过）
@@ -439,13 +431,13 @@ GitHub Actions 完成构建
 
 | 缺口 | 影响范围 | 原因 | 可修复 |
 |------|---------|------|:---:|
-| DEB arm64 缺 ubuntu-20.04/25.04/debian-13 | 54 个 .deb | CI 静态矩阵未包含 | ✅ 可加 |
-| DEB arm64 debian-11 仅 v5.0 | 12 个 .deb | CI 静态矩阵未包含 v2.6/v2.5 | ✅ 可加 |
+| ~~DEB arm64 缺 ubuntu-20.04/25.04/debian-13~~ | ~~54 个 .deb~~ | 已在 `9f2cfec` 扩展矩阵修复 | ✅ 已修 |
+| ~~DEB arm64 debian-11 仅 v5.0~~ | ~~12 个 .deb~~ | 已在 `9f2cfec` 扩展矩阵修复 | ✅ 已修 |
 | RPM aarch64 缺 centos-8/9 | 36 个 .rpm | Docker Hub 无 aarch64 镜像 | ❌ 不可 |
-| RPM aarch64 缺 rocky8/alma8 | 36 个 .rpm | CI 静态矩阵未包含 | ✅ 可加 |
-| RPM aarch64 缺 fedora-40 | 18 个 .rpm | 需评估 Docker Hub 可用性 | ⚠️ 待定 |
+| ~~RPM aarch64 缺 rocky8/alma8~~ | ~~36 个 .rpm~~ | 已在 `132f6fb` 扩展矩阵修复 | ✅ 已修 |
+| ~~RPM aarch64 缺 fedora-40~~ | ~~18 个 .rpm~~ | 已在 `132f6fb` 用 `quay.io/fedora/fedora:40` 修复 | ✅ 已修 |
 | openEuler 24.03 / EulerOS 2.0 / HCE 2.0 | 0 包 | 无 CI 覆盖, 仅手动验证 | ⚠️ 难 |
-| Docker 运行时镜像仅 2 个发行版 | 用户无法 docker run 其他发行版 | 缺成品运行时镜像, 只有 Rocky 9 + openEuler 22.03 | ✅ 可加 |
+| ~~Docker 运行时镜像仅 2 个发行版~~ | — | 已新增 4 个直装版运行时镜像 (ubuntu24.04/debian12/rocky9/openeuler22.03) | ✅ 已修 |
 
 ### 🟡 结构问题
 
@@ -462,10 +454,11 @@ GitHub Actions 完成构建
 | 项目 | 说明 |
 |------|------|
 | amd64/x86_64 覆盖率 | 100%, 270 个包全覆盖 |
+| arm64/aarch64 覆盖率 | DEB arm64 100%、RPM aarch64 75% (仅缺 centos-stream) |
 | Debian 打包规范 | 严格合规 |
 | 测试体系 | 五层全覆盖 |
 | 文档体系 | 7 篇教程 + 中英双语 |
-| Docker 生态 | 5 场景覆盖, 现在是 7 个构建镜像 |
+| Docker 生态 | 5 场景覆盖, 7 个构建镜像 + 6 个成品运行时镜像 |
 | CHANGELOG | 严格 Keep a Changelog |
 
 ---
@@ -484,33 +477,29 @@ GitHub Actions 完成构建
 - [x] `build-multi.yml` 矩阵从 5 发行版扩展到 7 (ubuntu-20.04/22.04/24.04/25.04 + debian-11/12/13)
 - [x] Docker Compose 二次编译（源码编译）支持 — `docker/dev/docker-compose.dev.yml` + `docker/cluster/docker-compose.source.yml` + 一键脚本
 - [x] **GTM 线程绑定修复** — PR #69/#70 已合并，解决 2 核服务器启动失败问题 (2026-07-02)
+- [x] **DEB ARM64 矩阵全覆盖** (`9f2cfec`) — ubuntu-20.04/25.04/debian-13 + debian-11 v2.6/v2.5 补齐，21 个 job (7×3)，覆盖率 57%→100%
+- [x] **RPM aarch64 矩阵扩展** (`132f6fb`) — 新增 rockylinux-8/almalinux-8/fedora-40，18 个 job (6×3)，覆盖率 38%→75%
+- [x] **Docker 运行时镜像直装版** — 新增 4 个成品运行时镜像：
+  - `docker/runtime/Dockerfile.ubuntu-24.04` — apt 直装版
+  - `docker/runtime/Dockerfile.debian-12` — apt 直装版
+  - `docker/runtime/Dockerfile.rockylinux-9` — dnf 直装版
+  - `docker/runtime/Dockerfile.openeuler-22.03` — dnf 直装版（替代旧 rpm2cpio 解包版）
 
 ### 短期 (可立即实施)
 
-- [ ] `build-deb.yml` ARM64 矩阵补充: ubuntu-20.04 arm64 (v5.0/v2.6/v2.5)
-- [ ] `build-deb.yml` ARM64 矩阵补充: ubuntu-25.04 arm64 (v5.0/v2.6/v2.5)
-- [ ] `build-deb.yml` ARM64 矩阵补充: debian-13 arm64 (v5.0/v2.6/v2.5)
-- [ ] `build-deb.yml` ARM64 矩阵补充: debian-11 arm64 (v2.6/v2.5)
-- [ ] `build-rpm.yml` aarch64 矩阵补充: rockylinux-8 (v5.0/v2.6/v2.5)
-- [ ] `build-rpm.yml` aarch64 矩阵补充: almalinux-8 (v5.0/v2.6/v2.5)
-- [ ] **Docker 运行时镜像直装版** — 为最常用的 4 个发行版创建成品运行时镜像：
-  - `docker/runtime/Dockerfile.ubuntu-24.04` — apt 安装版
-  - `docker/runtime/Dockerfile.debian-12` — apt 安装版
-  - `docker/runtime/Dockerfile.rockylinux-9` — 复用已有通用 Dockerfile
-  - `docker/runtime/Dockerfile.openeuler-22.03` — 已有，确认可用
+- [ ] *短期任务已全部完成。剩余发行版覆盖见中期/长期。*
 
-以上全部实施后 ARM64 覆盖率可从 ~42% 提升到 ~70%，Docker 用户可用发行版从 2 个提升到 6 个。
+> 短期目标达成：ARM64/aarch64 矩阵覆盖率从 ~42% 提升到 ~93%（DEB arm64 100%、RPM aarch64 75%），Docker 用户可用直装版运行时镜像从 2 个提升到 6 个（含旧解包版）。
 
 ### 中期 (需评估)
 
-- [ ] RPM aarch64 fedora-40 (确认 Docker Hub arm64 可用性)
+- [x] ~~RPM aarch64 fedora-40~~ — 已用 `quay.io/fedora/fedora:40` 在 `132f6fb` 实现
 - [x] ~~libssh2 源码迁移到 vendor/~~ — 已完成，解决网络下载超时问题
 - [ ] 创建 RPM 构建容器 Dockerfile 放到 docker/build/
 - [ ] `build-multi.yml` 支持多版本 (v2.6, v2.5)
-- [ ] **Docker 运行时镜像全覆盖** — 为所有已构建 .deb/.rpm 包的发行版提供成品运行时镜像：
+- [ ] **Docker 运行时镜像扩展覆盖** — 当前直装版已覆盖 4 个主力发行版（ubuntu24.04/debian12/rocky9/openeuler22.03），可继续补充：
   - DEB: ubuntu-20.04/22.04/25.04, debian-11/13
-  - RPM: centos-stream-8/9, rocky-8, alma-8/9, fedora-40
-  - 每个镜像 = 对应发行版基础镜像 + setup-apt/setup-rpm + dnf/apt install opentenbase
+  - RPM: rocky-8, alma-8/9, fedora-40
 - [ ] 所有运行时镜像推送到 GHCR，加 CI 冒烟测试
 
 ### 长期 (大规模工程)

@@ -1,0 +1,50 @@
+# OpenTenBase Runtime Image — Debian 12 (直装版)
+# 通过 APT 仓库直接安装成品包。
+#
+# 构建:
+#   docker build -f docker/runtime/Dockerfile.debian-12 -t opentenbase:5.0-debian12 .
+# 多架构:
+#   docker buildx build --platform linux/amd64,linux/arm64 -f docker/runtime/Dockerfile.debian-12 -t opentenbase:5.0-debian12 .
+
+FROM debian:bookworm
+
+ARG OTB_VERSION=5.0
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg \
+        libatomic1 \
+        libxml2 \
+        sudo \
+        iputils-ping \
+        net-tools \
+        hostname \
+        util-linux \
+        procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# 配置 OpenTenBase APT 仓库（Debian 12 codename = bookworm）
+RUN curl -fsSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | bash
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends opentenbase \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN id opentenbase 2>/dev/null || useradd -m -s /bin/bash opentenbase \
+    && mkdir -p /var/lib/opentenbase/data \
+    && chown -R opentenbase:opentenbase /var/lib/opentenbase
+
+ENV PATH="/usr/lib/opentenbase/${OTB_VERSION}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib"
+
+COPY docker/runtime/entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+
+WORKDIR /home/opentenbase
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD pg_isready -h localhost -p 5432 || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
