@@ -43,53 +43,63 @@ English | [中文](README_zh.md)
 
 ### 一键安装（推荐）
 
-只需一条命令即可完成安装和配置：
+**一条命令，自动完成全部工作：检测系统 → 配置源 → 安装包 → 创建用户 → 部署集群 → 启动服务。**
 
 ```bash
-curl -sSL https://get.opentenbase.com | sudo bash
+# CDN 加速（推荐，国内速度快 150-200 倍）
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash
+
+# GitHub 直连（备选）
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
+
+# 全自动模式（无需交互，适合自动化部署）
+curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash -s -- install --yes
 ```
 
-安装完成后，只需两条命令即可运行：
+脚本会自动完成 6 个步骤：
+1. ✅ 检测操作系统（自动识别 Ubuntu/Debian/Rocky/Alma/CentOS/openEuler）
+2. ✅ 配置软件源 + 安装依赖（包括 libpqxx）
+3. ✅ 创建 opentenbase 用户 + SSH 免密
+4. ✅ 生成集群配置（GTM + Coordinator + Datanode）
+5. ✅ 部署并启动集群
+6. ✅ 验证安装（SQL 测试）
 
+运行结束后，集群已就绪，可以直接连接：
 ```bash
-opentenbase init    # 初始化集群
-opentenbase start   # 启动服务
+psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
 ```
 
-### 手动安装（可选）
+---
 
-**Ubuntu/Debian:**
-```bash
-curl -sSL https://repo.blackevil217.com/apt/gpg-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/opentenbase.gpg
-echo "deb [signed-by=/usr/share/keyrings/opentenbase.gpg] https://repo.blackevil217.com/apt noble main" | sudo tee /etc/apt/sources.list.d/opentenbase.list
-sudo apt update && sudo apt install -y opentenbase
-```
+### 分步安装（可选）
 
-**Rocky/Alma/CentOS:**
+如果你只想安装软件包，之后再手动配置集群：
+
+**第一步：配置软件源并安装包**
 ```bash
-sudo rpm --import https://repo.blackevil217.com/rpm/gpg-key.asc
-sudo dnf config-manager --add-repo https://repo.blackevil217.com/rpm/el9/x86_64
+# Ubuntu / Debian
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
+sudo apt install -y opentenbase
+
+# Rocky / Alma / CentOS / openEuler
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install -y opentenbase
 ```
 
-### 常用命令
-
+**第二步：部署集群**
 ```bash
-# Download from releases: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases
-# DEB: sudo apt install ./opentenbase_*.deb
-# RPM: sudo dnf install ./opentenbase-*.rpm
+opentenbase_ctl install -c /tmp/otb_config.ini
+opentenbase_ctl start
+opentenbase_ctl status
 ```
 
-### Uninstall
+### 卸载
 
 ```bash
-# CDN accelerated (recommended)
+# CDN 加速
 curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash
 
-# GitHub direct (fallback)
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/uninstall.sh | sudo bash
-
-# Full uninstall including data and logs (no prompts)
+# 彻底卸载（含数据，无需确认）
 curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash -s -- --purge --yes
 ```
 

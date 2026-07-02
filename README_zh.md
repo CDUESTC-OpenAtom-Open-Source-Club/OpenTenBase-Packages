@@ -41,49 +41,69 @@
 
 ### 一键部署（推荐）
 
-**白板机器 → 集群运行，一条命令搞定。** 支持交互式和非交互式：
+**一条命令，自动完成全部工作。** 你只需要复制粘贴，剩下的脚本自动处理：
 
 ```bash
-# CDN 加速（推荐，全球加速）
+# CDN 加速（推荐，国内速度快 150-200 倍）
 curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash
 
-# GitHub 直连（备用）
+# GitHub 直连（备选）
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
 
-# 非交互式（全自动，单节点默认值，适合 CI/自动化）
+# 全自动模式（无需交互，适合自动化部署）
 curl -sSL https://repo.blackevil217.com/scripts/opentenbase.sh | sudo bash -s -- install --yes
-
-# 非交互式 + 自定义参数
-sudo bash opentenbase.sh install --yes \
-    --cluster-name mycluster \
-    --ssh-password mypass123 \
-    --gtm-ip 192.168.1.10
 ```
 
-脚本自动完成：安装包 → 创建用户 → 配置 sshpass → 路径符号链接 → 生成 INI 配置 → `opentenbase_ctl install` → 启动验证
+**脚本自动完成 6 步，无需任何手动操作：**
 
-### 软件包仓库（手动安装）
+| 步骤 | 操作 | 说明 |
+|------|------|------|
+| 1 | 检测系统 | 自动识别 Ubuntu/Debian/Rocky/Alma/CentOS/openEuler |
+| 2 | 安装软件 | 配置源 + 安装包 + 自动解决依赖（含 libpqxx） |
+| 3 | 准备环境 | 创建 opentenbase 用户 + 配置 SSH 免密 |
+| 4 | 生成配置 | 自动生成 GTM + Coordinator + Datanode 配置 |
+| 5 | 部署集群 | `opentenbase_ctl install` 自动初始化并启动 |
+| 6 | 验证安装 | SQL 连接测试 |
 
-#### APT（Ubuntu / Debian）
+**运行结束后，集群已就绪，可以直接连接：**
+```bash
+psql -h 127.0.0.1 -p 5432 -U opentenbase -d postgres
+```
+
+---
+
+### 分步安装（可选）
+
+只想安装软件包，之后再手动配置集群？分两步：
+
+**第一步：安装软件包**
 
 ```bash
+# Ubuntu / Debian
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-apt.sh | sudo bash
-sudo apt update && sudo apt install -y opentenbase
-```
+sudo apt install -y opentenbase
 
-#### YUM/DNF（RHEL / CentOS / Fedora / openEuler / EulerOS）
-
-```bash
+# Rocky / Alma / CentOS / openEuler
 curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | sudo bash
 sudo dnf install -y opentenbase
 ```
 
-安装包后，部署集群：
+**第二步：部署集群**
 
 ```bash
-opentenbase_ctl install -c /tmp/otb_config.ini
-opentenbase_ctl start -c /tmp/otb_config.ini
-opentenbase_ctl status -c /tmp/otb_config.ini
+opentenbase_ctl install -c /tmp/otb_config.ini   # 安装集群
+opentenbase_ctl start                             # 启动
+opentenbase_ctl status                            # 查看状态
+```
+
+### 卸载
+
+```bash
+# CDN 加速
+curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash
+
+# 彻底卸载（含数据，无需确认）
+curl -sSL https://repo.blackevil217.com/scripts/uninstall.sh | sudo bash -s -- --purge --yes
 ```
 
 > **openEuler / EulerOS（华为云）说明**：本仓库完整支持 openEuler 与华为云 EulerOS（HCE）2.0，
