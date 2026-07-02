@@ -1,5 +1,3 @@
 usr/include/pqxx/
 usr/lib/*/libpqxx.so
-usr/lib/*/libpqxx.a
 usr/lib/*/cmake/libpqxx/
-usr/share/doc/libpqxx/
