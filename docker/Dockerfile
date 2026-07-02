@@ -3,13 +3,28 @@
 
 FROM rockylinux:9
 
-# 安装依赖（curl-minimal 已在基础镜像中）
+# 安装构建依赖 + 运行依赖
 RUN yum install -y \
+    gcc \
+    make \
+    cmake \
+    openssl-devel \
     gnupg2 \
     libatomic \
     libpq \
-    libssh-devel \
     && yum clean all
+
+# 编译安装 libssh2 (Rocky 9 不提供 libssh2，只有新版 libssh)
+# OpenTenBase 运行时依赖 libssh2.so.1
+RUN cd /tmp && \
+    curl -fsSL https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/libssh2-1.11.1.tar.gz -o libssh2.tar.gz && \
+    tar xzf libssh2.tar.gz && \
+    cd libssh2-1.11.1 && \
+    cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON && \
+    cmake --build build -j$(nproc) && \
+    cmake --install build && \
+    ldconfig && \
+    cd /tmp && rm -rf libssh2-*
 
 # 配置 OpenTenBase 仓库
 RUN curl -fsSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/setup-rpm.sh | bash
