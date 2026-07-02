@@ -3,6 +3,9 @@
 
 FROM rockylinux:9
 
+# 复制 libssh2 源码（Rocky 9 不提供 libssh2，需要自行编译）
+COPY libssh2-1.11.1.tar.gz /tmp/libssh2.tar.gz
+
 # 安装构建依赖 + 运行依赖 + RPM 构建工具
 RUN yum install -y \
     gcc \
@@ -18,14 +21,13 @@ RUN yum install -y \
 # 编译安装 libssh2 (Rocky 9 不提供 libssh2，只有新版 libssh)
 # OpenTenBase 运行时依赖 libssh2.so.1
 RUN cd /tmp && \
-    curl -fsSL https://www.libssh2.org/download/libssh2-1.11.1.tar.gz -o libssh2.tar.gz && \
     tar xzf libssh2.tar.gz && \
     cd libssh2-1.11.1 && \
     cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON && \
     cmake --build build -j$(nproc) && \
     cmake --install build && \
     ldconfig && \
-    cd /tmp && rm -rf libssh2-*
+    cd /tmp && rm -rf libssh2-* libssh2.tar.gz
 
 # 创建 libssh2 虚拟 RPM 包 (让 RPM 包管理器"看到"libssh2.so.1)
 # 实际库文件由上面的源码编译提供
