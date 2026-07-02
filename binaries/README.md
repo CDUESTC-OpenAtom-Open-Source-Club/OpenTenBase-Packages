@@ -1,7 +1,12 @@
-# Static Binaries for OpenTenBase Deployment
+# Static Auxiliary Binaries for OpenTenBase Deployment
 
-This directory contains statically-linked binaries required for OpenTenBase cluster deployment
-in environments where package managers are unavailable or restricted.
+> ⚠️ **本目录不是 OpenTenBase 安装包分发目录！**
+> OpenTenBase 的 .deb / .rpm 安装包请前往 **[GitHub Releases](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases)** 下载，
+> 或通过 APT/RPM 仓库安装：`apt install opentenbase` / `dnf install opentenbase`。
+
+This directory contains statically-linked **auxiliary** binaries required for OpenTenBase
+cluster deployment in environments where package managers are unavailable or restricted.
+These are NOT OpenTenBase installation packages.
 
 ## Available Binaries
 

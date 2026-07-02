@@ -595,6 +595,41 @@ sudo apt install -y libpqxx-dev  # DEB 系
 sudo dnf install -y libpqxx-devel  # RPM 系
 ```
 
+### `opentenbase_ctl` 缺少 `libssh2.so.1`
+
+**原因**：`opentenbase_ctl` 依赖的是 **`libssh2`（旧 ABI，提供 `libssh2.so.1`）**，不是新版 `libssh`。Rocky Linux 9 / RHEL 9 系统里的 `libssh-0.10.x` **不能替代** `libssh2`。此外，部分特殊环境（精简镜像、内网机房、特定云厂商定制系统）即使理论上可启用 EPEL，也可能因为仓库不可达、依赖链不完整或版本不匹配而无法稳定安装。
+
+**推荐策略**：
+
+- **首选**：如果目标系统能稳定使用 EPEL 或发行版兼容仓库，直接安装 `libssh2` / `libssh2-devel`。
+- **兜底**：**不要把 EPEL 作为唯一依赖来源**。对于无法稳定获取 `libssh2` 的系统，统一改为**源码编译 `libssh2` 并随包/镜像捆绑运行时库**，避免用户安装时再去碰外部仓库。
+- **原则**：`libssh2` 是 OpenTenBase v5.0 打包链路里的“特殊兼容依赖”，处理方式应与 `libpqxx` 类似，优先保证 **可安装性和可运行性**，而不是强依赖目标机器的仓库状态。
+
+**Rocky Linux 9 临时处理**：
+
+```bash
+# 方法 1：仓库可用时，直接安装旧版 libssh2
+sudo dnf install -y epel-release
+sudo dnf install -y libssh2 libssh2-devel
+
+# 方法 2：仓库不可用时，源码编译 libssh2（推荐作为通用兜底） 
+sudo dnf install -y gcc make cmake openssl-devel curl
+cd /tmp
+curl -fsSL https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/libssh2-1.11.1.tar.gz -o libssh2.tar.gz
+tar xzf libssh2.tar.gz
+cd libssh2-1.11.1
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON
+cmake --build build -j$(nproc)
+sudo cmake --install build
+sudo ldconfig
+```
+
+**对打包维护者的建议**：
+
+- **构建时**：可以继续优先使用 `BuildRequires: libssh2-devel`。
+- **发布时**：对于 `el9` / 特殊 RPM 系，建议在构建环境中准备好 `libssh2`，并在 `%install` 阶段考虑将 `libssh2.so.1` 一并放入 `OpenTenBase` 私有库目录，再通过现有 `rpath` / `ld.so.conf.d` 机制加载，减少目标机对 EPEL 的硬依赖。
+- **不要尝试** 用 `libssh` 建软链冒充 `libssh2`，两者 ABI 不兼容，会导致运行时崩溃或不可预期行为。
+
 ---
 
 ## 贡献

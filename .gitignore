@@ -1,0 +1,38 @@
+# Cloudflare Wrangler runtime state (should not be versioned)
+.wrangler/
+
+# Build artifacts
+*.deb
+*.rpm
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.dsc
+*.build
+*.changes
+/build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Debian packaging artifacts
+debian/files
+debian/*.debhelper
+debian/*.substvars
+debian/opentenbase*/
+debian/tmp/
+
+# RPM build artifacts
+rpmbuild/

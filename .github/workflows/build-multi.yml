@@ -1,4 +1,4 @@
-name: Build Multi-Distro Packages
+name: Build Multi-Distro DEB Packages
 
 on:
   push:
@@ -15,8 +15,10 @@ on:
           - ubuntu-20.04
           - ubuntu-22.04
           - ubuntu-24.04
+          - ubuntu-25.04
           - debian-11
           - debian-12
+          - debian-13
 
 jobs:
   build:
@@ -45,6 +47,14 @@ jobs:
             version: "12"
             codename: bookworm
             dockerfile: docker/build/docker-debian-12.Dockerfile
+          - distro: ubuntu
+            version: "25.04"
+            codename: plucky
+            dockerfile: docker/build/docker-ubuntu-25.04.Dockerfile
+          - distro: debian
+            version: "13"
+            codename: trixie
+            dockerfile: docker/build/docker-debian-13.Dockerfile
 
     steps:
       - name: Check if should build
@@ -70,8 +80,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: OpenTenBase/OpenTenBase
-          # This workflow builds OpenTenBase 5.0 only. Pin to the release tag
-          # for reproducible builds instead of the moving default branch.
+          # This is a convenience workflow for quick DEB multi-distro builds of v5.0.
+          # Pin to the release tag for reproducible builds instead of the moving default branch.
           ref: v5.0
           path: source
           fetch-depth: 1
@@ -153,12 +163,18 @@ jobs:
           - distro: ubuntu
             version: "24.04"
             codename: noble
+          - distro: ubuntu
+            version: "25.04"
+            codename: plucky
           - distro: debian
             version: "11"
             codename: bullseye
           - distro: debian
             version: "12"
             codename: bookworm
+          - distro: debian
+            version: "13"
+            codename: trixie
 
     steps:
       - name: Check if should test
