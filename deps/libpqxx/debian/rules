@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DBUILD_SHARED_LIBS=ON \
+		-DSKIP_BUILD_TEST=ON \
+		-DCMAKE_BUILD_TYPE=Release
+
+override_dh_auto_build:
+	dh_auto_build --parallel
+
+override_dh_auto_install:
+	dh_auto_install
+
+override_dh_strip:
+	dh_strip --dbg-package=libpqxx-7.9-dbg
+
+override_dh_makeshlibs:
+	dh_makeshlibs -V"libpqxx-7.9 (>= 7.9.2)"

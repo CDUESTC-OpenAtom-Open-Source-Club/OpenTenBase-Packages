@@ -1,0 +1,34 @@
+Source: libpqxx
+Section: libs
+Priority: optional
+Maintainer: OpenTenBase Team <opentenbase@cduestc.edu.cn>
+Build-Depends: debhelper-compat (= 13), cmake, libpq-dev, g++
+Standards-Version: 4.6.2
+Homepage: https://github.com/jtv/libpqxx
+Vcs-Git: https://github.com/jtv/libpqxx.git
+Vcs-Browser: https://github.com/jtv/libpqxx
+
+Package: libpqxx-7.9
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libpq5
+Description: C++ library for PostgreSQL 7.9.x
+ libpqxx is a C++ library for accessing PostgreSQL databases.
+ It provides a set of classes and functions to make working with
+ PostgreSQL easier and more intuitive from C++ code.
+ .
+ This package contains the shared library for libpqxx 7.9.x.
+
+Package: libpqxx-7.9-dev
+Section: libdevel
+Architecture: any
+Depends: libpqxx-7.9 (= ${binary:Version}), libpq-dev, ${misc:Depends}
+Description: Development files for libpqxx 7.9.x
+ This package contains the headers and development files needed to build
+ applications using libpqxx 7.9.x.
+
+Package: libpqxx-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Description: Documentation for libpqxx
+ This package contains the HTML documentation for libpqxx.

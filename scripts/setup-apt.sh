@@ -310,6 +310,79 @@ update_package_list() {
     fi
 }
 
+# Install libpqxx dependency if needed (Ubuntu 24.04, Debian 13 don't have libpqxx 7.9)
+install_libpqxx_dependency() {
+    log_step "检查 libpqxx 依赖..."
+
+    # Check if system has libpqxx 7.9
+    local system_libpqxx=$(apt-cache show libpqxx-dev 2>/dev/null | grep -E "^Version:" | head -1 | awk '{print $2}')
+
+    if [ -n "$system_libpqxx" ]; then
+        # Check version - need 7.9.x for opentenbase_ctl
+        local major_version=$(echo "$system_libpqxx" | cut -d. -f1)
+        local minor_version=$(echo "$system_libpqxx" | cut -d. -f2)
+
+        if [ "$major_version" = "7" ] && [ "$minor_version" -ge "9" ]; then
+            log_info "系统 libpqxx 版本满足要求: $system_libpqxx"
+            return 0
+        else
+            log_warn "系统 libpqxx 版本过低: $system_libpqxx (需要 >= 7.9)"
+        fi
+    else
+        log_warn "系统没有 libpqxx-dev 包"
+    fi
+
+    # Download and install libpqxx 7.9.2 from our CDN
+    log_info "从 CDN 下载 libpqxx 7.9.2..."
+
+    local arch=$(dpkg --print-architecture)
+    local libpqxx_url="https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/libpqxx-7.9.2"
+
+    # Determine package name based on distro
+    local pkg_suffix="${CODENAME}_${arch}"
+    local libpqxx_pkg="libpqxx-7.9_7.9.2-1opentenbase1~${pkg_suffix}.deb"
+    local libpqxx_dev_pkg="libpqxx-7.9-dev_7.9.2-1opentenbase1~${pkg_suffix}.deb"
+
+    # Try to download from CDN first, then GitHub Release
+    local tmpdir=$(mktemp -d)
+    local success=false
+
+    for base_url in "$libpqxx_url" "https://repo.blackevil217.com/deps"; do
+        # Download packages
+        if curl -sL --connect-timeout 10 --max-time 60 "${base_url}/${libpqxx_pkg}" -o "$tmpdir/${libpqxx_pkg}" 2>/dev/null && \
+           [ -s "$tmpdir/${libpqxx_pkg}" ]; then
+            if curl -sL --connect-timeout 10 --max-time 60 "${base_url}/${libpqxx_dev_pkg}" -o "$tmpdir/${libpqxx_dev_pkg}" 2>/dev/null && \
+               [ -s "$tmpdir/${libpqxx_dev_pkg}" ]; then
+                success=true
+                break
+            fi
+        fi
+    done
+
+    if [ "$success" = "true" ]; then
+        log_info "安装 libpqxx 7.9.2..."
+        # Remove old libpqxx if exists
+        apt-get remove -y libpqxx-dev libpqxx-doc 2>/dev/null || true
+        dpkg -l libpqxx* 2>/dev/null | grep -q '^ii' && apt-get purge -y libpqxx* 2>/dev/null || true
+
+        # Install new packages
+        dpkg -i "$tmpdir/${libpqxx_pkg}" "$tmpdir/${libpqxx_dev_pkg}" || {
+            # Fix missing libpq dependency if needed
+            apt-get install -y -f
+            dpkg -i "$tmpdir/${libpqxx_pkg}" "$tmpdir/${libpqxx_dev_pkg}"
+        }
+
+        log_info "libpqxx 7.9.2 已安装"
+        rm -rf "$tmpdir"
+        return 0
+    else
+        log_warn "无法从 CDN 下载 libpqxx，将在构建时从源码编译"
+        log_info "opentenbase_ctl 可能需要额外的构建时间"
+        rm -rf "$tmpdir"
+        return 0
+    fi
+}
+
 # 显示安装说明
 show_install_info() {
     echo ""
@@ -356,6 +429,7 @@ main() {
     add_gpg_key
     configure_repo
     update_package_list
+    install_libpqxx_dependency
     show_install_info
 }
 

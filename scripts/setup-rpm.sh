@@ -190,6 +190,95 @@ update_cache() {
     log_info "Package cache updated"
 }
 
+# Install libpqxx dependency if needed (EPEL has older 7.6.x/7.7.x which breaks opentenbase_ctl)
+install_libpqxx_dependency() {
+    log_step "Checking libpqxx dependency..."
+
+    # Check if system has libpqxx 7.9
+    local system_libpqxx=$(rpm -q libpqxx-devel --queryformat '%{VERSION}' 2>/dev/null || echo "")
+
+    if [ -n "$system_libpqxx" ]; then
+        local major_version=$(echo "$system_libpqxx" | cut -d. -f1)
+        local minor_version=$(echo "$system_libpqxx" | cut -d. -f2)
+
+        if [ "$major_version" = "7" ] && [ "$minor_version" -ge "9" ]; then
+            log_info "System libpqxx version is sufficient: $system_libpqxx"
+            return 0
+        else
+            log_warn "System libpqxx version is too old: $system_libpqxx (need >= 7.9)"
+        fi
+    else
+        log_info "System does not have libpqxx-devel package"
+    fi
+
+    # Download and install libpqxx 7.9.2 from our CDN/GitHub Release
+    log_info "Downloading libpqxx 7.9.2..."
+
+    local libpqxx_url="https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/releases/download/libpqxx-7.9.2"
+
+    # Determine package name based on distro
+    local distro_tag=""
+    case "$ID" in
+        rocky|almalinux|centos|rhel|opencloudos|anolis|tencentos)
+            distro_tag="el${VERSION_ID%%.*}"
+            ;;
+        fedora)
+            distro_tag="fc${VERSION_ID}"
+            ;;
+        openeuler|hce)
+            distro_tag="oe${VERSION_ID%%.*}"
+            ;;
+    esac
+
+    local libpqxx_pkg="libpqxx-7.9.2-1.opentenbase.${distro_tag}.${ARCH}.rpm"
+    local libpqxx_dev_pkg="libpqxx-devel-7.9.2-1.opentenbase.${distro_tag}.${ARCH}.rpm"
+
+    # Try to download from CDN first, then GitHub Release
+    local tmpdir=$(mktemp -d)
+    local success=false
+
+    for base_url in "$libpqxx_url" "https://repo.blackevil217.com/deps"; do
+        # Download packages
+        if curl -sL --connect-timeout 10 --max-time 60 "${base_url}/${libpqxx_pkg}" -o "$tmpdir/${libpqxx_pkg}" 2>/dev/null && \
+           [ -s "$tmpdir/${libpqxx_pkg}" ]; then
+            if curl -sL --connect-timeout 10 --max-time 60 "${base_url}/${libpqxx_dev_pkg}" -o "$tmpdir/${libpqxx_dev_pkg}" 2>/dev/null && \
+               [ -s "$tmpdir/${libpqxx_dev_pkg}" ]; then
+                success=true
+                break
+            fi
+        fi
+    done
+
+    if [ "$success" = "true" ]; then
+        log_info "Installing libpqxx 7.9.2..."
+        # Remove old libpqxx if exists
+        rpm -e libpqxx-devel libpqxx 2>/dev/null || true
+
+        # Install new packages
+        if command -v dnf &>/dev/null; then
+            dnf install -y "$tmpdir/${libpqxx_pkg}" "$tmpdir/${libpqxx_dev_pkg}" || {
+                # Fix missing libpq dependency if needed
+                dnf install -y libpq-devel
+                dnf install -y "$tmpdir/${libpqxx_pkg}" "$tmpdir/${libpqxx_dev_pkg}"
+            }
+        else
+            yum install -y "$tmpdir/${libpqxx_pkg}" "$tmpdir/${libpqxx_dev_pkg}" || {
+                yum install -y libpq-devel
+                yum install -y "$tmpdir/${libpqxx_pkg}" "$tmpdir/${libpqxx_dev_pkg}"
+            }
+        fi
+
+        log_info "libpqxx 7.9.2 installed"
+        rm -rf "$tmpdir"
+        return 0
+    else
+        log_warn "Cannot download libpqxx from CDN, will build from source during installation"
+        log_info "opentenbase_ctl may require additional build time"
+        rm -rf "$tmpdir"
+        return 0
+    fi
+}
+
 show_install_info() {
     echo ""
     echo "========================================"
@@ -231,6 +320,7 @@ main() {
     add_gpg_key
     configure_repo
     update_cache
+    install_libpqxx_dependency
     show_install_info
 }
 

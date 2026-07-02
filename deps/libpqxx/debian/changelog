@@ -1,0 +1,7 @@
+libpqxx (7.9.2-1opentenbase1) unstable; urgency=medium
+
+  * Initial packaging for OpenTenBase opentenbase_ctl dependency.
+  * libpqxx 7.9.2 fixes range.hxx bugs that break opentenbase_ctl.
+  * System libpqxx (7.6.x/7.7.x) is incompatible with opentenbase_ctl.
+
+ -- OpenTenBase Team <opentenbase@cduestc.edu.cn>  Wed, 02 Jul 2026 00:00:00 +0800
