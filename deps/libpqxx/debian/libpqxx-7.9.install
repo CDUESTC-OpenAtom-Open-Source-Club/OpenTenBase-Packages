@@ -1,2 +1,2 @@
-usr/lib/*/libpqxx-*.so.*
-usr/share/doc/libpqxx/LICENSE
+usr/lib/*/libpqxx.so.*
+usr/share/doc/libpqxx/
