@@ -132,8 +132,8 @@ jobs:
       - name: Generate release notes
         id: notes
         run: |
-          chmod +x scripts/generate-release-notes.sh
-          ./scripts/generate-release-notes.sh "${{ steps.version.outputs.tag }}"
+          chmod +x scripts/tools/generate-release-notes.sh
+          ./scripts/tools/generate-release-notes.sh "${{ steps.version.outputs.tag }}"
           echo "notes_file=release-notes-${{ steps.version.outputs.tag }}.md" >> $GITHUB_OUTPUT
 
       - name: Download all DEB artifacts
