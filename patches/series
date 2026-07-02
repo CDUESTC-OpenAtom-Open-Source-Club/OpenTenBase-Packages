@@ -1,1 +1,4 @@
 01-bool-stdbool.patch
+02-nolic-sharding.patch
+03-atomic128-x86.patch
+04-gtm-thread-bind.patch
