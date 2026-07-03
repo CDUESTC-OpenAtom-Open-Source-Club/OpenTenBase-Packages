@@ -65,7 +65,7 @@
 │  │  ├─ cluster/  → 分布式集群部署 (CentOS + 源码编译)                  │   │
 │  │  ├─ compose/  → 多节点 Compose 编排 (GTM+CN+DN×2)                 │   │
 │  │  ├─ dev/      → 开发环境 (ubuntu:24.04 + gcc-12)                  │   │
-│  │  └─ runtime/  → 运行时镜像 (openEuler 22.03)                      │   │
+│  │  └─ runtime/  → 14 个运行时镜像 (7 DEB + 7 RPM 直装版)            │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
@@ -80,17 +80,19 @@
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ CI/CD 层 (10 个 Workflow)                                         │   │
+│  │ CI/CD 层 (12 个 Workflow)                                         │   │
 │  │                                                                   │   │
 │  │  .github/workflows/                                               │   │
-│  │  ├─ build-deb.yml (17KB) ← DEB 主力: amd64 21job + arm64 10job   │   │
-│  │  ├─ build-rpm.yml (18KB) ← RPM 主力: x86_64 24job + aarch64 9job │   │
-│  │  ├─ build-multi.yml (9KB) ← 辅助: DEB 7发行版 v5.0 only          │   │
+│  │  ├─ build-deb.yml (17KB) ← DEB 主力: amd64 21job + arm64 21job   │   │
+│  │  ├─ build-rpm.yml (18KB) ← RPM 主力: x86_64 27job + aarch64 27job │   │
+│  │  ├─ build-multi.yml (10KB) ← 辅助: DEB 7发行版 多版本支持          │   │
 │  │  ├─ release.yml    ← 聚合产物 → GPG签名 → 创建 GitHub Release     │   │
 │  │  ├─ deploy-repo.yml ← 发布后 → GitHub Pages + CDN 同步            │   │
 │  │  ├─ test.yml / test-all.yml / stress-test.yml  ← 三层测试         │   │
 │  │  ├─ build-sshpass.yml ← 静态 sshpass 编译                         │   │
-│  │  └─ docker-publish.yml ← GHCR 镜像推送                            │   │
+│  │  ├─ build-libpqxx.yml ← libpqxx 依赖构建                          │   │
+│  │  ├─ docker-publish.yml ← 单镜像 GHCR 推送                          │   │
+│  │  └─ docker-publish-all.yml ← 14镜像 GHCR 推送 + 冒烟测试            │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────┬──────────────────────────────────────┘
                                    │  git push / tag / workflow_dispatch
@@ -100,11 +102,11 @@
 │                                                                          │
 │  build-deb.yml                     build-rpm.yml                         │
 │  ┌─────────────────────────────┐  ┌─────────────────────────────┐       │
-│  │ amd64: 7distro×3ver×6子包   │  │ x86_64: 8distro×3ver×~6子包 │       │
-│  │  = ~126 个 .deb             │  │  = ~144 个 .rpm              │       │
+│  │ amd64: 7distro×3ver×6子包   │  │ x86_64: 9distro×3ver×~6子包 │       │
+│  │  = ~126 个 .deb             │  │  = ~162 个 .rpm              │       │
 │  │                             │  │                             │       │
-│  │ arm64: 10combo×6子包        │  │ aarch64: 9combo×~6子包       │       │
-│  │  = ~60 个 .deb              │  │  = ~54 个 .rpm               │       │
+│  │ arm64: 7distro×3ver×6子包   │  │ aarch64: 9distro×3ver×~6子包 │       │
+│  │  = ~126 个 .deb             │  │  = ~162 个 .rpm              │       │
 │  └─────────────┬───────────────┘  └─────────────┬───────────────┘       │
 │                │                                │                        │
 │                └──────────────┬─────────────────┘                        │
@@ -114,7 +116,7 @@
 │              ┌────────────────┼────────────────┐                         │
 │              ▼                ▼                ▼                          │
 │     GitHub Releases    GitHub Pages      Cloudflare CDN                  │
-│     v5.0-p32: 203文件   APT/RPM 仓库      repo.blackevil217.com          │
+│     v5.0-p35: 192文件   APT/RPM 仓库      repo.blackevil217.com          │
 │     直接下载            标准包管理         国内 150-200x 加速              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -157,11 +159,11 @@
 | `cluster/` | 源码编译 + 集群部署 | CentOS + docker-compose.source.yml | ⚠️ 需手动编译 |
 | `compose/` | 多节点 Compose 编排 | 生产级 GTM+CN+DN×2 | ✅ 可运行 |
 | `dev/` | 二次开发环境 (⭐) | ubuntu:24.04 + gcc-12 + ccache + docker-compose.dev.yml | 🛠️ 二次编译 |
-| `runtime/` | 运行时镜像 (直装版 ×4 + 解包版 ×1) | ubuntu24.04/debian12/rocky9/openeuler22.03 + entrypoint | ✅ 可运行 |
+| `runtime/` | 运行时镜像 (直装版 ×14) | 7 DEB + 7 RPM 发行版 + 多架构 entrypoint | ✅ 可运行 |
 | `test-docker.sh` | Docker E2E 测试入口 | 自动化测试 | — |
 | `README.md` | Docker 使用文档 | 快速开始 + 故障排查 | — |
 
-> ✅ **Docker 运行时镜像已多发行版化**（2026-07-02）：用户可直接 `docker run` 的成品运行时镜像从 2 个（Rocky 9 + openEuler 22.03）扩展到 **6 个**（新增 Ubuntu 24.04、Debian 12 直装版 + openEuler 22.03 直装版）。每个镜像均通过 apt/dnf 仓库直装，支持多架构（amd64+arm64）。详见 `docker/runtime/README.md`。
+> ✅ **Docker 运行时镜像已全覆盖**（2026-07-03）：用户可直接 `docker run` 的成品运行时镜像达 **14 个**（7 DEB + 7 RPM 发行版），每个镜像均通过 apt/dnf 仓库直装，支持多架构（amd64+arm64），自动推送 GHCR 并冒烟测试。详见 `docker/runtime/README.md`。
 
 > 🛠️ **二次编译（源码编译）已完整支持** — 面向二次开发者的两套 Docker Compose 方案：
 > 
