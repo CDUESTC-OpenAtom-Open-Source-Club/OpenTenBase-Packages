@@ -130,6 +130,16 @@ CLEAN_BEFORE=false
 CONFIG_FILE="/tmp/opentenbase_config.ini"
 PACKAGE_PATH="/usr/lib/opentenbase/5.0"
 
+# 新增参数（多节点部署 + 内存调优）
+DEPLOY_MODE="single"              # single / single-multi / multi
+CN_COUNT=1                        # Coordinator 数量
+DN_COUNT=1                        # Datanode 数量
+DATA_DIR=""                       # 数据目录（默认自动推导）
+GTM_PORT=""                       # GTM 端口（默认 6666）
+CN_PORT_BASE=""                   # CN 端口起始（v5.0 默认 11003，其他 5432）
+DN_PORT_BASE=""                   # DN 端口起始（默认 15432）
+AUTO_TUNE_MEM=true                 # 内存自动调优
+
 # 颜色
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -144,6 +154,60 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_step()  { echo -e "\n${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"; echo -e "${BLUE}${BOLD}  $*${NC}"; echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"; }
 log_ok()    { echo -e "${GREEN}${BOLD}  ✓${NC} $*"; }
+
+# ====================================================================
+# 内存自动调优函数
+# ====================================================================
+# 根据系统内存计算 PostgreSQL 参数
+# 返回格式: shared_buffers=X work_mem=X max_connections=X effective_cache_size=X
+memory_tune() {
+    local mem_mb=$1
+    local sb wm mc ecs pool_size
+
+    # 调优规则（内存 → 参数映射）
+    if [[ $mem_mb -lt 2000 ]]; then
+        # 1-2 GB: 极简配置
+        sb=64; wm=4; mc=20; ecs=256; pool_size=20
+    elif [[ $mem_mb -lt 4000 ]]; then
+        # 2-4 GB: 小型配置
+        sb=128; wm=8; mc=50; ecs=512; pool_size=50
+    elif [[ $mem_mb -lt 8000 ]]; then
+        # 4-8 GB: 中型配置
+        sb=256; wm=16; mc=100; ecs=1024; pool_size=100
+    elif [[ $mem_mb -lt 16000 ]]; then
+        # 8-16 GB: 大型配置
+        sb=512; wm=32; mc=200; ecs=2048; pool_size=200
+    else
+        # >16 GB: 超大型配置
+        sb=1024; wm=64; mc=300; ecs=4096; pool_size=300
+    fi
+
+    # 返回参数（便于注入到配置）
+    echo "shared_buffers=${sb}MB work_mem=${wm}MB max_connections=${mc} effective_cache_size=${ecs}MB max_pool_size=${pool_size}"
+}
+
+# 将内存参数注入到 postgresql.conf 模板
+inject_memory_params() {
+    local conf_file="$1"
+    local params="$2"
+
+    if [[ ! -f "$conf_file" ]]; then
+        log_warn "配置文件不存在: $conf_file"
+        return 1
+    fi
+
+    # 解析参数并追加/覆盖到配置文件
+    local p
+    for p in $params; do
+        local key="${p%%=*}"
+        local val="${p#*=}"
+        # 移除旧值，追加新值
+        sed -i "/^${key}/d" "$conf_file" 2>/dev/null || true
+        echo "$p" >> "$conf_file"
+    done
+
+    log_ok "内存参数已注入到 $conf_file"
+}
 
 # 检测实际安装的 OpenTenBase 版本（供 status/test 子命令用）
 # 优先级：rpm 查询 > /usr/lib/opentenbase 目录扫描 > 默认 5.0
@@ -320,6 +384,16 @@ while [[ $# -gt 0 ]]; do
         --start)           AUTO_START=true; shift ;;
         --no-start)        AUTO_START=false; shift ;;
         --clean)           CLEAN_BEFORE=true; shift ;;
+        # 新增参数（多节点部署）
+        --deploy-mode)     DEPLOY_MODE="$2"; shift 2 ;;
+        --cn-count)        CN_COUNT="$2"; shift 2 ;;
+        --dn-count)        DN_COUNT="$2"; shift 2 ;;
+        --data-dir)        DATA_DIR="$2"; shift 2 ;;
+        --gtm-port)        GTM_PORT="$2"; shift 2 ;;
+        --cn-port-base)    CN_PORT_BASE="$2"; shift 2 ;;
+        --dn-port-base)    DN_PORT_BASE="$2"; shift 2 ;;
+        --auto-tune-mem)   AUTO_TUNE_MEM=true; shift ;;
+        --no-auto-tune-mem) AUTO_TUNE_MEM=false; shift ;;
         --help|-h)
             head -48 "$0" | tail -46
             exit 0 ;;
