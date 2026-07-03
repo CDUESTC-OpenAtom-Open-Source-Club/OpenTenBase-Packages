@@ -1132,6 +1132,7 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
     COORD_POOLER_PORTS_ARRAY=""
     COORD_FORWARD_PORTS_ARRAY=""
     COORD_DIRS_ARRAY=""
+    COORD_IPS_ARRAY=""
     for i in $(seq 1 $CN_COUNT); do
         idx=$(printf "%04d" $i)
         COORD_NAMES_ARRAY="${COORD_NAMES_ARRAY}cn${idx} "
@@ -1139,6 +1140,12 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
         COORD_POOLER_PORTS_ARRAY="${COORD_POOLER_PORTS_ARRAY}$((6669 + i - 1)) "
         COORD_FORWARD_PORTS_ARRAY="${COORD_FORWARD_PORTS_ARRAY}$((CN_PORT_BASE + i - 1 + 1)) "
         COORD_DIRS_ARRAY="${COORD_DIRS_ARRAY}${DATA_BASE}/coord${idx} "
+        # IP 分配：单机模式用 GTM_IP，多机模式用 CN_IP
+        if [[ "$DEPLOY_MODE" == "multi" ]]; then
+            COORD_IPS_ARRAY="${COORD_IPS_ARRAY}${CN_IP} "
+        else
+            COORD_IPS_ARRAY="${COORD_IPS_ARRAY}${GTM_IP} "
+        fi
     done
 
     # Datanode 数组
@@ -1147,6 +1154,7 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
     DATANODE_POOLER_PORTS_ARRAY=""
     DATANODE_FORWARD_PORTS_ARRAY=""
     DATANODE_DIRS_ARRAY=""
+    DATANODE_IPS_ARRAY=""
     for i in $(seq 1 $DN_COUNT); do
         idx=$(printf "%04d" $i)
         DATANODE_NAMES_ARRAY="${DATANODE_NAMES_ARRAY}dn${idx} "
@@ -1154,6 +1162,12 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
         DATANODE_POOLER_PORTS_ARRAY="${DATANODE_POOLER_PORTS_ARRAY}$((6670 + i - 1)) "
         DATANODE_FORWARD_PORTS_ARRAY="${DATANODE_FORWARD_PORTS_ARRAY}$((DN_PORT_BASE + i - 1 + 1)) "
         DATANODE_DIRS_ARRAY="${DATANODE_DIRS_ARRAY}${DATA_BASE}/dn${idx} "
+        # IP 分配：单机模式用 GTM_IP，多机模式用 DN_IP
+        if [[ "$DEPLOY_MODE" == "multi" ]]; then
+            DATANODE_IPS_ARRAY="${DATANODE_IPS_ARRAY}${DN_IP} "
+        else
+            DATANODE_IPS_ARRAY="${DATANODE_IPS_ARRAY}${GTM_IP} "
+        fi
     done
 
     # 内存调优参数
@@ -1170,7 +1184,8 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
 # 由 opentenbase.sh 自动生成
 # 部署模式: ${DEPLOY_MODE} (CN=${CN_COUNT}, DN=${DN_COUNT})
 
-IP_1=127.0.0.1
+# GTM 服务器 IP（单机模式用本地，多机模式用 GTM_IP）
+GTM_SERVER_IP=${GTM_IP}
 pgxcInstallDir=${INSTALL_DIR}
 pgxcOwner=${SSH_USER}
 defaultDatabase=postgres
@@ -1181,7 +1196,7 @@ localTmpDir=\$tmpDir
 configBackup=n
 
 gtmName=gtm
-gtmMasterServer=\$IP_1
+gtmMasterServer=\${GTM_SERVER_IP}
 gtmMasterPort=${GTM_PORT}
 gtmMasterDir=${DATA_BASE}/gtm
 gtmSlave=n
@@ -1190,7 +1205,7 @@ coordNames=( ${COORD_NAMES_ARRAY})
 coordPorts=( ${COORD_PORTS_ARRAY})
 poolerPorts=( ${COORD_POOLER_PORTS_ARRAY})
 coordForwardPorts=( ${COORD_FORWARD_PORTS_ARRAY})
-coordMasterServers=(\$IP_1)
+coordMasterServers=( ${COORD_IPS_ARRAY})
 coordMasterDirs=( ${COORD_DIRS_ARRAY})
 coordArchLogDir=${DATA_BASE}/coord_archlog
 coordMaxWALSenders=${CN_COUNT}
@@ -1203,7 +1218,7 @@ datanodeNames=( ${DATANODE_NAMES_ARRAY})
 datanodePorts=( ${DATANODE_PORTS_ARRAY})
 datanodePoolerPorts=( ${DATANODE_POOLER_PORTS_ARRAY})
 datanodeForwardPorts=( ${DATANODE_FORWARD_PORTS_ARRAY})
-datanodeMasterServers=(\$IP_1)
+datanodeMasterServers=( ${DATANODE_IPS_ARRAY})
 datanodeMasterDirs=( ${DATANODE_DIRS_ARRAY})
 datanodeArchLogDir=${DATA_BASE}/dn_archlog
 datanodeMaxWALSenders=${DN_COUNT}
