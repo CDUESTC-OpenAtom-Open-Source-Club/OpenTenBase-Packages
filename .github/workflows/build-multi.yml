@@ -6,6 +6,15 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      version:
+        description: 'OpenTenBase version (5.0, 2.6.0, 2.5.0)'
+        required: true
+        default: '5.0'
+        type: choice
+        options:
+          - '5.0'
+          - '2.6.0'
+          - '2.5.0'
       distro:
         description: 'Build specific distro (leave empty for all)'
         required: false
@@ -21,7 +30,31 @@ on:
           - debian-13
 
 jobs:
+  # Setup: determine OpenTenBase version
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      otb_version: ${{ steps.version.outputs.otb_version }}
+    steps:
+      - id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          TAG_REF: ${{ github.ref }}
+        run: |
+          # Priority: workflow_dispatch input > tag ref > default
+          if [ -n "$INPUT_VERSION" ]; then
+            OTB_VERSION="$INPUT_VERSION"
+          elif [[ "$TAG_REF" == refs/tags/v* ]]; then
+            # Extract version from tag (e.g., v5.0-p33 -> 5.0)
+            OTB_VERSION=$(echo "$TAG_REF" | sed 's|^refs/tags/v||' | cut -d'-' -f1)
+          else
+            OTB_VERSION="5.0"
+          fi
+          echo "otb_version=$OTB_VERSION" >> $GITHUB_OUTPUT
+          echo "Building OpenTenBase version: $OTB_VERSION"
+
   build:
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -80,9 +113,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: OpenTenBase/OpenTenBase
-          # This is a convenience workflow for quick DEB multi-distro builds of v5.0.
-          # Pin to the release tag for reproducible builds instead of the moving default branch.
-          ref: v5.0
+          ref: v${{ needs.setup.outputs.otb_version }}
           path: source
           fetch-depth: 1
 
@@ -130,10 +161,14 @@ jobs:
           sudo chown -R $(id -u):$(id -g) output/
           cd output
           for deb in *.deb; do
-            newname=$(echo "$deb" | sed "s/_5.0-1ubuntu1_/_5.0-1ubuntu1~${{ matrix.codename }}_/")
-            if [ "$newname" != "$deb" ]; then
-              mv "$deb" "$newname"
-              echo "Renamed: $deb -> $newname"
+            # Extract version from package name (e.g., opentenbase_5.0-1ubuntu1_amd64.deb -> 5.0-1ubuntu1)
+            PKG_VER=$(echo "$deb" | sed -n 's/.*_\([0-9.]*-[0-9]*ubuntu[0-9]*\)_.*/\1/p')
+            if [ -n "$PKG_VER" ]; then
+              newname=$(echo "$deb" | sed "s/_${PKG_VER}_/_${PKG_VER}~${{ matrix.codename }}_/")
+              if [ "$newname" != "$deb" ]; then
+                mv "$deb" "$newname"
+                echo "Renamed: $deb -> $newname"
+              fi
             fi
           done
           ls -la *.deb
@@ -142,13 +177,13 @@ jobs:
         if: steps.check.outputs.should_build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: debs-${{ matrix.distro }}-${{ matrix.codename }}
+          name: debs-${{ needs.setup.outputs.otb_version }}-${{ matrix.distro }}-${{ matrix.codename }}
           path: output/*.deb
           retention-days: 30
 
   # Test each distro after build
   test:
-    needs: build
+    needs: [setup, build]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -197,7 +232,7 @@ jobs:
         if: steps.check.outputs.should_test == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: debs-${{ matrix.distro }}-${{ matrix.codename }}
+          name: debs-${{ needs.setup.outputs.otb_version }}-${{ matrix.distro }}-${{ matrix.codename }}
           path: packages/
 
       - name: Run smoke test in Docker
@@ -219,12 +254,12 @@ jobs:
 
           COPY packages/*.deb /tmp/debs/
           RUN dpkg --force-depends -i /tmp/debs/*.deb
-          RUN mkdir -p /usr/lib/opentenbase/5.0/lib/postgresql
+          RUN mkdir -p /usr/lib/opentenbase/${{ needs.setup.outputs.otb_version }}/lib/postgresql
           RUN ldconfig || true
           # Ensure opentenbase user exists with proper shell and home
           RUN id opentenbase 2>/dev/null || (addgroup --system opentenbase && adduser --system --ingroup opentenbase --home /var/lib/opentenbase --shell /bin/bash opentenbase)
-          RUN mkdir -p /var/lib/opentenbase/5.0 /var/log/opentenbase/5.0 /var/run/opentenbase
-          RUN chown -R opentenbase:opentenbase /var/lib/opentenbase /var/log/opentenbase /var/run/opentenbase 2>/dev/null || true
+          RUN mkdir -p /var/lib/opentenbase/${{ needs.setup.outputs.otb_version }} /var/log/opentenbase/${{ needs.setup.outputs.otb_version }} /var/run/opentenbase
+          RUN chown -R opentenbase:opentenbase /var/lib/opentenbase/${{ needs.setup.outputs.otb_version }} /var/log/opentenbase/${{ needs.setup.outputs.otb_version }} /var/run/opentenbase 2>/dev/null || true
           # Set up passwordless SSH for opentenbase user (required by opentenbase_ctl)
           RUN mkdir -p /var/lib/opentenbase/.ssh /root/.ssh && \
               ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519 -N "" -q && \
@@ -250,15 +285,15 @@ jobs:
             docker run --rm --cap-add SYS_PTRACE opentenbase-test:${{ matrix.codename }} bash -c "
               /test/smoke-test.sh 2>&1 || true
               echo '=== GTM Log ==='
-              cat /var/log/opentenbase/5.0/gtm.log 2>/dev/null || echo 'No GTM log found'
+              cat /var/log/opentenbase/${{ needs.setup.outputs.otb_version }}/gtm.log 2>/dev/null || echo 'No GTM log found'
               echo '=== GTM Config ==='
-              cat /var/lib/opentenbase/5.0/gtm/gtm.conf 2>/dev/null || echo 'No GTM config found'
+              cat /var/lib/opentenbase/${{ needs.setup.outputs.otb_version }}/gtm/gtm.conf 2>/dev/null || echo 'No GTM config found'
             "
             exit 1
           }
 
   release:
-    needs: [build, test]
+    needs: [setup, build, test]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
