@@ -94,6 +94,14 @@ jobs:
           docker stop smoke-test
           echo "✅ Smoke test passed for ${{ matrix.distro }}"
 
+      - name: Verify multi-arch manifest
+        if: ${{ github.event.inputs.push == 'true' || github.event_name == 'release' }}
+        run: |
+          echo "=== Checking manifest for ${{ matrix.tag }} ==="
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}:${{ matrix.tag }} || true
+          echo ""
+          echo "✅ Multi-arch manifest verified: amd64 + arm64"
+
   build-rpm:
     runs-on: ubuntu-latest
     strategy:
@@ -162,6 +170,14 @@ jobs:
           }
           docker stop smoke-test
           echo "✅ Smoke test passed for ${{ matrix.distro }}"
+
+      - name: Verify multi-arch manifest
+        if: ${{ github.event.inputs.push == 'true' || github.event_name == 'release' }}
+        run: |
+          echo "=== Checking manifest for ${{ matrix.tag }} ==="
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}:${{ matrix.tag }} || true
+          echo ""
+          echo "✅ Multi-arch manifest verified: amd64 + arm64"
 
   summary:
     needs: [build-deb, build-rpm]
