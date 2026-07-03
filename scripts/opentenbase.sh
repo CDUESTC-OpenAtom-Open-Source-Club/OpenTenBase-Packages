@@ -510,8 +510,10 @@ fi
 # 内存调优参数生成
 MEM_PARAMS=""
 if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
-    MEM_PARAMS=$(memory_tune "$MEM_TOTAL")
-    log_ok "内存参数: $MEM_PARAMS"
+    MEM_TOTAL_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+    MEM_TOTAL_MB=$((MEM_TOTAL_KB / 1024))
+    MEM_PARAMS=$(memory_tune "$MEM_TOTAL_MB")
+    log_ok "内存参数: $MEM_PARAMS (${MEM_TOTAL_MB}MB 系统)"
 fi
 
 # 非 install 子命令（status/test/--help）跳过下方部署主体，落到末尾分发
