@@ -9,6 +9,12 @@ Source1:        pg_hba.conf.template
 Source2:        opentenbase-psql
 Source3:        libssh2-1.11.1.tar.gz
 
+# Patches from patches/ directory - applied in %prep
+Patch0:         01-bool-stdbool.patch
+Patch1:         02-nolic-sharding.patch
+Patch2:         03-atomic128-x86.patch
+Patch3:         04-gtm-thread-bind.patch
+
 %define otb_ver %{version}
 %define otb_prefix /usr/lib/opentenbase/%{otb_ver}
 %define debug_package %{nil}
@@ -41,6 +47,15 @@ computing, security, management, and audit functions.
 
 %prep
 %setup -q -c -n opentenbase
+
+# Apply patches from patches/ directory
+# Must cd into source dir before applying patches
+cd OpenTenBase*
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
+%patch3 -p1
+cd ..
 
 %build
 # Find the source directory (could be OpenTenBase, OpenTenBase-main, etc.)

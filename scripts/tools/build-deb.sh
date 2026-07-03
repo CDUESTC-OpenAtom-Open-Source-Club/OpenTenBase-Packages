@@ -208,6 +208,11 @@ apply_patches() {
         patch -p1 < debian/patches/03-atomic128-x86.patch || true
     fi
 
+    # Apply GTM thread binding fix for servers with fewer cores
+    if [ -f debian/patches/04-gtm-thread-bind.patch ]; then
+        patch -p1 < debian/patches/04-gtm-thread-bind.patch || true
+    fi
+
     # Remove merge conflict artifact files
     rm -f src/interfaces/libpq/fe-connect.c.BASE.c \
           src/interfaces/libpq/fe-connect.c.LOCAL.c \

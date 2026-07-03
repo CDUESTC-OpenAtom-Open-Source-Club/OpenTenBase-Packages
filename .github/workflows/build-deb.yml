@@ -159,6 +159,10 @@ jobs:
         run: |
           cd /tmp/source/OpenTenBase
           cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/debian/" ./debian/
+          # Copy patches from patches/ directory to debian/patches/
+          mkdir -p ./debian/patches
+          cp "$GITHUB_WORKSPACE/opentenbase-pkg/patches/"*.patch ./debian/patches/ 2>/dev/null || true
+          ls -la ./debian/patches/ 2>&1 || echo "WARNING: debian/patches directory empty"
           for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template opentenbase_config.ini.example; do
             if [ -f "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ]; then
               cp "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ./config/
@@ -414,6 +418,10 @@ jobs:
         run: |
           cd /tmp/source/OpenTenBase
           cp -r "$GITHUB_WORKSPACE/opentenbase-pkg/debian/" ./debian/
+          # Copy patches from patches/ directory to debian/patches/
+          mkdir -p ./debian/patches
+          cp "$GITHUB_WORKSPACE/opentenbase-pkg/patches/"*.patch ./debian/patches/ 2>/dev/null || true
+          ls -la ./debian/patches/ 2>&1 || echo "WARNING: debian/patches directory empty"
           for f in opentenbase-ctl opentenbase.conf gtm.conf.template pg_hba.conf.template postgresql.conf.coord.template postgresql.conf.dn.template opentenbase_config.ini.example; do
             if [ -f "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ]; then
               cp "$GITHUB_WORKSPACE/opentenbase-pkg/config/$f" ./config/

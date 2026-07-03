@@ -88,6 +88,19 @@ for f in opentenbase-psql pg_hba.conf.template; do
     fi
 done
 
+# Copy patches from patches/ directory
+PATCHES_DIR="$SCRIPT_DIR/../patches"
+if [ -d "$PATCHES_DIR" ]; then
+    for patch in 01-bool-stdbool.patch 02-nolic-sharding.patch 03-atomic128-x86.patch 04-gtm-thread-bind.patch; do
+        if [ -f "$PATCHES_DIR/$patch" ]; then
+            cp "$PATCHES_DIR/$patch" "$RPMBUILD_DIR/SOURCES/"
+            log "Copied patch: $patch"
+        fi
+    done
+else
+    log "WARNING: patches directory not found at $PATCHES_DIR"
+fi
+
 # Copy libssh2 source (Source3 in spec - for Rocky 9 compatibility)
 # Rocky 9 lacks libssh2, so we bundle it with the package
 # Canonical location is vendor/ directory
