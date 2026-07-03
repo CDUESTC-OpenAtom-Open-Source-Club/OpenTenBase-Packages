@@ -262,20 +262,22 @@ DEB 总计: 42×6 = 252 个 .deb 包 (矩阵全覆盖 ✅，2026-07-02 扩展 ar
 ```
 发行版                      v5.0 x86_64  v5.0 aarch64  v2.6.0 x86_64 v2.6.0 aarch64 v2.5.0 x86_64 v2.5.0 aarch64
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-CentOS Stream 8             ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
-CentOS Stream 9             ✅ ~6包      ❌ 无          ✅ ~6包       ❌ 无          ✅ ~6包       ❌ 无
+CentOS Stream 8             ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
+CentOS Stream 9             ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 Rocky Linux 8               ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 Rocky Linux 9               ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 AlmaLinux 8                 ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 AlmaLinux 9                 ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 Fedora 40                   ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 openEuler 22.03             ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
+openEuler 24.03             ✅ ~6包      ✅ ~6包         ✅ ~6包       ✅ ~6包        ✅ ~6包       ✅ ~6包
 
-RPM 小计                  8×6=48       6×6=36        8×6=48        6×6=36        8×6=48        6×6=36
+RPM 小计                  9×6=54       9×6=54        9×6=54        9×6=54        9×6=54        9×6=54
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-RPM 总计: 48+36+48+36+48+36 = 252 个 .rpm 包
-其中 ✅ 完整: 216 个  |  ❌ 缺失: 36 个 (仅 centos-stream-8/9 的 aarch64，Docker Hub 无官方镜像)
+RPM 总计: 54+54+54+54+54+54 = 324 个 .rpm 包 ✅ 全覆盖
 ```
+
+> **里程碑**: CentOS Stream 8/9 aarch64 通过 `quay.io/centos/centos:stream8/9` + `ubuntu-24.04-arm` runner 实现 CI 自动化。openEuler 24.03 通过 `quay.io/openeuler/openeuler:24.03-lts` 实现。
 
 ---
 
@@ -295,35 +297,31 @@ RPM 总计: 48+36+48+36+48+36 = 252 个 .rpm 包
 
 ```
 DEB amd64     ████████████████████████████████████████ 100%  ✅
-DEB arm64     ████████████████████████████████████████ 100%  ✅  (2026-07 扩展)
+DEB arm64     ████████████████████████████████████████ 100%  ✅
 RPM x86_64    ████████████████████████████████████████ 100%  ✅
-RPM aarch64   ████████████████████████████████          75%  ⚠️  (2026-07 扩展)
+RPM aarch64   ████████████████████████████████████████ 100%  ✅  (2026-07-03 全覆盖)
 
-缺失明细（DEB arm64）:
-  ✅ 无缺失 — ubuntu-20.04/22.04/24.04/25.04 + debian-11/12/13 全部 ×3版本已在矩阵
-
-缺失明细（RPM aarch64）:
-  ❌ centos-stream-8  aarch64 ×3版本 = 18 包  (Docker Hub 无官方 arm64 镜像)
-  ❌ centos-stream-9  aarch64 ×3版本 = 18 包  (Docker Hub 无官方 arm64 镜像)
-  ⚠️ RPM aarch64 缺失 = 36 包 (仅 centos-stream，受 Docker Hub 镜像可用性限制)
+✅ 所有发行版 × 所有版本 × 双架构全部覆盖 — 无缺失
 ```
 
 ```
-矩阵扩展历史（2026-07-02）:
-  ✅ build-deb.yml arm64  — 从 10 job 扩展到 21 job (7 distro × 3 ver)，100% 覆盖
-  ✅ build-rpm.yml aarch64 — 从 9 job 扩展到 18 job (6 distro × 3 ver)，覆盖 6/8 发行版
+矩阵扩展历史（2026-07-03 里程碑）:
+  ✅ build-deb.yml arm64  — 21 job (7 distro × 3 ver)，100% 覆盖
+  ✅ build-rpm.yml aarch64 — 27 job (9 distro × 3 ver)，100% 覆盖
   ✅ 新增 fedora-40 aarch64 (quay.io/fedora/fedora:40)
   ✅ 新增 rockylinux-8 / almalinux-8 aarch64
-  ❌ centos-stream-8/9 aarch64 — 仍不可用（Docker Hub 无官方镜像，见长期任务）
+  ✅ 新增 centos-stream-8/9 aarch64 (quay.io/centos/centos:stream8/9 + ubuntu-24.04-arm runner)
+  ✅ 新增 openEuler 24.03 x86_64/aarch64 (quay.io/openeuler/openeuler:24.03-lts)
 ```
 
-### 不在 CI 中的特殊发行版（手动验证或 Docker E2E 通过）
+### 不在 CI 中的特殊发行版（仅手动验证）
 
 | 发行版 | 架构 | 验证方式 | CI 自动构建 |
 |--------|------|---------|:----------:|
-| openEuler 24.03 | aarch64 | Docker E2E ✅ | ❌ |
-| EulerOS 2.0 | aarch64 | 手动验证 ✅ | ❌ |
-| HCE 2.0 (华为云) | aarch64 | 端到端手动 ✅ | ❌ |
+| EulerOS 2.0 | aarch64 | hdspace CLI 手动验证 ✅ | ❌ (需华为云 runner) |
+| HCE 2.0 (华为云) | aarch64 | 端到端手动 ✅ | ❌ (需华为云 runner) |
+
+> **说明**: openEuler 24.03 已纳入 CI 矩阵 (`5a19b9b`)，不再是"特殊发行版"。EulerOS/HCE 因需华为云专属 runner，作为手动验证项保留。
 
 ---
 
@@ -356,20 +354,21 @@ build-deb.yml (17KB)
 ├─ build-deb-amd64 ← 使用上方动态矩阵
 │     每个 job: 安装依赖 → 拉取上游源码 → 打补丁 → configure+make → debuild → 产出6个.deb
 │
-└─ build-deb-arm64 ← 静态手写矩阵 (10 个 job)
+└─ build-deb-arm64 ← 动态矩阵 (21 个 job)
       每个 job: 同上流程，跑在 ubuntu-24.04-arm runner 上
 
 build-rpm.yml (18KB)
 ├─ setup-matrix (动态生成 x86_64 矩阵)
 │     for ver in 5.0,2.6.0,2.5.0:
-│       for distro in centos-stream-8/9, rockylinux-8/9, almalinux-8/9, fedora-40, openeuler-22.03:
-│         生成 24 个并行 job
+│       for distro in centos-stream-8/9, rockylinux-8/9, almalinux-8/9, fedora-40, openeuler-22.03, openeuler-24.03:
+│         生成 27 个并行 job
 │
 ├─ build-rpm-x86_64 ← 使用上方动态矩阵
 │     每个 job: 安装依赖 → 拉取上游源码 → rpmbuild → 产出~6个.rpm
 │
-└─ build-rpm-aarch64 ← 静态手写矩阵 (9 个 job)
-      每个 job: docker run → 在 ARM 容器内 rpmbuild
+└─ build-rpm-aarch64 ← 静态手写矩阵 (27 个 job)
+      每个 job: docker run → 在 ARM 容器内 rpmbuild (ubuntu-24.04-arm runner)
+      包含: centos-stream-8/9, rockylinux-8/9, almalinux-8/9, fedora-40, openeuler-22.03, openeuler-24.03
 
 release.yml
 ├─ build-deb (workflow_call)
@@ -385,10 +384,11 @@ release.yml
 ### 辅助流水线：`build-multi.yml`
 
 ```
-build-multi.yml (9KB) — 独立 DEB 构建，不依赖 build-deb.yml
+build-multi.yml (10KB) — 独立 DEB 构建，支持多版本
+├─ setup job: 动态决定版本 (workflow_dispatch input / tag / default)
 ├─ 使用 docker/build/ 预构建容器 (7 个发行版)
-├─ 仅构建 v5.0 (设计意图：快速多发行版 DEB 验证)
-├─ 5 个发行版 (focal/jammy/noble/plucky/bullseye/bookworm/trixie)
+├─ 支持 v5.0 / v2.6.0 / v2.5.0 三版本
+├─ 7 个发行版 (focal/jammy/noble/plucky/bullseye/bookworm/trixie)
 └─ 产出 .deb → Docker 冒烟测试 → 创建 Release (仅 git tag 时)
 ```
 
@@ -433,11 +433,14 @@ GitHub Actions 完成构建
 |------|---------|------|:---:|
 | ~~DEB arm64 缺 ubuntu-20.04/25.04/debian-13~~ | ~~54 个 .deb~~ | 已在 `9f2cfec` 扩展矩阵修复 | ✅ 已修 |
 | ~~DEB arm64 debian-11 仅 v5.0~~ | ~~12 个 .deb~~ | 已在 `9f2cfec` 扩展矩阵修复 | ✅ 已修 |
-| RPM aarch64 缺 centos-8/9 | 36 个 .rpm | Docker Hub 无 aarch64 镜像 | ❌ 不可 |
+| ~~RPM aarch64 缺 centos-stream-8/9~~ | ~~36 个 .rpm~~ | 已在 `5a19b9b` 用 `quay.io/centos/centos:stream8/9` + `ubuntu-24.04-arm` runner 修复 | ✅ 已修 |
 | ~~RPM aarch64 缺 rocky8/alma8~~ | ~~36 个 .rpm~~ | 已在 `132f6fb` 扩展矩阵修复 | ✅ 已修 |
 | ~~RPM aarch64 缺 fedora-40~~ | ~~18 个 .rpm~~ | 已在 `132f6fb` 用 `quay.io/fedora/fedora:40` 修复 | ✅ 已修 |
-| openEuler 24.03 / EulerOS 2.0 / HCE 2.0 | 0 包 | 无 CI 覆盖, 仅手动验证 | ⚠️ 难 |
-| ~~Docker 运行时镜像仅 2 个发行版~~ | — | 已新增 4 个直装版运行时镜像 (ubuntu24.04/debian12/rocky9/openeuler22.03) | ✅ 已修 |
+| ~~openEuler 24.03~~ | ~~0 包~~ | 已在 `5a19b9b` 用 `quay.io/openeuler/openeuler:24.03-lts` 修复 | ✅ 已修 |
+| EulerOS 2.0 / HCE 2.0 | 手动验证 | 需华为云专属 runner | ⚠️ 手动 |
+| ~~Docker 运行时镜像仅 2 个发行版~~ | — | 已新增 14 个直装版运行时镜像 | ✅ 已修 |
+
+> **里程碑**: 所有 CI 可覆盖的缺口均已修复，总覆盖率 100%。仅 EulerOS/HCE 需华为云专属 runner，作为手动验证项。
 
 ### 🟡 结构问题
 

@@ -9,7 +9,7 @@ English | [中文](README_zh.md)
 
 > **Official cross-platform package repository for OpenTenBase** — Enterprise-grade multi-format, multi-distro packaging and distribution for the OpenTenBase distributed SQL database.
 >
-> **[Quick Start Guide (快速开始)](docs/QUICKSTART.md)** — 5 minutes to install and run.
+> **[Quick Start Guide (快速开始)](docs/01-quickstart.md)** — 5 minutes to install and run.
 
 ---
 
@@ -368,7 +368,6 @@ OpenTenBase-Packages/
 ├── test/                    # Automated tests
 │   └── advanced/            # Advanced test suites
 └── docs/                    # Guides and references
-    ├── QUICKSTART.md        # Quick start guide
     ├── CONTRIBUTING.md      # Contributing guide
     ├── source-build-guide.md # Build from source
     ├── 01-quickstart.md     # Tutorial: quick start

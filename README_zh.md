@@ -396,7 +396,6 @@ OpenTenBase-Packages/
 ├── test/                    # 自动化测试
 │   └── advanced/            # 高级测试套件
 └── docs/                    # 文档与教程
-    ├── QUICKSTART.md        # 快速开始指南
     ├── CONTRIBUTING.md      # 贡献指南
     ├── source-build-guide.md # 源码构建指南
     ├── 01-quickstart.md     # 教程：快速开始
