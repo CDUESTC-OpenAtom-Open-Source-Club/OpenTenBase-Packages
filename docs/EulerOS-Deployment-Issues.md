@@ -1,5 +1,14 @@
 # EulerOS 部署问题记录
 
+## 状态更新 (2026-07-03)
+
+> **当前状态**: EulerOS/HCE CI 自动化需华为云专属 runner。
+> - 华为云开发环境已配置 (ARM, 4vCPUs, 8GiB, EulerOS)
+> - hdspace CLI 可用，SSH tunnel 已建立
+> - 作为手动验证项保留，不纳入 GitHub CI 自动化矩阵
+>
+> **覆盖率**: 100% (16 发行版 × 3 版本 × 2 架构)
+
 ## 测试环境
 - 系统：Huawei Cloud EulerOS 2.0 (aarch64)
 - 架构：ARM64

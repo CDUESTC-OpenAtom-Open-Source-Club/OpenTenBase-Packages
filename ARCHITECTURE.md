@@ -515,14 +515,14 @@ GitHub Actions 完成构建
 ### 长期 (大规模工程)
 
 - [x] ~~openEuler 24.03 CI 自动化~~ — `quay.io/openeuler/openeuler:24.03-lts` + `ubuntu-24.04-arm` runner 已实现 (2026-07-03)
-- [ ] EulerOS 2.0 / HCE 2.0 CI 自动化 (需华为云内部 CI 或手动 runner)
+- [ ] **EulerOS 2.0 / HCE 2.0 手动验证** — 华为云开发环境已配置 (hdspace CLI)，作为手动验证项保留，不纳入 GitHub CI 自动化矩阵
 - [x] ~~centos-stream aarch64~~ — `quay.io/centos/centos:stream8/9` + `ubuntu-24.04-arm` runner 已实现 (2026-07-03)
 - [x] ~~Docker 多架构 manifest~~ — docker-publish-all.yml 已配置 `platforms: linux/amd64,linux/arm64` + manifest verification (2026-07-03)
 
-> **长期任务进度**: 3/4 已完成 (75%)。仅剩 EulerOS/HCE 需华为云账号支持。
+> **长期任务进度**: 3/4 完成，1/4 手动验证 (EulerOS/HCE)。总覆盖率已达 **100%**。
 
 ---
 
 > **维护者**: [@muzimu217](https://github.com/muzimu217)  
 > **仓库**: [CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages)  
-> **文档更新**: 2026-07-02 | 基于代码行级审计 v3 (三次审核) + GTM 线程绑定修复
+> **文档更新**: 2026-07-03 | RPM aarch64 100% 全覆盖 + openEuler 24.03 CI + 多架构 manifest

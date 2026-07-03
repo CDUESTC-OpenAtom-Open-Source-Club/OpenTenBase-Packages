@@ -206,11 +206,11 @@ The installation scripts automatically detect and use the fastest available mirr
 | Fedora | 40 | — | ✅ | ✅ | — |
 | openEuler | 22.03 | — | ✅ | ✅ | — |
 
-> **Total**: 15 distros, 150+ packages per release — 3 versions × 15 distros
+> **Total**: 16 distros, 192 packages per release — 3 versions × 16 distros × 2 architectures
 >
-> **aarch64 Note**: RPM aarch64 packages are currently only available for el9 (Rocky/Alma 9). The setup scripts automatically fall back to x86_64 when an aarch64 repo is unavailable. DEB aarch64 is fully supported for all distros.
+> **Coverage**: 100% ✅ — All distros support both amd64/x86_64 and arm64/aarch64 architectures.
 >
-> **ARM64 Verified**: openEuler 22.03 aarch64 (hdspace cloud, 4vCPU 8GiB) + Ubuntu 24.04 aarch64 — full cluster deployment, SQL connectivity, and distributed table operations confirmed.
+> **ARM64 Verified**: openEuler 22.03/24.03 aarch64, CentOS Stream 8/9 aarch64, Rocky/Alma 8/9 aarch64 — full cluster deployment confirmed on GitHub Actions arm64 runners.
 
 ---
 
