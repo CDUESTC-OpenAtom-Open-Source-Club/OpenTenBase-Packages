@@ -27,6 +27,7 @@
 | `Dockerfile.almalinux-9` | almalinux:9 | amd64 + arm64 |
 | `Dockerfile.fedora-40` | fedora:40 | amd64 + arm64 |
 | `Dockerfile.openeuler-22.03` | openeuler/openeuler:22.03 | amd64 + arm64 |
+| `Dockerfile.openeuler-24.03` | quay.io/openeuler/openeuler:24.03-lts | amd64 + arm64 |
 
 ### 离线解包版（无网络依赖）
 

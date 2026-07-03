@@ -120,6 +120,8 @@ jobs:
             tag: fedora40
           - distro: openeuler-22.03
             tag: openeuler22.03
+          - distro: openeuler-24.03
+            tag: openeuler24.03
 
     steps:
       - name: Checkout
@@ -197,16 +199,17 @@ jobs:
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:debian12\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:debian13\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### RPM Images (6)" >> $GITHUB_STEP_SUMMARY
+          echo "### RPM Images (7)" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:rocky8\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:rocky9\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:alma8\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:alma9\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:fedora40\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:openeuler22.03\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/opentenbase:openeuler24.03\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Platforms" >> $GITHUB_STEP_SUMMARY
           echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
           echo "- linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Total: 13 runtime images published to GHCR**" >> $GITHUB_STEP_SUMMARY
+          echo "**Total: 14 runtime images published to GHCR**" >> $GITHUB_STEP_SUMMARY

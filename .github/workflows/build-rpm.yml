@@ -40,7 +40,8 @@ jobs:
               "almalinux-8:almalinux:8" \
               "almalinux-9:almalinux:9" \
               "fedora-40:quay.io/fedora/fedora:40" \
-              "openeuler-22.03:openeuler/openeuler:22.03"; do
+              "openeuler-22.03:openeuler/openeuler:22.03" \
+              "openeuler-24.03:quay.io/openeuler/openeuler:24.03-lts"; do
               IFS=':' read -r distro container <<< "$entry"
               if [ "$FIRST" = "true" ]; then
                 FIRST=false
@@ -273,8 +274,13 @@ jobs:
           - version: '5.0'
             distro: 'centos-stream-9'
             container: 'quay.io/centos/centos:stream9'
-            container: 'quay.io/fedora/fedora:40'
-          # v2.6.0 aarch64 - full coverage
+          - version: '5.0'
+            distro: 'centos-stream-8'
+            container: 'quay.io/centos/centos:stream8'
+          - version: '5.0'
+            distro: 'openeuler-24.03'
+            container: 'quay.io/openeuler/openeuler:24.03-lts'
+          # v2.6.0 aarch64 - full coverage (9 distros)
           - version: '2.6.0'
             distro: 'openeuler-22.03'
             container: 'openeuler/openeuler:22.03'
@@ -296,7 +302,13 @@ jobs:
           - version: '2.6.0'
             distro: 'centos-stream-9'
             container: 'quay.io/centos/centos:stream9'
-          # v2.5.0 aarch64 - full coverage (7 distros)
+          - version: '2.6.0'
+            distro: 'centos-stream-8'
+            container: 'quay.io/centos/centos:stream8'
+          - version: '2.6.0'
+            distro: 'openeuler-24.03'
+            container: 'quay.io/openeuler/openeuler:24.03-lts'
+          # v2.5.0 aarch64 - full coverage (9 distros)
           - version: '2.5.0'
             distro: 'openeuler-22.03'
             container: 'openeuler/openeuler:22.03'
@@ -318,7 +330,12 @@ jobs:
           - version: '2.5.0'
             distro: 'centos-stream-9'
             container: 'quay.io/centos/centos:stream9'
-            container: 'quay.io/fedora/fedora:40'
+          - version: '2.5.0'
+            distro: 'centos-stream-8'
+            container: 'quay.io/centos/centos:stream8'
+          - version: '2.5.0'
+            distro: 'openeuler-24.03'
+            container: 'quay.io/openeuler/openeuler:24.03-lts'
 
     name: ${{ matrix.distro }}-${{ matrix.version }}-aarch64
     runs-on: ubuntu-24.04-arm
