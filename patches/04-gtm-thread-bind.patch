@@ -13,29 +13,11 @@ Description: Fix GTM thread binding for servers with fewer cores
  Tested on 2-core server - GTM now starts successfully without aborting.
 Author: OpenTenBase Packaging <packaging@opentenbase.org>
 Forwarded: not-needed
-Last-Update: 2026-07-02
+Last-Update: 2026-07-03
 
 --- a/src/gtm/main/main.c
 +++ b/src/gtm/main/main.c
-@@ -2236,6 +2236,13 @@ void bind_timekeeper_thread(void)
-
- void bind_service_threads(void)
- {
- 	int cpu_num = get_nprocs();
- 	int cpu;
- 	cpu_set_t cpuset;
-+
-+	/* If server has <= 2 cores, no CPUs available for service threads
-+	 * (CPU 0 reserved for OSS, CPU 1 for timekeeper). Skip binding. */
-+	if (cpu_num <= 2)
-+	{
-+		elog(LOG, "Server has %d cores, skipping service thread CPU binding", cpu_num);
-+		return;
-+	}
-
- 	CPU_ZERO(&cpuset);
- 	for(cpu = 2; cpu < cpu_num; cpu++)
-@@ -2216,7 +2223,8 @@ void bind_thread_to_cores (cpu_set_t cpuset)
+@@ -2213,7 +2213,8 @@ void bind_thread_to_cores (cpu_set_t cpuset)
 
     if((r = pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset)))
     {
@@ -44,3 +26,17 @@ Last-Update: 2026-07-02
 +		elog(LOG, "GTM will function normally but may have reduced performance");
     }
  }
+
+@@ -2236,6 +2237,13 @@ void bind_timekeeper_thread(void)
+ void bind_service_threads(void)
+ {
+ 	int cpu_num = get_nprocs();
++
++	/* If server has <= 2 cores, skip binding */
++	if (cpu_num <= 2)
++	{
++		elog(LOG, "Server has %d cores, skipping service thread CPU binding", cpu_num);
++		return;
++	}
+ 	int cpu;
+ 	cpu_set_t cpuset;
