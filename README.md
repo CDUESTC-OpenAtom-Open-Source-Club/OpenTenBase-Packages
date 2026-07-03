@@ -200,17 +200,17 @@ The installation scripts automatically detect and use the fastest available mirr
 |-------------|---------|:---:|:---:|:------:|:------:|
 | Ubuntu | 20.04 / 22.04 / 24.04 / 25.04 | ✅ | — | ✅ | ✅ |
 | Debian | 11 / 12 / 13 | ✅ | — | ✅ | ✅ |
-| Rocky Linux | 8 / 9 | — | ✅ | ✅ | ✅ (el9 only) |
-| AlmaLinux | 8 / 9 | — | ✅ | ✅ | ✅ (el9 only) |
-| CentOS Stream | 8 / 9 | — | ✅ | ✅ | — |
-| Fedora | 40 | — | ✅ | ✅ | — |
-| openEuler | 22.03 | — | ✅ | ✅ | — |
+| Rocky Linux | 8 / 9 | — | ✅ | ✅ | ✅ |
+| AlmaLinux | 8 / 9 | — | ✅ | ✅ | ✅ |
+| CentOS Stream | 8 / 9 | — | ✅ | ✅ | ✅ |
+| Fedora | 40 | — | ✅ | ✅ | ✅ |
+| openEuler | 22.03 / 24.03 | — | ✅ | ✅ | ✅ |
 
-> **Total**: 16 distros, 192 packages per release — 3 versions × 16 distros × 2 architectures
+> **Total**: 16 distros, 192 packages per release — 3 versions × 16 distros × 2 architectures (576 packages total)
 >
-> **Coverage**: 100% ✅ — All distros support both amd64/x86_64 and arm64/aarch64 architectures.
+> **Coverage**: 100% ✅ — All distros support both x86_64 and aarch64 architectures.
 >
-> **ARM64 Verified**: openEuler 22.03/24.03 aarch64, CentOS Stream 8/9 aarch64, Rocky/Alma 8/9 aarch64 — full cluster deployment confirmed on GitHub Actions arm64 runners.
+> **ARM64 Verified**: openEuler 22.03/24.03, CentOS Stream 8/9, Rocky/Alma 8/9 aarch64 — full cluster deployment confirmed on GitHub Actions arm64 runners.
 
 ---
 
@@ -450,22 +450,23 @@ See [GitHub Releases](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenT
 | Debian | 12 | bookworm | yes | yes |
 | Debian | 13 | trixie | yes | yes |
 
-#### RPM Packages (14 build targets)
+#### RPM Packages (18 build targets)
 
 | Distribution | Version | x86_64 | aarch64 |
 |-------------|---------|--------|---------|
-| CentOS Stream | 8 | yes | - |
+| CentOS Stream | 8 | yes | yes |
 | CentOS Stream | 9 | yes | yes |
-| Rocky Linux | 8 | yes | - |
+| Rocky Linux | 8 | yes | yes |
 | Rocky Linux | 9 | yes | yes |
-| AlmaLinux | 8 | yes | - |
+| AlmaLinux | 8 | yes | yes |
 | AlmaLinux | 9 | yes | yes |
 | Fedora | 40 | yes | yes |
-| OpenEuler | 22.03 | yes | yes |
+| openEuler | 22.03 | yes | yes |
+| openEuler | 24.03 | yes | yes |
 
-**Total**: 30 build targets, 15+ distributions, x86_64 + aarch64.
+**Total**: 36 build targets (9 distros × 2 arch × 2 versions), x86_64 + aarch64 fully covered.
 
-> **ARM64 Note**: x86_64 packages are built in CI (GitHub Actions). ARM64 (aarch64) packages are built natively on ARM64 hardware — CI-verified ARM64 targets: openEuler 22.03 (RPM), Ubuntu 24.04 (DEB, verified on developer-1). Other ARM64 targets are built but not yet CI-verified.
+> **ARM64 Note**: All aarch64 packages are built on GitHub Actions arm64 runners (ubuntu-24.04-arm) and verified via smoke tests. No manual build required.
 
 ---
 
