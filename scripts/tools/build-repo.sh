@@ -315,13 +315,16 @@ build_rpm_repo() {
         local repo_subdir="${distro_entry##*:}"
         local arch="x86_64"
 
-        # Detect aarch64 packages (filename pattern: *.<distro>-<ver>-aarch64.*.rpm)
+        # Detect aarch64 packages (filename ending with .aarch64.rpm)
+        # File format: opentenbase-5.0-1.<distro>-<ver>-aarch64.aarch64.rpm
         local aarch64_rpms
-        aarch64_rpms=$(find "$pkgdir" -name "*${pattern}*aarch64*.rpm" 2>/dev/null || true)
+        aarch64_rpms=$(find "$pkgdir" -name "*-${pattern}-*.aarch64.rpm" 2>/dev/null || true)
 
         for target_arch in x86_64; do
             local rpms
-            rpms=$(find "$pkgdir" -name "*${pattern}*${target_arch}*.rpm" ! -name "*aarch64*" 2>/dev/null || true)
+            # Match RPM files ending with .${target_arch}.rpm (exact arch suffix)
+            # File format: opentenbase-5.0-1.<distro>-<ver>-<arch>.<arch>.rpm
+            rpms=$(find "$pkgdir" -name "*-${pattern}-*.${target_arch}.rpm" 2>/dev/null || true)
 
             if [ -z "$rpms" ]; then
                 continue
