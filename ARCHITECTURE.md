@@ -486,6 +486,11 @@ GitHub Actions 完成构建
   - `docker/runtime/Dockerfile.openeuler-22.03` — dnf 直装版（替代旧 rpm2cpio 解包版）
 - [x] **v5.0-p33 Release 发布** — 172 packages (DEB v5.0/v2.6/v2.5 全版本 + 部分 RPM)，含 PR #69 GTM 修复
 - [x] **移除 Dockerfile LD_PRELOAD workaround** — v5.0-p33 包含 PR #69 修复，无需 noaffinity.so stub
+- [x] **build-multi.yml 多版本支持** (`68942c5`) — 添加 setup job 和动态 version 参数，支持 v5.0/v2.6.0/v2.5.0
+- [x] **Docker 运行时镜像全覆盖** (`0d0b5bd`) — 13 个发行版直装版镜像：
+  - DEB: ubuntu-20.04/22.04/24.04/25.04, debian-11/12/13 (7个)
+  - RPM: rocky-8/9, alma-8/9, fedora-40, openeuler-22.03 (6个)
+- [x] **GHCR 发布 + 冒烟测试** (`5862ef3`) — docker-publish-all.yml workflow，自动推送 13 镜像 + CI 冒烟测试
 
 ### 短期 (可立即实施)
 
@@ -497,12 +502,12 @@ GitHub Actions 完成构建
 
 - [x] ~~RPM aarch64 fedora-40~~ — 已用 `quay.io/fedora/fedora:40` 在 `132f6fb` 实现
 - [x] ~~libssh2 源码迁移到 vendor/~~ — 已完成，解决网络下载超时问题
-- [ ] 创建 RPM 构建容器 Dockerfile 放到 docker/build/
-- [ ] `build-multi.yml` 支持多版本 (v2.6, v2.5)
-- [ ] **Docker 运行时镜像扩展覆盖** — 当前直装版已覆盖 4 个主力发行版（ubuntu24.04/debian12/rocky9/openeuler22.03），可继续补充：
-  - DEB: ubuntu-20.04/22.04/25.04, debian-11/13
-  - RPM: rocky-8, alma-8/9, fedora-40
-- [ ] 所有运行时镜像推送到 GHCR，加 CI 冒烟测试
+- [x] ~~创建 RPM 构建容器 Dockerfile 放到 docker/build/~~ — 可选优化，build-rpm.yml 已使用 container 模式动态安装
+- [x] `build-multi.yml` 支持多版本 (v2.6, v2.5) — `68942c5` 实现，添加 setup job 和动态 version 参数
+- [x] **Docker 运行时镜像扩展覆盖** — `0d0b5bd` 实现，已覆盖 13 个发行版：
+  - DEB: ubuntu-20.04/22.04/24.04/25.04, debian-11/12/13 (7个)
+  - RPM: rocky-8/9, alma-8/9, fedora-40, openeuler-22.03 (6个)
+- [x] 所有运行时镜像推送到 GHCR，加 CI 冒烟测试 — `5862ef3` 实现 docker-publish-all.yml
 
 ### 长期 (大规模工程)
 
