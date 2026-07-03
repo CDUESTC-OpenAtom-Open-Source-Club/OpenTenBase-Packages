@@ -103,6 +103,9 @@ case "$OTB_COMMAND" in
     install)
         shift || true
         ;;
+    tune)
+        shift || true
+        ;;
     status|test|--help|-h)
         shift || true
         ;;
@@ -1619,6 +1622,7 @@ OpenTenBase 一键管理脚本
   switch       切换版本
   status       查看集群状态
   test         验证测试（创建分布式表、读写测试）
+  tune         运行中集群参数调优（内存/连接数等）
 
 日常运维（集群装好后，用随包安装的本地工具，无需再 curl）:
   v5.0  → opentenbase_ctl {status|start|stop|expand|shrink|delete}
@@ -1857,6 +1861,111 @@ run_verification_test() {
 	echo "    - 测试表清理: ✓"
 }
 
+
+# ====================================================================
+# tune 子命令：运行中集群参数调整
+# ====================================================================
+tune_cluster_params() {
+	log_step "运行中集群参数调优..."
+
+	# 解析参数
+	TUNE_MODE="auto"
+	TUNE_RELOAD=true
+	TUNE_RESTART=false
+	TUNE_CLUSTER=""
+	TUNE_CUSTOM_PARAMS=""
+	TUNE_YES=false
+
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			--auto)          TUNE_MODE="auto"; shift ;;
+			--custom)        TUNE_MODE="custom"; shift ;;
+			--params)        TUNE_CUSTOM_PARAMS="$2"; shift 2 ;;
+			--cluster)       TUNE_CLUSTER="$2"; shift 2 ;;
+			--reload)        TUNE_RELOAD=true; TUNE_RESTART=false; shift ;;
+			--restart)       TUNE_RESTART=true; TUNE_RELOAD=false; shift ;;
+			--yes)           TUNE_YES=true; shift ;;
+			--help|-h)
+				echo "用法: opentenbase.sh tune [选项]"
+				echo "选项: --auto/--custom/--params/--cluster/--reload/--restart/--yes"
+				return 0
+				;;
+			*) shift ;;
+		esac
+	done
+
+	OTB_VERSION=$(detect_installed_version)
+	INSTALL_DIR="/usr/lib/opentenbase/${OTB_VERSION}"
+	INSTANCE_BASE="/var/lib/opentenbase/run/instance"
+
+	if [[ ! -d "$INSTANCE_BASE" ]]; then
+		log_error "未找到集群实例目录"
+		exit 1
+	fi
+
+	CLUSTERS=$(ls -d "$INSTANCE_BASE"/*/ 2>/dev/null | xargs -n1 basename)
+	CLUSTER_COUNT=$(echo "$CLUSTERS" | wc -w)
+
+	if [[ "$CLUSTER_COUNT" -eq 0 ]]; then
+		log_error "未找到运行中的集群"
+		exit 1
+	elif [[ "$CLUSTER_COUNT" -gt 1 ]] && [[ -z "$TUNE_CLUSTER" ]]; then
+		log_warn "请指定集群: --cluster <name>"
+		exit 1
+	else
+		TUNE_CLUSTER="${CLUSTERS%% *}"
+	fi
+
+	INSTANCE_DIR="$INSTANCE_BASE/$TUNE_CLUSTER"
+
+	if [[ "$TUNE_MODE" == "auto" ]]; then
+		MEM_TOTAL_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+		MEM_TOTAL_MB=$((MEM_TOTAL_KB / 1024))
+		TUNE_PARAMS=$(memory_tune "$MEM_TOTAL_MB")
+		log_info "自动调优参数: $TUNE_PARAMS"
+	else
+		TUNE_PARAMS="$TUNE_CUSTOM_PARAMS"
+	fi
+
+	if [[ "$TUNE_YES" != "true" ]]; then
+		read -rp "确认应用参数？ [Y/n] " confirm
+		[[ "${confirm:-Y}" =~ ^[Yy]$ ]] || { log_warn "已取消"; return 0; }
+	fi
+
+	INJECTED_COUNT=0
+	for node_dir in "$INSTANCE_DIR"/cn* "$INSTANCE_DIR"/dn*; do
+		if [[ -d "$node_dir/data" ]]; then
+			PG_CONF="$node_dir/data/postgresql.conf"
+			if [[ -f "$PG_CONF" ]]; then
+				inject_memory_params "$PG_CONF" "$TUNE_PARAMS"
+				INJECTED_COUNT=$((INJECTED_COUNT + 1))
+			fi
+		fi
+	done
+
+	log_ok "参数已注入到 ${INJECTED_COUNT} 个节点"
+
+	if [[ "$TUNE_RESTART" == "true" ]]; then
+		log_info "重启集群..."
+		OTB_CTL="${INSTALL_DIR}/bin/opentenbase_ctl"
+		su - opentenbase -c "$OTB_CTL stop" 2>&1 || true
+		sleep 2
+		su - opentenbase -c "$OTB_CTL start" 2>&1
+		log_ok "集群已重启"
+	else
+		log_info "reload 配置..."
+		for node_dir in "$INSTANCE_DIR"/cn* "$INSTANCE_DIR"/dn*; do
+			if [[ -d "$node_dir/data" ]]; then
+				PG_CTL="${INSTALL_DIR}/bin/pg_ctl"
+				su - opentenbase -c "LD_LIBRARY_PATH=${INSTALL_DIR}/lib ${PG_CTL} reload -D $node_dir/data" 2>&1 || true
+			fi
+		done
+		log_ok "配置已 reload"
+		log_warn "shared_buffers 需 restart 才能生效"
+	fi
+
+	log_ok "✅ 参数调优完成！"
+}
 # ====================================================================
 # 子命令分发（延迟到此处，确保上方函数定义已加载）
 # ====================================================================
@@ -1866,6 +1975,9 @@ case "$OTB_COMMAND" in
         ;;
     test)
         run_verification_test "$@"
+        ;;
+    tune)
+        tune_cluster_params "$@"
         ;;
     --help|-h)
         show_usage
