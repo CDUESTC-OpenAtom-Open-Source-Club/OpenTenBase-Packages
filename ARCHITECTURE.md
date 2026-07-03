@@ -491,6 +491,8 @@ GitHub Actions 完成构建
   - DEB: ubuntu-20.04/22.04/24.04/25.04, debian-11/12/13 (7个)
   - RPM: rocky-8/9, alma-8/9, fedora-40, openeuler-22.03 (6个)
 - [x] **GHCR 发布 + 冒烟测试** (`5862ef3`) — docker-publish-all.yml workflow，自动推送 13 镜像 + CI 冒烟测试
+- [x] **Docker 多架构 manifest** (`0863442`) — manifest verification + amd64/arm64 统一标签
+- [x] **centos-stream aarch64 CI** (`9fedf9a`) — 使用 quay.io/centos/centos:stream9 + ubuntu-24.04-arm runner
 
 ### 短期 (可立即实施)
 
