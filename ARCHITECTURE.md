@@ -281,15 +281,15 @@ RPM 总计: 48+36+48+36+48+36 = 252 个 .rpm 包
 
 ### 覆盖率统计
 
-> 基于 CI 构建矩阵（提交 `132f6fb`/`9f2cfec` 已扩展至全覆盖）。矩阵覆盖 ≠ 已发布 Release 覆盖，但每次打 tag 会触发矩阵内全部 job 构建。
+> 基于 CI 构建矩阵（提交 `5a19b9b` 已实现 RPM aarch64 100% 全覆盖）。矩阵覆盖 ≠ 已发布 Release 覆盖，但每次打 tag 会触发矩阵内全部 job 构建。
 
 | 维度 | 总数 | 矩阵覆盖 | 缺失 | 覆盖率 |
 |------|------|--------|------|--------|
 | DEB amd64 | 126 包 | 126 | 0 | **100%** ✅ |
 | DEB arm64 | 126 包 | 126 | 0 | **100%** ✅ |
-| RPM x86_64 | 144 包 | 144 | 0 | **100%** ✅ |
-| RPM aarch64 | 144 包 | 108 | 36 | **75%** ⚠️ |
-| **总计** | **~540 包** | **~504** | **~36** | **~93%** |
+| RPM x86_64 | 162 包 | 162 | 0 | **100%** ✅ |
+| RPM aarch64 | 162 包 | 162 | 0 | **100%** ✅ |
+| **总计** | **~576 包** | **~576** | **0** | **100%** ✅ |
 
 ### 覆盖率可视化
 
@@ -453,12 +453,12 @@ GitHub Actions 完成构建
 
 | 项目 | 说明 |
 |------|------|
-| amd64/x86_64 覆盖率 | 100%, 270 个包全覆盖 |
-| arm64/aarch64 覆盖率 | DEB arm64 100%、RPM aarch64 75% (仅缺 centos-stream) |
+| amd64/x86_64 覆盖率 | 100%, 全覆盖 ✅ |
+| arm64/aarch64 覆盖率 | DEB arm64 100%、RPM aarch64 100% ✅ |
 | Debian 打包规范 | 严格合规 |
 | 测试体系 | 五层全覆盖 |
 | 文档体系 | 7 篇教程 + 中英双语 |
-| Docker 生态 | 5 场景覆盖, 7 个构建镜像 + 6 个成品运行时镜像 |
+| Docker 生态 | 5 场景覆盖, 7 个构建镜像 + 14 个成品运行时镜像 |
 | CHANGELOG | 严格 Keep a Changelog |
 
 ---
@@ -493,6 +493,7 @@ GitHub Actions 完成构建
 - [x] **GHCR 发布 + 冒烟测试** (`5862ef3`) — docker-publish-all.yml workflow，自动推送 13 镜像 + CI 冒烟测试
 - [x] **Docker 多架构 manifest** (`0863442`) — manifest verification + amd64/arm64 统一标签
 - [x] **centos-stream aarch64 CI** (`9fedf9a`) — 使用 quay.io/centos/centos:stream9 + ubuntu-24.04-arm runner
+- [x] **centos-stream-8 + openEuler 24.03 全覆盖** (`5a19b9b`) — RPM aarch64 覆盖率达 100% (9/9 发行版)
 
 ### 短期 (可立即实施)
 
@@ -513,10 +514,12 @@ GitHub Actions 完成构建
 
 ### 长期 (大规模工程)
 
-- [ ] openEuler 24.03 CI 自动化 (需解决 Docker Hub 无官方 ARM 镜像)
+- [x] ~~openEuler 24.03 CI 自动化~~ — `quay.io/openeuler/openeuler:24.03-lts` + `ubuntu-24.04-arm` runner 已实现 (2026-07-03)
 - [ ] EulerOS 2.0 / HCE 2.0 CI 自动化 (需华为云内部 CI 或手动 runner)
-- [x] ~~centos-stream aarch64~~ — `quay.io/centos/centos:stream9` + `ubuntu-24.04-arm` runner 已实现 (2026-07-03)
+- [x] ~~centos-stream aarch64~~ — `quay.io/centos/centos:stream8/9` + `ubuntu-24.04-arm` runner 已实现 (2026-07-03)
 - [x] ~~Docker 多架构 manifest~~ — docker-publish-all.yml 已配置 `platforms: linux/amd64,linux/arm64` + manifest verification (2026-07-03)
+
+> **长期任务进度**: 3/4 已完成 (75%)。仅剩 EulerOS/HCE 需华为云账号支持。
 
 ---
 
