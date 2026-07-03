@@ -513,8 +513,8 @@ GitHub Actions 完成构建
 
 - [ ] openEuler 24.03 CI 自动化 (需解决 Docker Hub 无官方 ARM 镜像)
 - [ ] EulerOS 2.0 / HCE 2.0 CI 自动化 (需华为云内部 CI 或手动 runner)
-- [ ] centos-stream aarch64 (Docker Hub 无官方镜像, 需自建)
-- [ ] Docker 多架构 manifest — 统一 `opentenbase:5.0` 标签下同时提供 amd64 + arm64
+- [x] ~~centos-stream aarch64~~ — `quay.io/centos/centos:stream9` + `ubuntu-24.04-arm` runner 已实现 (2026-07-03)
+- [x] ~~Docker 多架构 manifest~~ — docker-publish-all.yml 已配置 `platforms: linux/amd64,linux/arm64` + manifest verification (2026-07-03)
 
 ---
 

@@ -251,7 +251,7 @@ jobs:
       max-parallel: 4
       matrix:
         include:
-          # v5.0 aarch64 - full coverage (6 distros with ARM64 images)
+          # v5.0 aarch64 - full coverage (7 distros with ARM64 images)
           - version: '5.0'
             distro: 'openeuler-22.03'
             container: 'openeuler/openeuler:22.03'
@@ -269,6 +269,10 @@ jobs:
             container: 'almalinux:8'
           - version: '5.0'
             distro: 'fedora-40'
+            container: 'quay.io/fedora/fedora:40'
+          - version: '5.0'
+            distro: 'centos-stream-9'
+            container: 'quay.io/centos/centos:stream9'
             container: 'quay.io/fedora/fedora:40'
           # v2.6.0 aarch64 - full coverage
           - version: '2.6.0'
@@ -289,7 +293,10 @@ jobs:
           - version: '2.6.0'
             distro: 'fedora-40'
             container: 'quay.io/fedora/fedora:40'
-          # v2.5.0 aarch64 - full coverage
+          - version: '2.6.0'
+            distro: 'centos-stream-9'
+            container: 'quay.io/centos/centos:stream9'
+          # v2.5.0 aarch64 - full coverage (7 distros)
           - version: '2.5.0'
             distro: 'openeuler-22.03'
             container: 'openeuler/openeuler:22.03'
@@ -307,6 +314,10 @@ jobs:
             container: 'almalinux:8'
           - version: '2.5.0'
             distro: 'fedora-40'
+            container: 'quay.io/fedora/fedora:40'
+          - version: '2.5.0'
+            distro: 'centos-stream-9'
+            container: 'quay.io/centos/centos:stream9'
             container: 'quay.io/fedora/fedora:40'
 
     name: ${{ matrix.distro }}-${{ matrix.version }}-aarch64
