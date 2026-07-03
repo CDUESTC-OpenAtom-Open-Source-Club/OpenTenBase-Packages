@@ -1281,6 +1281,31 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
     if su - "$SSH_USER" -c "export PATH=${INSTALL_DIR}/bin:\$PATH && export LD_LIBRARY_PATH=${INSTALL_DIR}/lib && cd ${PGXC_CONF_DIR} && pgxc_ctl --home ${PGXC_CONF_DIR} --configuration ${CONFIG_FILE} init all" < /dev/null 2>&1; then
         echo ""
         log_ok "集群安装成功（pgxc_ctl init all）"
+
+        # ---- 内存调优参数注入 ----
+        if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
+            MEM_TUNE_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+            MEM_TUNE_MB=$((MEM_TUNE_KB / 1024))
+            MEM_PARAMS=$(memory_tune "$MEM_TUNE_MB")
+            log_info "注入内存调优参数到 postgresql.conf..."
+
+            # 遍历所有 coord 和 dn 目录
+            for idx in $(seq 1 $CN_COUNT); do
+                coord_idx=$(printf "%04d" $idx)
+                COORD_CONF="${DATA_BASE}/coord${coord_idx}/data/postgresql.conf"
+                if [[ -f "$COORD_CONF" ]]; then
+                    inject_memory_params "$COORD_CONF" "$MEM_PARAMS"
+                fi
+            done
+            for idx in $(seq 1 $DN_COUNT); do
+                dn_idx=$(printf "%04d" $idx)
+                DN_CONF="${DATA_BASE}/dn${dn_idx}/data/postgresql.conf"
+                if [[ -f "$DN_CONF" ]]; then
+                    inject_memory_params "$DN_CONF" "$MEM_PARAMS"
+                fi
+            done
+            log_ok "内存调优参数注入完成"
+        fi
     else
         EXIT_CODE=$?
         echo ""
@@ -1354,6 +1379,36 @@ else
     if [[ $INSTALL_EXIT_CODE -eq 0 ]]; then
         echo ""
         log_ok "集群安装成功"
+
+        # ---- 内存调优参数注入 ----
+        if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
+            MEM_TUNE_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+            MEM_TUNE_MB=$((MEM_TUNE_KB / 1024))
+            MEM_PARAMS=$(memory_tune "$MEM_TUNE_MB")
+            log_info "注入内存调优参数到 postgresql.conf..."
+
+            # opentenbase_ctl 的实例目录结构
+            INSTANCE_DIR="/var/lib/opentenbase/run/instance/${CLUSTER_NAME}"
+            if [[ -d "$INSTANCE_DIR" ]]; then
+                # 遍历所有 CN 和 DN 目录
+                for node_dir in "$INSTANCE_DIR"/cn* "$INSTANCE_DIR"/dn*; do
+                    if [[ -d "$node_dir/data" ]]; then
+                        PG_CONF="$node_dir/data/postgresql.conf"
+                        if [[ -f "$PG_CONF" ]]; then
+                            inject_memory_params "$PG_CONF" "$MEM_PARAMS"
+                        fi
+                    fi
+                done
+                # GTM 不需要 postgresql.conf 参数，但可以检查
+                GTM_CONF="$INSTANCE_DIR/gtm0001/data/gtm.conf"
+                if [[ -f "$GTM_CONF" ]]; then
+                    log_info "GTM 配置文件已存在: $GTM_CONF"
+                fi
+            else
+                log_warn "实例目录不存在: $INSTANCE_DIR，跳过内存参数注入"
+            fi
+            log_ok "内存调优参数注入完成"
+        fi
     else
         EXIT_CODE=$?
         echo ""
