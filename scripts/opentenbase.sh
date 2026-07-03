@@ -974,12 +974,20 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
     # ---- 2.5/2.6: pgxc_ctl 链路 ----
     # 不需要 tar.gz，直接用目录
     log_ok "pgxc_ctl 链路：无需打包，直接使用 ${INSTALL_DIR}"
-    # 创建数据目录
-    DATA_BASE="/var/lib/opentenbase/${OTB_SHORT_VER}"
-    mkdir -p "${DATA_BASE}/gtm" "${DATA_BASE}/coord" "${DATA_BASE}/dn1" \
-             "${DATA_BASE}/coord_archlog" "${DATA_BASE}/dn1_archlog"
+    # 创建数据目录（动态节点数量）
+    DATA_BASE="${DATA_DIR}"
+    mkdir -p "${DATA_BASE}/gtm" "${DATA_BASE}/coord_archlog" "${DATA_BASE}/dn_archlog"
+    # 动态创建 coord 和 dn 目录
+    for i in $(seq 1 $CN_COUNT); do
+        idx=$(printf "%04d" $i)
+        mkdir -p "${DATA_BASE}/coord${idx}"
+    done
+    for i in $(seq 1 $DN_COUNT); do
+        idx=$(printf "%04d" $i)
+        mkdir -p "${DATA_BASE}/dn${idx}"
+    done
     chown -R "$SSH_USER":"$SSH_USER" "${DATA_BASE}"
-    log_ok "数据目录就绪: ${DATA_BASE}"
+    log_ok "数据目录就绪: ${DATA_BASE} (CN=${CN_COUNT}, DN=${DN_COUNT})"
 else
     # ---- 5.0: opentenbase_ctl 链路 ----
     # 创建部署包 tar.gz（opentenbase_ctl 要求文件格式）
@@ -1018,26 +1026,80 @@ log_step "Step 4/6: 集群配置"
 if [[ "$INTERACTIVE" == "true" ]]; then
     echo -e "  请回答以下问题（直接回车使用默认值）：\n"
 
+    # ---- Phase 4: 扩展交互式问答 ----
+    # 1. 部署模式
+    echo -e "  ${BOLD}【部署模式】${NC}"
+    echo -e "    single       - 单机单节点（1 GTM + 1 CN + 1 DN）"
+    echo -e "    single-multi - 单机多节点（1 GTM + N CN + M DN @ 同一 IP）"
+    echo -e "    multi        - 多机多节点（各组件分布在不同 IP）"
+    ask "请选择部署模式" "$DEPLOY_MODE" DEPLOY_MODE
+
+    # 2. 节点数量（多节点模式时询问）
+    if [[ "$DEPLOY_MODE" != "single" ]]; then
+        ask "Coordinator 数量" "$CN_COUNT" CN_COUNT
+        ask "Datanode 数量" "$DN_COUNT" DN_COUNT
+        # 更新默认值
+        CN_COUNT=${CN_COUNT:-1}
+        DN_COUNT=${DN_COUNT:-1}
+    fi
+
+    # 3. 网络 IP 配置
+    echo ""
+    echo -e "  ${BOLD}【网络配置】${NC}"
     ask "集群名称" "$CLUSTER_NAME" CLUSTER_NAME
     ask "GTM 节点 IP" "$GTM_IP" GTM_IP
     ask "Coordinator 节点 IP（默认同 GTM）" "${GTM_IP}" CN_IP
     ask "Datanode 节点 IP（默认同 GTM）" "${GTM_IP}" DN_IP
+
+    # 4. 端口配置
+    echo ""
+    echo -e "  ${BOLD}【端口配置】${NC}"
+    ask "GTM 端口" "$GTM_PORT" GTM_PORT
+    ask "CN 請端口基数" "$CN_PORT_BASE" CN_PORT_BASE
+    ask "DN 端口基数" "$DN_PORT_BASE" DN_PORT_BASE
     ask "SSH 端口" "$SSH_PORT" SSH_PORT
 
-    # 密码
+    # 5. 数据目录
+    echo ""
+    echo -e "  ${BOLD}【数据目录】${NC}"
+    ask "数据存储目录" "$DATA_DIR" DATA_DIR
+
+    # 6. 内存调优
+    echo ""
+    echo -e "  ${BOLD}【内存调优】${NC}"
+    INTERACTIVE_MEM_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+    INTERACTIVE_MEM_MB=$((INTERACTIVE_MEM_KB / 1024))
+    echo -e "  系统内存: ${CYAN}${INTERACTIVE_MEM_MB} MB${NC}"
+    if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
+        echo -e "  ${GREEN}已启用内存自动调优${NC}"
+        INTERACTIVE_TUNE_PARAMS=$(memory_tune "$INTERACTIVE_MEM_MB")
+        echo -e "  调优参数: ${INTERACTIVE_TUNE_PARAMS}"
+    fi
+    ask "是否启用内存自动调优？[Y/n]" "$([[ "$AUTO_TUNE_MEM" == "true" ]] && echo 'Y' || echo 'n')" AUTO_TUNE_MEM_CHOICE
+    [[ "${AUTO_TUNE_MEM_CHOICE:-Y}" =~ ^[Yy]$ ]] && AUTO_TUNE_MEM=true || AUTO_TUNE_MEM=false
+
+    # 7. SSH 密码
     echo ""
     echo -e "  ${YELLOW}提示:${NC} opentenbase_ctl 通过 sshpass + 密码远程执行命令"
     echo -e "  所有节点的 $SSH_USER 用户密码必须一致\n"
     ask_password "请输入 $SSH_USER 用户的 SSH 密码" SSH_PASSWORD
 
+    # 8. 配置摘要
     echo ""
     echo -e "  ${BOLD}配置摘要:${NC}"
+    echo -e "    部署模式:    ${CYAN}${DEPLOY_MODE}${NC}"
     echo -e "    集群名称:    ${CYAN}${CLUSTER_NAME}${NC}"
-    echo -e "    GTM:         ${CYAN}${GTM_IP}${NC}"
-    echo -e "    Coordinator: ${CYAN}${CN_IP}${NC}"
-    echo -e "    Datanode:    ${CYAN}${DN_IP}${NC}"
-    echo -e "    SSH 用户:    ${CYAN}${SSH_USER}${NC}"
-    echo -e "    SSH 端口:    ${CYAN}${SSH_PORT}${NC}"
+    echo -e "    GTM:         ${CYAN}${GTM_IP}:${GTM_PORT}${NC}"
+    if [[ "$DEPLOY_MODE" != "single" ]]; then
+        echo -e "    Coordinator: ${CYAN}${CN_COUNT} 个 @ ${CN_IP}${NC}"
+        echo -e "    Datanode:    ${CYAN}${DN_COUNT} 个 @ ${DN_IP}${NC}"
+    else
+        echo -e "    Coordinator: ${CYAN}${CN_IP}${NC}"
+        echo -e "    Datanode:    ${CYAN}${DN_IP}${NC}"
+    fi
+    echo -e "    数据目录:    ${CYAN}${DATA_DIR}${NC}"
+    echo -e "    SSH 用户:    ${CYAN}${SSH_USER}@:${SSH_PORT}${NC}"
+    echo -e "    内存调优:    ${CYAN}$([[ "$AUTO_TUNE_MEM" == "true" ]] && echo '已启用' || echo '未启用')${NC}"
     echo ""
 
     if [[ "$INTERACTIVE" == "true" ]]; then
@@ -1061,11 +1123,52 @@ if [[ "$USE_PGXC_CTL" == "true" ]]; then
     # ---- 2.5/2.6: 生成 pgxc_ctl.conf ----
     PGXC_CONF_DIR="/var/lib/opentenbase/pgxc_ctl"
     mkdir -p "$PGXC_CONF_DIR"
-    DATA_BASE="/var/lib/opentenbase/${OTB_SHORT_VER}"
+    DATA_BASE="${DATA_DIR}"
+
+    # ---- Phase 3: 动态生成节点数组 ----
+    # Coordinator 数组
+    COORD_NAMES_ARRAY=""
+    COORD_PORTS_ARRAY=""
+    COORD_POOLER_PORTS_ARRAY=""
+    COORD_FORWARD_PORTS_ARRAY=""
+    COORD_DIRS_ARRAY=""
+    for i in $(seq 1 $CN_COUNT); do
+        idx=$(printf "%04d" $i)
+        COORD_NAMES_ARRAY="${COORD_NAMES_ARRAY}cn${idx} "
+        COORD_PORTS_ARRAY="${COORD_PORTS_ARRAY}$((CN_PORT_BASE + i - 1)) "
+        COORD_POOLER_PORTS_ARRAY="${COORD_POOLER_PORTS_ARRAY}$((6669 + i - 1)) "
+        COORD_FORWARD_PORTS_ARRAY="${COORD_FORWARD_PORTS_ARRAY}$((CN_PORT_BASE + i - 1 + 1)) "
+        COORD_DIRS_ARRAY="${COORD_DIRS_ARRAY}${DATA_BASE}/coord${idx} "
+    done
+
+    # Datanode 数组
+    DATANODE_NAMES_ARRAY=""
+    DATANODE_PORTS_ARRAY=""
+    DATANODE_POOLER_PORTS_ARRAY=""
+    DATANODE_FORWARD_PORTS_ARRAY=""
+    DATANODE_DIRS_ARRAY=""
+    for i in $(seq 1 $DN_COUNT); do
+        idx=$(printf "%04d" $i)
+        DATANODE_NAMES_ARRAY="${DATANODE_NAMES_ARRAY}dn${idx} "
+        DATANODE_PORTS_ARRAY="${DATANODE_PORTS_ARRAY}$((DN_PORT_BASE + i - 1)) "
+        DATANODE_POOLER_PORTS_ARRAY="${DATANODE_POOLER_PORTS_ARRAY}$((6670 + i - 1)) "
+        DATANODE_FORWARD_PORTS_ARRAY="${DATANODE_FORWARD_PORTS_ARRAY}$((DN_PORT_BASE + i - 1 + 1)) "
+        DATANODE_DIRS_ARRAY="${DATANODE_DIRS_ARRAY}${DATA_BASE}/dn${idx} "
+    done
+
+    # 内存调优参数
+    MEM_PARAMS=""
+    if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
+        MEM_TUNE_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+        MEM_TUNE_MB=$((MEM_TUNE_KB / 1024))
+        MEM_PARAMS=$(memory_tune "$MEM_TUNE_MB")
+    fi
+
     cat > "${PGXC_CONF_DIR}/pgxc_ctl.conf" << PGXCEOF
 #!/usr/bin/env bash
 # pgxc_ctl.conf for OpenTenBase ${OTB_VERSION}
-# 由 deploy-opentenbase.sh 自动生成
+# 由 opentenbase.sh 自动生成
+# 部署模式: ${DEPLOY_MODE} (CN=${CN_COUNT}, DN=${DN_COUNT})
 
 IP_1=127.0.0.1
 pgxcInstallDir=${INSTALL_DIR}
@@ -1079,34 +1182,37 @@ configBackup=n
 
 gtmName=gtm
 gtmMasterServer=\$IP_1
-gtmMasterPort=6666
+gtmMasterPort=${GTM_PORT}
 gtmMasterDir=${DATA_BASE}/gtm
 gtmSlave=n
 
-coordNames=(cn0001)
-coordPorts=(5432)
-poolerPorts=(6669)
-coordForwardPorts=(5433)
+coordNames=( ${COORD_NAMES_ARRAY})
+coordPorts=( ${COORD_PORTS_ARRAY})
+poolerPorts=( ${COORD_POOLER_PORTS_ARRAY})
+coordForwardPorts=( ${COORD_FORWARD_PORTS_ARRAY})
 coordMasterServers=(\$IP_1)
-coordMasterDirs=(${DATA_BASE}/coord)
+coordMasterDirs=( ${COORD_DIRS_ARRAY})
 coordArchLogDir=${DATA_BASE}/coord_archlog
-coordMaxWALSenders=1
+coordMaxWALSenders=${CN_COUNT}
 coordSlave=n
 coordSpecificExtraConfig=none
 coordSpecificExtraPgHba=none
 
 primaryDatanode=dn0001
-datanodeNames=(dn0001)
-datanodePorts=(15432)
-datanodePoolerPorts=(6670)
-datanodeForwardPorts=(15433)
+datanodeNames=( ${DATANODE_NAMES_ARRAY})
+datanodePorts=( ${DATANODE_PORTS_ARRAY})
+datanodePoolerPorts=( ${DATANODE_POOLER_PORTS_ARRAY})
+datanodeForwardPorts=( ${DATANODE_FORWARD_PORTS_ARRAY})
 datanodeMasterServers=(\$IP_1)
-datanodeMasterDirs=(${DATA_BASE}/dn1)
-datanodeArchLogDir=${DATA_BASE}/dn1_archlog
-datanodeMaxWALSenders=1
+datanodeMasterDirs=( ${DATANODE_DIRS_ARRAY})
+datanodeArchLogDir=${DATA_BASE}/dn_archlog
+datanodeMaxWALSenders=${DN_COUNT}
 datanodeSlave=n
 datanodeSpecificExtraConfig=none
 datanodeSpecificExtraPgHba=none
+
+# 内存自动调优参数
+# ${MEM_PARAMS}
 PGXCEOF
     # 整个 pgxc_ctl 工作目录都要归 opentenbase 用户所有，否则 pgxc_ctl 以该用户
     # 运行时无法在里面安装 pgxc_ctl_bash 脚本、写日志（Permission denied）。
@@ -1116,9 +1222,20 @@ PGXCEOF
 else
     # ---- 5.0: 生成 INI 配置 ----
     CONFIG_FILE="/tmp/opentenbase_config.ini"
+
+    # 内存调优参数
+    MEM_PARAMS_COMMENT=""
+    if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
+        INI_MEM_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+        INI_MEM_MB=$((INI_MEM_KB / 1024))
+        MEM_PARAMS_COMMENT="# 内存调优: $(memory_tune "$INI_MEM_MB")"
+    fi
+
     cat > "$CONFIG_FILE" << INIEOF
 # OpenTenBase 5.0 集群配置
-# 由 deploy-opentenbase.sh 自动生成
+# 由 opentenbase.sh 自动生成
+# 部署模式: ${DEPLOY_MODE} (CN=${CN_COUNT}, DN=${DN_COUNT})
+${MEM_PARAMS_COMMENT}
 
 [instance]
 name=${CLUSTER_NAME}
@@ -1127,14 +1244,15 @@ package=${PACKAGE_PATH}
 
 [gtm]
 master=${GTM_IP}
+port=${GTM_PORT}
 
 [coordinators]
 master=${CN_IP}
-nodes-per-server=1
+nodes-per-server=${CN_COUNT}
 
 [datanodes]
 master=${DN_IP}
-nodes-per-server=1
+nodes-per-server=${DN_COUNT}
 
 [server]
 ssh-user=${SSH_USER}
@@ -1146,7 +1264,7 @@ level=INFO
 INIEOF
     chmod 600 "$CONFIG_FILE"
     chown "$SSH_USER":"$SSH_USER" "$CONFIG_FILE" 2>/dev/null || true
-    log_ok "INI 配置文件已生成: $CONFIG_FILE"
+    log_ok "INI 配置文件已生成: $CONFIG_FILE (CN=${CN_COUNT}, DN=${DN_COUNT})"
 fi
 
 # ====================================================================
