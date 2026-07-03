@@ -5,16 +5,37 @@
 
 ## 可用镜像
 
-| Dockerfile | 基础镜像 | 包管理器 | 架构 |
-|------------|----------|----------|------|
-| `Dockerfile.ubuntu-24.04` | ubuntu:24.04 | apt | amd64 + arm64 |
-| `Dockerfile.debian-12` | debian:bookworm | apt | amd64 + arm64 |
-| `Dockerfile.rockylinux-9` | rockylinux:9 | dnf | amd64 + arm64 |
-| `Dockerfile.openeuler-22.03` | openeuler/openeuler:22.03 | dnf | amd64 + arm64 |
-| `Dockerfile.runtime` | openeuler/openeuler:22.03 | rpm2cpio 解包（离线版） | 见文件 |
+### DEB 发行版（APT 直装）
 
-> `Dockerfile.runtime` 是早期的 **离线解包版**（不依赖网络仓库，把 RPM 解压进镜像）。
-> 新场景推荐使用上表 4 个**直装版**，构建更快、镜像更小、版本可随仓库更新。
+| Dockerfile | 基础镜像 | 架构 |
+|------------|----------|------|
+| `Dockerfile.ubuntu-20.04` | ubuntu:20.04 (focal) | amd64 + arm64 |
+| `Dockerfile.ubuntu-22.04` | ubuntu:22.04 (jammy) | amd64 + arm64 |
+| `Dockerfile.ubuntu-24.04` | ubuntu:24.04 (noble) | amd64 + arm64 |
+| `Dockerfile.ubuntu-25.04` | ubuntu:25.04 (plucky) | amd64 + arm64 |
+| `Dockerfile.debian-11` | debian:11 (bullseye) | amd64 + arm64 |
+| `Dockerfile.debian-12` | debian:12 (bookworm) | amd64 + arm64 |
+| `Dockerfile.debian-13` | debian:13 (trixie) | amd64 + arm64 |
+
+### RPM 发行版（DNF 直装）
+
+| Dockerfile | 基础镜像 | 架构 |
+|------------|----------|------|
+| `Dockerfile.rockylinux-8` | rockylinux:8 | amd64 + arm64 |
+| `Dockerfile.rockylinux-9` | rockylinux:9 | amd64 + arm64 |
+| `Dockerfile.almalinux-8` | almalinux:8 | amd64 + arm64 |
+| `Dockerfile.almalinux-9` | almalinux:9 | amd64 + arm64 |
+| `Dockerfile.fedora-40` | fedora:40 | amd64 + arm64 |
+| `Dockerfile.openeuler-22.03` | openeuler/openeuler:22.03 | amd64 + arm64 |
+
+### 离线解包版（无网络依赖）
+
+| Dockerfile | 基础镜像 | 说明 |
+|------------|----------|------|
+| `Dockerfile.runtime` | openeuler/openeuler:22.03 | rpm2cpio 解包，无网络仓库依赖 |
+
+> **推荐**：直装版（APT/DNF）构建更快、镜像更小、版本可随仓库自动更新。
+> 离线版适用于无网络环境或特殊部署场景。
 
 ## 构建
 

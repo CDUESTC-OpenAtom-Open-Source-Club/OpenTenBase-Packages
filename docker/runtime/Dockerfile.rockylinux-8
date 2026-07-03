@@ -1,0 +1,60 @@
+# OpenTenBase Runtime Image — Rocky Linux 8 (直装版)
+# 通过 DNF 仓库直接安装成品包。
+#
+# 构建:
+#   docker build -f docker/runtime/Dockerfile.rockylinux-8 -t opentenbase:5.0-rocky8 .
+# 多架构:
+#   docker buildx build --platform linux/amd64,linux/arm64 -f docker/runtime/Dockerfile.rockylinux-8 -t opentenbase:5.0-rocky8 .
+
+FROM rockylinux:8
+
+ARG OTB_VERSION=5.0
+
+# 运行时依赖（RPM 包自带 libssh2.so.1，libatomic 供原子操作）
+# Rocky 8 needs EPEL for libssh2
+RUN dnf install -y --allowerasing \
+        curl \
+        gnupg2 \
+        libatomic \
+        libpq \
+        sudo \
+        iputils \
+        net-tools \
+        hostname \
+        util-linux \
+        procps-ng \
+    && dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm \
+    && dnf install -y libssh2 \
+    && dnf clean all
+
+# 配置 OpenTenBase DNF 仓库
+RUN ARCH=$(uname -m) && \
+    curl -fsSL https://repo.blackevil217.com/rpm/gpg-key.asc -o /tmp/gpg-key.asc && \
+    rpm --import /tmp/gpg-key.asc && rm -f /tmp/gpg-key.asc && \
+    printf '[opentenbase]\nname=OpenTenBase Packages\nbaseurl=https://repo.blackevil217.com/rpm/el8/%s\nenabled=1\ngpgcheck=1\ngpgkey=https://repo.blackevil217.com/rpm/gpg-key.asc\n' "$ARCH" > /etc/yum.repos.d/opentenbase.repo && \
+    chmod 644 /etc/yum.repos.d/opentenbase.repo
+
+# 安装 OpenTenBase
+RUN dnf makecache && \
+    dnf install -y opentenbase-${OTB_VERSION} || \
+    dnf install -y opentenbase-server-${OTB_VERSION} opentenbase-client-${OTB_VERSION} opentenbase-contrib-${OTB_VERSION} \
+    && dnf clean all
+
+# 创建运行用户
+RUN id opentenbase 2>/dev/null || useradd -m -s /bin/bash opentenbase \
+    && mkdir -p /var/lib/opentenbase/data \
+    && chown -R opentenbase:opentenbase /var/lib/opentenbase
+
+ENV PATH="/usr/lib/opentenbase/${OTB_VERSION}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/lib/opentenbase/${OTB_VERSION}/lib"
+
+# 集群入口
+COPY docker/runtime/entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+
+WORKDIR /home/opentenbase
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD pg_isready -h localhost -p 5432 || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
