@@ -39,3 +39,6 @@ debian/tmp/
 
 # RPM build artifacts
 rpmbuild/
+
+# Release artifacts (should be in GitHub Releases, not source tree)
+release-*/
