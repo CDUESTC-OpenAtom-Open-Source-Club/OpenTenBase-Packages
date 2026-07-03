@@ -479,6 +479,41 @@ fi
 echo -e "  版本: ${GREEN}${OTB_VERSION}${NC}  链路: ${GREEN}$([[ "$USE_PGXC_CTL" == "true" ]] && echo 'pgxc_ctl' || echo 'opentenbase_ctl')${NC}"
 echo ""
 
+# ====================================================================
+# 参数默认值补全（端口/目录）
+# ====================================================================
+# 端口默认值（按版本区分）
+[[ -z "$GTM_PORT" ]] && GTM_PORT=6666
+if [[ -z "$CN_PORT_BASE" ]]; then
+    if [[ "$USE_PGXC_CTL" == "true" ]]; then
+        CN_PORT_BASE=5432
+    else
+        CN_PORT_BASE=11003
+    fi
+fi
+[[ -z "$DN_PORT_BASE" ]] && DN_PORT_BASE=15432
+
+# 数据目录默认值
+if [[ -z "$DATA_DIR" ]]; then
+    DATA_DIR="/var/lib/opentenbase/${OTB_SHORT_VER}"
+fi
+
+# 多节点模式校验
+if [[ "$DEPLOY_MODE" != "single" ]]; then
+    if [[ "$CN_COUNT" -lt 1 ]] || [[ "$DN_COUNT" -lt 1 ]]; then
+        log_error "多节点模式需要 CN_COUNT ≥ 1 和 DN_COUNT ≥ 1"
+        exit 1
+    fi
+    log_info "部署模式: $DEPLOY_MODE (CN=$CN_COUNT, DN=$DN_COUNT)"
+fi
+
+# 内存调优参数生成
+MEM_PARAMS=""
+if [[ "$AUTO_TUNE_MEM" == "true" ]]; then
+    MEM_PARAMS=$(memory_tune "$MEM_TOTAL")
+    log_ok "内存参数: $MEM_PARAMS"
+fi
+
 # 非 install 子命令（status/test/--help）跳过下方部署主体，落到末尾分发
 if [[ "$OTB_COMMAND" == "install" ]]; then
 
