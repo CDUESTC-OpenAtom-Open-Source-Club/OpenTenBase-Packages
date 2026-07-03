@@ -16,13 +16,13 @@
 
 ```bash
 # 交互式（推荐，会问你几个问题）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
 
 # 非交互式（全自动，默认单节点）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash -s -- --yes
 
 # 非交互式 + 自定义参数
-sudo bash deploy-opentenbase.sh --yes \
+sudo bash opentenbase.sh --yes \
     --cluster-name mycluster \
     --ssh-password mypass123 \
     --gtm-ip 192.168.1.10

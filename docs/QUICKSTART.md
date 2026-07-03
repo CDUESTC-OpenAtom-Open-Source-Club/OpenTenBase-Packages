@@ -27,10 +27,10 @@ OpenTenBase 集群管理工具（opentenbase_ctl / pgxc_ctl）**必须使用 `op
 
 ```bash
 # 交互式（推荐）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash
 
 # 非交互式（全自动）
-curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/deploy-opentenbase.sh | sudo bash -s -- --yes
+curl -sSL https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/scripts/opentenbase.sh | sudo bash -s -- --yes
 ```
 
 自动完成全部步骤：安装包 → 创建用户 → sshpass → 符号链接 → 生成配置 → `opentenbase_ctl install` → 启动验证
