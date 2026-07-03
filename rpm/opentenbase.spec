@@ -51,10 +51,13 @@ computing, security, management, and audit functions.
 # Apply patches from patches/ directory
 # cd into source dir and use patch command directly for reliability
 cd OpenTenBase*
-patch -p1 < %{_sourcedir}/01-bool-stdbool.patch || echo "Patch 01 already applied or skipped"
-patch -p1 < %{_sourcedir}/02-nolic-sharding.patch || echo "Patch 02 already applied or skipped"
-patch -p1 < %{_sourcedir}/03-atomic128-x86.patch || echo "Patch 03 already applied or skipped"
-patch -p1 < %{_sourcedir}/04-gtm-thread-bind.patch || echo "Patch 04 already applied or skipped"
+echo "Applying patches from %{_sourcedir}..."
+ls -la %{_sourcedir}/*.patch || echo "No patches found in %{_sourcedir}"
+patch -p1 < %{_sourcedir}/01-bool-stdbool.patch
+patch -p1 < %{_sourcedir}/02-nolic-sharding.patch
+patch -p1 < %{_sourcedir}/03-atomic128-x86.patch
+patch -p1 < %{_sourcedir}/04-gtm-thread-bind.patch
+echo "All patches applied successfully"
 cd ..
 
 %build
