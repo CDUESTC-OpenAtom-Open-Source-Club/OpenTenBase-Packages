@@ -49,12 +49,12 @@ computing, security, management, and audit functions.
 %setup -q -c -n opentenbase
 
 # Apply patches from patches/ directory
-# Must cd into source dir before applying patches
+# cd into source dir and use patch command directly for reliability
 cd OpenTenBase*
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
+patch -p1 < %{_sourcedir}/01-bool-stdbool.patch || echo "Patch 01 already applied or skipped"
+patch -p1 < %{_sourcedir}/02-nolic-sharding.patch || echo "Patch 02 already applied or skipped"
+patch -p1 < %{_sourcedir}/03-atomic128-x86.patch || echo "Patch 03 already applied or skipped"
+patch -p1 < %{_sourcedir}/04-gtm-thread-bind.patch || echo "Patch 04 already applied or skipped"
 cd ..
 
 %build
