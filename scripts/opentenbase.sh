@@ -720,7 +720,11 @@ else
             # 系统 libpq，所以用 rpm --nodeps 强制安装是安全的。
             log_warn "$YUM 安装因依赖符号失败，降级用 rpm --nodeps 强制安装..."
             rm -f /tmp/opentenbase-*.rpm 2>/dev/null
-            ( cd /tmp && $YUM download "opentenbase-${OTB_VERSION}" >/dev/null 2>&1 )
+            # 清理可能干扰下载的无效仓库（如失效的 PostgreSQL 官方源）
+            rm -f /etc/yum.repos.d/*pgdg* /etc/yum.repos.d/*postgresql* 2>/dev/null
+            # 仅从 opentenbase 仓库下载，禁用其他仓库避免干扰
+            ( cd /tmp && $YUM download --disablerepo="*" --enablerepo="opentenbase" "opentenbase-${OTB_VERSION}" >/dev/null 2>&1 ) || \
+            ( cd /tmp && $YUM download "opentenbase-${OTB_VERSION}" >/dev/null 2>&1 ) || true
             OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*${OTB_VERSION}*.rpm 2>/dev/null | head -1)
             [ -z "$OTB_PKG_RPM" ] && OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*.rpm 2>/dev/null | head -1)
             if [ -n "$OTB_PKG_RPM" ] && [ -f "$OTB_PKG_RPM" ]; then
