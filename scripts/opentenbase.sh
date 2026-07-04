@@ -597,34 +597,58 @@ NOAFFINITY_SO=""
 if [[ "$CPU_CORES" -le 2 ]]; then
     log_warn "CPU ≤ 2 核，创建 noaffinity.so 绕过 GTM CPU 亲和性问题（旧版本 fallback）"
     NOAFFINITY_SO="/usr/lib/opentenbase/noaffinity.so"
-    cat > /tmp/noaffinity.c << 'NOAFEOF'
+    NOAFFINITY_CREATED=false
+
+    # 方法 1: 本地编译（需要 gcc）
+    if command -v gcc &>/dev/null; then
+        cat > /tmp/noaffinity.c << 'NOAFEOF'
 #define _GNU_SOURCE
 #include <pthread.h>
-#include <string.h>
+#include <sched.h>
 int pthread_setaffinity_np(pthread_t thread, size_t cpusetsize, const cpu_set_t *cpuset) {
     (void)thread; (void)cpusetsize; (void)cpuset;
     return 0;
 }
 NOAFEOF
-    if gcc -shared -fPIC -o "$NOAFFINITY_SO" /tmp/noaffinity.c -lpthread 2>/dev/null; then
-        log_ok "noaffinity.so 已创建: $NOAFFINITY_SO"
-
-        # 写入 /etc/ld.so.preload 实现全局注入
-        # 原因：opentenbase_ctl 通过 SSH 启动 GTM 为独立进程，
-        # LD_PRELOAD 环境变量不会传播到 SSH 子进程。
-        # /etc/ld.so.preload 是系统级配置，所有进程（含 SSH 子进程）都会加载。
-        if [[ ! -f /etc/ld.so.preload ]] || ! grep -q "$NOAFFINITY_SO" /etc/ld.so.preload 2>/dev/null; then
-            echo "$NOAFFINITY_SO" >> /etc/ld.so.preload
-            chmod 644 /etc/ld.so.preload
-            log_ok "已写入 /etc/ld.so.preload（全局注入，GTM 子进程也会生效）"
-        else
-            log_ok "/etc/ld.so.preload 已包含 noaffinity.so"
+        if gcc -shared -fPIC -o "$NOAFFINITY_SO" /tmp/noaffinity.c -lpthread 2>/dev/null; then
+            log_ok "noaffinity.so 已编译: $NOAFFINITY_SO"
+            NOAFFINITY_CREATED=true
         fi
-    else
-        log_warn "noaffinity.so 创建失败，2 核机器上 GTM 可能崩溃"
-        NOAFFINITY_SO=""
+        rm -f /tmp/noaffinity.c
     fi
-    rm -f /tmp/noaffinity.c
+
+    # 方法 2: 下载预构建版本（fallback）
+    if [[ "$NOAFFINITY_CREATED" == "false" ]]; then
+        log_info "gcc 不可用或编译失败，下载预构建 noaffinity.so..."
+        CDN_URL="https://repo.blackevil217.com/assets/noaffinity-x64.so"
+        GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/assets/noaffinity-x64.so"
+        if curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$CDN_URL"; then
+            log_ok "noaffinity.so 已下载（CDN）: $NOAFFINITY_SO"
+            NOAFFINITY_CREATED=true
+        elif curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$GITHUB_URL"; then
+            log_ok "noaffinity.so 已下载（GitHub）: $NOAFFINITY_SO"
+            NOAFFINITY_CREATED=true
+        fi
+    fi
+
+    # 最终检查：必须成功创建，否则阻塞安装
+    if [[ "$NOAFFINITY_CREATED" == "false" ]] || [[ ! -f "$NOAFFINITY_SO" ]]; then
+        log_err "noaffinity.so 创建失败，2 核机器上 GTM 无法启动，安装中止"
+        log_err "请安装 gcc 后重试：yum install -y gcc 或 apt-get install -y gcc"
+        exit 1
+    fi
+
+    # 写入 /etc/ld.so.preload 实现全局注入
+    # 原因：opentenbase_ctl 通过 SSH 启动 GTM 为独立进程，
+    # LD_PRELOAD 环境变量不会传播到 SSH 子进程。
+    # /etc/ld.so.preload 是系统级配置，所有进程（含 SSH 子进程）都会加载。
+    if [[ ! -f /etc/ld.so.preload ]] || ! grep -q "$NOAFFINITY_SO" /etc/ld.so.preload 2>/dev/null; then
+        echo "$NOAFFINITY_SO" >> /etc/ld.so.preload
+        chmod 644 /etc/ld.so.preload
+        log_ok "已写入 /etc/ld.so.preload（全局注入，GTM 子进程也会生效）"
+    else
+        log_ok "/etc/ld.so.preload 已包含 noaffinity.so"
+    fi
 fi
 
 # OS 检测
