@@ -722,17 +722,19 @@ else
             rm -f /tmp/opentenbase-*.rpm 2>/dev/null
             # 清理可能干扰下载的无效仓库（如失效的 PostgreSQL 官方源）
             rm -f /etc/yum.repos.d/*pgdg* /etc/yum.repos.d/*postgresql* 2>/dev/null
+            # 卸载可能与 pg_config 冲突的 libpq-devel（OpenTenBase 自带完整工具链）
+            rpm -e --nodeps libpq-devel 2>/dev/null || true
             # 仅从 opentenbase 仓库下载，禁用其他仓库避免干扰
             ( cd /tmp && $YUM download --disablerepo="*" --enablerepo="opentenbase" "opentenbase-${OTB_VERSION}" >/dev/null 2>&1 ) || \
             ( cd /tmp && $YUM download "opentenbase-${OTB_VERSION}" >/dev/null 2>&1 ) || true
             OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*${OTB_VERSION}*.rpm 2>/dev/null | head -1)
             [ -z "$OTB_PKG_RPM" ] && OTB_PKG_RPM=$(ls -1t /tmp/opentenbase-*.rpm 2>/dev/null | head -1)
             if [ -n "$OTB_PKG_RPM" ] && [ -f "$OTB_PKG_RPM" ]; then
-                rpm -ivh --nodeps "$OTB_PKG_RPM" || {
+                rpm -ivh --nodeps --replacefiles "$OTB_PKG_RPM" || {
                     log_error "rpm 强制安装失败: $OTB_PKG_RPM"
                     exit 1
                 }
-                log_ok "已通过 rpm --nodeps 安装 opentenbase-${OTB_VERSION} (跳过 RHPG 符号依赖)"
+                log_ok "已通过 rpm --nodeps --replacefiles 安装 opentenbase-${OTB_VERSION} (跳过 RHPG 符号依赖，替换冲突文件)"
             else
                 log_error "$YUM 安装失败且无法下载 opentenbase-${OTB_VERSION}，请手动安装"
                 exit 1
