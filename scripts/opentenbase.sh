@@ -623,12 +623,26 @@ NOAFEOF
         mkdir -p "$(dirname "$NOAFFINITY_SO")"
         CDN_URL="https://repo.blackevil217.com/assets/noaffinity-x64.so"
         GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/assets/noaffinity-x64.so"
-        if curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$CDN_URL" && [[ -f "$NOAFFINITY_SO" ]]; then
-            log_ok "noaffinity.so 已下载（CDN）: $NOAFFINITY_SO"
-            NOAFFINITY_CREATED=true
-        elif curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$GITHUB_URL" && [[ -f "$NOAFFINITY_SO" ]]; then
-            log_ok "noaffinity.so 已下载（GitHub）: $NOAFFINITY_SO"
-            NOAFFINITY_CREATED=true
+
+        # 尝试 CDN
+        if curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$CDN_URL" 2>/dev/null; then
+            if file "$NOAFFINITY_SO" 2>/dev/null | grep -q "ELF"; then
+                log_ok "noaffinity.so 已下载（CDN）: $NOAFFINITY_SO"
+                NOAFFINITY_CREATED=true
+            else
+                log_warn "CDN 返回非 ELF 文件（可能 404），尝试 GitHub..."
+                rm -f "$NOAFFINITY_SO"
+            fi
+        fi
+
+        # 尝试 GitHub raw（fallback）
+        if [[ "$NOAFFINITY_CREATED" == "false" ]]; then
+            if curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$GITHUB_URL" 2>/dev/null; then
+                if file "$NOAFFINITY_SO" 2>/dev/null | grep -q "ELF"; then
+                    log_ok "noaffinity.so 已下载（GitHub）: $NOAFFINITY_SO"
+                    NOAFFINITY_CREATED=true
+                fi
+            fi
         fi
     fi
 
