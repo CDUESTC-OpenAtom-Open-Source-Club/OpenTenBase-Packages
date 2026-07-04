@@ -620,12 +620,13 @@ NOAFEOF
     # 方法 2: 下载预构建版本（fallback）
     if [[ "$NOAFFINITY_CREATED" == "false" ]]; then
         log_info "gcc 不可用或编译失败，下载预构建 noaffinity.so..."
+        mkdir -p "$(dirname "$NOAFFINITY_SO")"
         CDN_URL="https://repo.blackevil217.com/assets/noaffinity-x64.so"
         GITHUB_URL="https://raw.githubusercontent.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/main/assets/noaffinity-x64.so"
-        if curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$CDN_URL"; then
+        if curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$CDN_URL" && [[ -f "$NOAFFINITY_SO" ]]; then
             log_ok "noaffinity.so 已下载（CDN）: $NOAFFINITY_SO"
             NOAFFINITY_CREATED=true
-        elif curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$GITHUB_URL"; then
+        elif curl -sSL --connect-timeout 10 --max-time 60 -o "$NOAFFINITY_SO" "$GITHUB_URL" && [[ -f "$NOAFFINITY_SO" ]]; then
             log_ok "noaffinity.so 已下载（GitHub）: $NOAFFINITY_SO"
             NOAFFINITY_CREATED=true
         fi
