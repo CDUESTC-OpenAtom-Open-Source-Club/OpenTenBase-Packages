@@ -29,6 +29,7 @@ English | [中文](README_zh.md)
 | **Multi-distro** | 14+ distros: Ubuntu/Debian (7), Rocky/Alma/CentOS/Fedora/openEuler/EulerOS (8) — including **Huawei Cloud EulerOS (HCE) 2.0** |
 | **Multi-arch** | x86_64 (amd64) + ARM64 (aarch64) |
 | **Multi-version coexistence** | Install v5.0 / v2.6 / v2.5 and dev versions side-by-side, switch with `opentenbase-switch-version` |
+| **Self-contained** | Bundles all runtime dependencies (libpq, libpqxx, libssh2) — works on any bare-metal server without pre-installed PostgreSQL |
 | **APT/RPM repository** | Official repository hosted on GitHub Pages — `apt install opentenbase` / `dnf install opentenbase` |
 | **One-line install** | `curl -sSL ... \| sudo bash` — auto-configures repository, detects OS, resolves dependencies |
 | **CI/CD automation** | GitHub Actions for automated build, sign, and publish |

@@ -27,6 +27,7 @@
 | **多发行版** | Ubuntu/Debian，RHEL/CentOS/Fedora，Rocky/Alma，openEuler/EulerOS（含华为云 HCE 2.0，已端到端验证） |
 | **多架构** | x86_64 (amd64) + ARM64 (aarch64) |
 | **多版本共存** | 支持 v5.0 / v2.6 / v2.5 及开发版本并行安装，通过 `opentenbase-switch-version` 切换 |
+| **自包含打包** | 内置所有运行时依赖（libpq、libpqxx、libssh2）— 无需预装 PostgreSQL，任何白板服务器都能一键安装 |
 | **一键安装** | `curl -sSL ... \| sudo bash` 自动检测系统、下载对应包、解决依赖 |
 | **CI/CD 自动化** | GitHub Actions 自动构建、签名、发布 |
 | **GPG 签名** | 所有发布包均经 GPG 签名（RSA 4096 位），确保包的完整性和来源可信 |
