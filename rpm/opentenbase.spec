@@ -27,7 +27,10 @@ Patch3:         04-gtm-thread-bind.patch
 
 # Filter out GLIBC_PRIVATE dependency (false positive from RPM auto-detection)
 # Also filter out libssh2 dependency (we bundle it into %{otb_prefix}/lib)
-%global __requires_exclude ^libc\\.so\\.6\\(GLIBC_PRIVATE\\)|libssh2
+# CRITICAL: Filter out libpq.so.5 RHPG symbol dependencies
+# OpenTenBase bundles its own libpq.so.5 in %{otb_prefix}/lib with rpath
+# System libpq may be missing or incompatible (e.g., OpenCloudOS has PG15, no RHPG_10 symbols)
+%global __requires_exclude ^libc\\.so\\.6\\(GLIBC_PRIVATE\\)|libssh2|libpq\\.so\\.5\\(RHPG|libpq\\.so\\.5$
 
 BuildRequires:  gcc gcc-c++ make bison flex perl cmake
 BuildRequires:  readline-devel zlib-devel openssl-devel pam-devel
