@@ -239,12 +239,13 @@ detect_installed_version() {
 # 检测操作系统类型（用于判断是否使用 pgxc_ctl 替代 opentenbase_ctl）
 detect_os_type() {
     local os_type="unknown"
-    # 检测 EulerOS / openEuler / HCE
+    # 检测需要使用 pgxc_ctl 的平台（opentenbase_ctl 有端口分配 bug）
+    # 包括：EulerOS / openEuler / HCE / OpenCloudOS（基于 RHEL 9）
     if [ -f /etc/os-release ]; then
         local id=""
         id=$(grep -E "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
         case "$id" in
-            euler|openeuler|hce|HuaweiCloudEulerOS)
+            euler|openeuler|hce|HuaweiCloudEulerOS|opencloudos)
                 os_type="euler"
                 ;;
             *)
@@ -447,14 +448,14 @@ case "$OTB_VERSION" in
         CN_PORT_DEFAULT=5432
         ;;
     5.0)
-        # 在 EulerOS/openEuler 上，opentenbase_ctl 有端口分配 bug
+        # 在 EulerOS/openEuler/OpenCloudOS 上，opentenbase_ctl 有端口分配 bug
         # 自动切换到 pgxc_ctl（5.0 也支持）
         OS_TYPE=$(detect_os_type)
         if [[ "$OS_TYPE" == "euler" ]]; then
             USE_PGXC_CTL=true
             OTB_SHORT_VER="5"
             CN_PORT_DEFAULT=5432
-            log_warn "检测到 EulerOS/openEuler 系统"
+            log_warn "检测到 EulerOS/openEuler/OpenCloudOS 系统"
             log_warn "opentenbase_ctl 在此平台上有端口分配 bug（已上报 Issue #215）"
             log_info "自动切换到 pgxc_ctl 启动 5.0（兼容且无此问题）"
         else
@@ -476,7 +477,7 @@ if [[ "$OTB_COMMAND" != "install" ]]; then
     OTB_SHORT_VER="${OTB_VERSION%%.*}"
     USE_PGXC_CTL=false
     [[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
-    # EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（避免端口 bug）
+    # EulerOS/openEuler/OpenCloudOS 上 5.0 也使用 pgxc_ctl（避免端口 bug）
     if [[ "$OTB_VERSION" == "5.0" ]]; then
         OS_TYPE=$(detect_os_type)
         [[ "$OS_TYPE" == "euler" ]] && USE_PGXC_CTL=true
@@ -1719,7 +1720,7 @@ show_cluster_status() {
 	# 检测使用的链路
 	USE_PGXC_CTL=false
 	[[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
-	# EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（避免端口 bug）
+	# EulerOS/openEuler/OpenCloudOS 上 5.0 也使用 pgxc_ctl（避免端口 bug）
 	if [[ "$OTB_VERSION" == "5.0" ]]; then
 		OS_TYPE=$(detect_os_type)
 		[[ "$OS_TYPE" == "euler" ]] && USE_PGXC_CTL=true
@@ -1766,7 +1767,7 @@ show_cluster_status() {
 	# 尝试数据库连接
 	log_info "尝试数据库连接..."
 	CN_PORT=$([[ "$USE_PGXC_CTL" == "true" ]] && echo 5432 || echo 11003)
-	# EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（端口 5432）
+	# EulerOS/openEuler/OpenCloudOS 上 5.0 也使用 pgxc_ctl（端口 5432）
 	if [[ "$OTB_VERSION" == "5.0" ]]; then
 		OS_TYPE=$(detect_os_type)
 		[[ "$OS_TYPE" == "euler" ]] && CN_PORT=5432
@@ -1795,7 +1796,7 @@ run_verification_test() {
 	OTB_VERSION=$(detect_installed_version)
 	USE_PGXC_CTL=false
 	[[ "$OTB_VERSION" =~ ^2\. ]] && USE_PGXC_CTL=true
-	# EulerOS/openEuler 上 5.0 也使用 pgxc_ctl（避免端口 bug）
+	# EulerOS/openEuler/OpenCloudOS 上 5.0 也使用 pgxc_ctl（避免端口 bug）
 	if [[ "$OTB_VERSION" == "5.0" ]]; then
 		OS_TYPE=$(detect_os_type)
 		[[ "$OS_TYPE" == "euler" ]] && USE_PGXC_CTL=true
