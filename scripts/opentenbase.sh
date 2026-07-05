@@ -543,7 +543,7 @@ if [[ "$CLEAN_BEFORE" == "true" ]]; then
     sleep 3
 
     # 清理 lock 文件
-    rm -f /tmp/.s.PGSQL.* /tmp/.s.PGPOOL.* /tmp/.s.*.lock 2>/dev/null || true
+    rm -f /tmp/.s.PGSQL.* /tmp/.s.GTM.* /tmp/.s.PGPOOL.* /tmp/.s.*.lock 2>/dev/null || true
 
     # 清理所有版本的数据目录（全量清理，避免跨版本残留）
     for ver in 2 2.5 2.5.0 2.6 2.6.0 5 5.0; do
