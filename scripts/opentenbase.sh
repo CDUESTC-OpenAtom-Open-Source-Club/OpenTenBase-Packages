@@ -542,22 +542,56 @@ if [[ "$CLEAN_BEFORE" == "true" ]]; then
     done
     sleep 3
 
-    # 清理 lock 文件
-    rm -f /tmp/.s.PGSQL.* /tmp/.s.GTM.* /tmp/.s.PGPOOL.* /tmp/.s.*.lock 2>/dev/null || true
+    # ====================================================================
+    # 完整清理所有残留文件（确保白板部署成功）
+    # ====================================================================
 
-    # 清理所有版本的数据目录（全量清理，避免跨版本残留）
+    # 1. 清理 Socket 文件（/tmp目录）
+    # 包括：PGSQL (Coordinator/Datanode), GTM, PGPOOL, stargate
+    rm -f /tmp/.s.PGSQL.* /tmp/.s.GTM.* /tmp/.s.PGPOOL.* /tmp/.s.*.lock /tmp/stargate.lock 2>/dev/null || true
+
+    # 2. 清理 PID 文件（防止进程状态残留）
+    find /var/lib/opentenbase -name "*.pid" -type f -delete 2>/dev/null || true
+    find /var/lib/opentenbase -name "gtm.pid" -type f -delete 2>/dev/null || true
+    find /var/lib/opentenbase -name "postmaster.pid" -type f -delete 2>/dev/null || true
+
+    # 3. 清理所有版本的数据目录（全量清理，避免跨版本残留）
+    # 修正：实际目录命名是 coord0001/dn0001，不是 coord/dn1
     for ver in 2 2.5 2.5.0 2.6 2.6.0 5 5.0; do
-        for subdir in gtm coord dn1 coord_archlog dn1_archlog gtm_slave coord_slave dn1_slave; do
-            rm -rf "/var/lib/opentenbase/${ver}/${subdir}"/* 2>/dev/null || true
+        # 清理节点数据目录（GTM/Coordinator/Datanode）
+        rm -rf "/var/lib/opentenbase/${ver}/gtm" 2>/dev/null || true
+        rm -rf "/var/lib/opentenbase/${ver}/gtm_slave" 2>/dev/null || true
+        # Coordinator可能命名为coord0001/coord0002或coord/coord_slave
+        for coord_name in coord coord0001 coord0002 coord_slave; do
+            rm -rf "/var/lib/opentenbase/${ver}/${coord_name}" 2>/dev/null || true
         done
+        # Datanode可能命名为dn0001/dn0002或dn1/dn_slave
+        for dn_name in dn1 dn0001 dn0002 dn_slave; do
+            rm -rf "/var/lib/opentenbase/${ver}/${dn_name}" 2>/dev/null || true
+        done
+        # 清理归档日志目录
+        rm -rf "/var/lib/opentenbase/${ver}/coord_archlog" 2>/dev/null || true
+        rm -rf "/var/lib/opentenbase/${ver}/dn_archlog" 2>/dev/null || true
+        rm -rf "/var/lib/opentenbase/${ver}/dn1_archlog" 2>/dev/null || true
     done
-    # 清理 5.0 的数据目录
+
+    # 4. 清理 pgxc_ctl 工作目录（配置+日志+状态）
+    rm -rf /var/lib/opentenbase/pgxc_ctl/pgxc_log/* 2>/dev/null || true
+    rm -f /var/lib/opentenbase/pgxc_ctl/pgxc_ctl.conf 2>/dev/null || true
+    rm -f /var/lib/opentenbase/pgxc_ctl/pgxc_ctl_bash 2>/dev/null || true
+
+    # 5. 清理临时下载文件（避免重复下载残留）
+    rm -f /tmp/opentenbase-*.rpm /tmp/opentenbase-*.tar.gz 2>/dev/null || true
+    rm -f /tmp/deploy*.log /tmp/noaffinity.c /tmp/noaffinity.so 2>/dev/null || true
+
+    # 6. 清理安装目录（确保干净安装）
     rm -rf /var/lib/opentenbase/install/opentenbase/5.0/data/* 2>/dev/null || true
     rm -rf /var/lib/opentenbase/data/* 2>/dev/null || true
-    # 清理 pgxc_ctl 工作目录中的残留状态
-    rm -f /var/lib/opentenbase/pgxc_ctl/pgxc_ctl.conf 2>/dev/null || true
 
-    log_ok "旧环境已清理（跨版本全量清理）"
+    # 7. 清理 SSH known_hosts（避免SSH认证问题）
+    rm -f /var/lib/opentenbase/.ssh/known_hosts 2>/dev/null || true
+
+    log_ok "旧环境已清理（完整清理：Socket/PID/数据/日志/临时文件）"
 fi
 
 # ====================================================================
