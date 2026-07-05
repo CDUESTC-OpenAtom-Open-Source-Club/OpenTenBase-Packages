@@ -1,0 +1,67 @@
+diff --git a/contrib/opentenbase_ctl/src/utils/utils.cpp b/contrib/opentenbase_ctl/src/utils/utils.cpp
+index ccdc3fdd..fcb4762e 100644
+--- a/contrib/opentenbase_ctl/src/utils/utils.cpp
++++ b/contrib/opentenbase_ctl/src/utils/utils.cpp
+@@ -65,17 +65,43 @@ get_available_port_pair(const std::string& ip, int start_port, int& node_port, i
+ }
+ 
+ // Assign ports for nodes
+-int 
++int
+ assign_ports_for_nodes(std::vector<NodeInfo>& nodes, const std::string& username, const std::string& password, int ssh_port) {
+-    const int START_PORT = 11000;
+-    std::map<std::string, int> ip_next_port;  // Record the next check port for each IP
++    // Fix: Use non-privileged port range (>1024)
++    // OpenTenBase standard ports: GTM=6666, CN=5432, DN=15432
++    // Different node types use different port ranges to avoid conflicts
++    const int GTM_START_PORT = 6666;
++    const int CN_START_PORT = 5432;
++    const int DN_START_PORT = 15432;
++    const int DEFAULT_START_PORT = 5432;
++
++    std::map<std::string, int> ip_gtm_next_port;
++    std::map<std::string, int> ip_cn_next_port;
++    std::map<std::string, int> ip_dn_next_port;
+ 
+     for (auto& node : nodes) {
+-        int node_port, pooler_port,forward_port;
+-        
+-        // Get the starting check port for this IP
+-        auto it = ip_next_port.find(node.ip);
+-        int start_port = (it != ip_next_port.end()) ? it->second : START_PORT;
++        int node_port, pooler_port, forward_port;
++
++        // Determine starting port based on node type
++        int start_port;
++        std::map<std::string, int>* ip_next_port_map;
++
++        if (is_gtm_node(node.type)) {
++            auto it = ip_gtm_next_port.find(node.ip);
++            start_port = (it != ip_gtm_next_port.end()) ? it->second : GTM_START_PORT;
++            ip_next_port_map = &ip_gtm_next_port;
++        } else if (is_cn_node(node.type)) {
++            auto it = ip_cn_next_port.find(node.ip);
++            start_port = (it != ip_cn_next_port.end()) ? it->second : CN_START_PORT;
++            ip_next_port_map = &ip_cn_next_port;
++        } else if (is_dn_node(node.type)) {
++            auto it = ip_dn_next_port.find(node.ip);
++            start_port = (it != ip_dn_next_port.end()) ? it->second : DN_START_PORT;
++            ip_next_port_map = &ip_dn_next_port;
++        } else {
++            start_port = DEFAULT_START_PORT;
++            ip_next_port_map = &ip_cn_next_port;  // fallback to CN port map
++        }
+ 
+         // Get available port pair
+         if (get_available_port_pair(node.ip, start_port, node_port, pooler_port, forward_port, username, password, ssh_port) != 0) {
+@@ -88,8 +114,8 @@ assign_ports_for_nodes(std::vector<NodeInfo>& nodes, const std::string& username
+         node.pooler_port = pooler_port;
+         node.forward_port = forward_port;
+ 
+-        // Update the next starting check port for this IP
+-        ip_next_port[node.ip] = forward_port + 1;
++        // Update the next starting check port for this IP and node type
++        (*ip_next_port_map)[node.ip] = forward_port + 100;  // Large gap to avoid conflicts
+     }
+ 
+     return 0;
