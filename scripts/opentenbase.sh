@@ -400,6 +400,7 @@ while [[ $# -gt 0 ]]; do
         --dn-port-base)    DN_PORT_BASE="$2"; shift 2 ;;
         --auto-tune-mem)   AUTO_TUNE_MEM=true; shift ;;
         --no-auto-tune-mem) AUTO_TUNE_MEM=false; shift ;;
+        --use-pgxc-ctl)    FORCE_PGXC_CTL=true; shift ;;
         --help|-h)
             head -48 "$0" | tail -46
             exit 0 ;;
@@ -450,14 +451,19 @@ case "$OTB_VERSION" in
     5.0)
         # 在 EulerOS/openEuler/OpenCloudOS 上，opentenbase_ctl 有端口分配 bug
         # 自动切换到 pgxc_ctl（5.0 也支持）
+        # 或者用户明确指定 --use-pgxc-ctl 强制使用 pgxc_ctl 路径
         OS_TYPE=$(detect_os_type)
-        if [[ "$OS_TYPE" == "euler" ]]; then
+        if [[ "$OS_TYPE" == "euler" ]] || [[ "${FORCE_PGXC_CTL:-false}" == "true" ]]; then
             USE_PGXC_CTL=true
             OTB_SHORT_VER="5"
             CN_PORT_DEFAULT=5432
-            log_warn "检测到 EulerOS/openEuler/OpenCloudOS 系统"
-            log_warn "opentenbase_ctl 在此平台上有端口分配 bug（已上报 Issue #215）"
-            log_info "自动切换到 pgxc_ctl 启动 5.0（兼容且无此问题）"
+            if [[ "${FORCE_PGXC_CTL:-false}" == "true" ]]; then
+                log_info "用户指定 --use-pgxc-ctl，使用 pgxc_ctl 链路"
+            else
+                log_warn "检测到 EulerOS/openEuler/OpenCloudOS 系统"
+                log_warn "opentenbase_ctl 在此平台上有端口分配 bug（已上报 Issue #215）"
+                log_info "自动切换到 pgxc_ctl 启动 5.0（兼容且无此问题）"
+            fi
         else
             USE_PGXC_CTL=false
             OTB_SHORT_VER="5"
@@ -1516,6 +1522,22 @@ else
     else
         EXIT_CODE=$?
         echo ""
+
+        # 检测是否是 postgresql.conf 不存在的错误（opentenbase_ctl bug）
+        # See: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/issues/73
+        if echo "$INSTALL_OUTPUT" | grep -qE "postgresql\.conf.*No such file|Failed to open.*postgresql\.conf"; then
+            log_error "检测到 opentenbase_ctl 安装 bug（postgresql.conf 不存在）"
+            echo -e "  ${BOLD}原因:${NC} opentenbase_ctl 在 initdb 创建 postgresql.conf 之前尝试读取它"
+            echo -e "  ${BOLD}解决方案:${NC}"
+            echo -e "    ${GREEN}方法 1 (推荐):${NC} 使用 pgxc_ctl 路径代替"
+            echo -e "      ${CYAN}sudo bash opentenbase.sh uninstall${NC}"
+            echo -e "      ${CYAN}sudo bash opentenbase.sh install --yes --version 5.0 --use-pgxc-ctl${NC}"
+            echo ""
+            echo -e "    ${GREEN}方法 2:${NC} 手动使用 pgxc_ctl"
+            echo -e "      参考: ${CYAN}https://github.com/CDUESTC-OpenAtom-Open-Source-Club/OpenTenBase-Packages/blob/main/docs/02-manual-cluster-setup.md${NC}"
+            exit $EXIT_CODE
+        fi
+
         log_error "集群安装失败（退出码: $EXIT_CODE）"
         echo -e "  ${BOLD}常见原因排查:${NC}"
         echo -e "    1. SSH 密码错误 → 检查配置文件中的 ssh-password"
