@@ -1597,28 +1597,43 @@ if [[ -n "$PSQL_BIN" ]]; then
     if [[ "$USE_PGXC_CTL" == "true" ]]; then
         log_info "初始化节点与数据库（pgxc_ctl 路径）..."
 
-        # Step 1: 在 template1 中注册 Datanode 节点
+        # Step 1: 在 Coordinator 上注册所有 Datanode 节点
         # pgxc_ctl init all 不会自动注册节点，必须手动注册
-        log_info "注册 Datanode 节点..."
+        log_info "在 Coordinator 上注册 Datanode 节点..."
         for idx in $(seq 1 $DN_COUNT); do
             dn_idx=$(printf "%04d" $idx)
             dn_port=$((DN_PORT_BASE + idx - 1))
             su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
                 -c \"CREATE NODE ${dn_idx} WITH (TYPE='datanode', HOST='127.0.0.1', PORT=${dn_port});\" 2>/dev/null || true"
         done
-        log_ok "Datanode 节点已注册"
+        log_ok "Coordinator 节点信息已注册"
 
-        # Step 2: 创建 postgres 数据库（在 Coordinator 上）
+        # Step 2: 在每个 Datanode 上注册 Coordinator 节点
+        # 这步很重要！Datanode 必须知道 Coordinator 才能响应分布式操作
+        log_info "在 Datanode 上注册 Coordinator 节点..."
+        for idx in $(seq 1 $DN_COUNT); do
+            dn_idx=$(printf "%04d" $idx)
+            dn_port=$((DN_PORT_BASE + idx - 1))
+            # 在每个 Datanode 上注册 Coordinator
+            su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${dn_port} -U opentenbase -d template1 \
+                -c \"CREATE NODE cn0001 WITH (TYPE='coordinator', HOST='127.0.0.1', PORT=${CN_PORT_BASE});\" 2>/dev/null || true"
+            # 刷新 Datanode 连接池
+            su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${dn_port} -U opentenbase -d template1 \
+                -c \"SELECT pgxc_pool_reload();\" 2>/dev/null || true"
+        done
+        log_ok "Datanode 节点信息已注册"
+
+        # Step 3: 刷新 Coordinator 连接池
+        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
+            -c \"SELECT pgxc_pool_reload();\" 2>/dev/null || true"
+
+        # Step 4: 创建 postgres 数据库（在 Coordinator 上）
         log_info "创建 postgres 数据库..."
         su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
             -c \"CREATE DATABASE postgres;\" 2>/dev/null || true"
         log_ok "postgres 数据库已创建"
 
-        # Step 3: 刷新连接池
-        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
-            -c \"SELECT pgxc_pool_reload();\" 2>/dev/null || true"
-
-        # Step 4: 创建默认节点组和分片映射
+        # Step 5: 创建默认节点组和分片映射
         log_info "创建默认节点组与分片映射..."
         DN_LIST=""
         for idx in $(seq 1 $DN_COUNT); do
