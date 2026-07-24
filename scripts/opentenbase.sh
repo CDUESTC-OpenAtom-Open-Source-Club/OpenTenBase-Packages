@@ -1593,15 +1593,47 @@ if [[ -n "$PSQL_BIN" ]]; then
         [[ $i -lt 5 ]] && log_info "等待启动...（$i/5）" && sleep 3
     done
 
-    # pgxc_ctl 路径需要手动初始化默认节点组和分片映射
+    # pgxc_ctl 路径需要手动初始化节点、数据库、节点组和分片映射
     if [[ "$USE_PGXC_CTL" == "true" ]]; then
-        log_info "初始化默认节点组与分片映射（pgxc_ctl 路径）..."
+        log_info "初始化节点与数据库（pgxc_ctl 路径）..."
+
+        # Step 1: 在 template1 中注册 Datanode 节点
+        # pgxc_ctl init all 不会自动注册节点，必须手动注册
+        log_info "注册 Datanode 节点..."
+        for idx in $(seq 1 $DN_COUNT); do
+            dn_idx=$(printf "%04d" $idx)
+            dn_port=$((DN_PORT_BASE + idx - 1))
+            su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
+                -c \"CREATE NODE ${dn_idx} WITH (TYPE='datanode', HOST='127.0.0.1', PORT=${dn_port});\" 2>/dev/null || true"
+        done
+        log_ok "Datanode 节点已注册"
+
+        # Step 2: 创建 postgres 数据库（在 Coordinator 上）
+        log_info "创建 postgres 数据库..."
+        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
+            -c \"CREATE DATABASE postgres;\" 2>/dev/null || true"
+        log_ok "postgres 数据库已创建"
+
+        # Step 3: 刷新连接池
+        su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d template1 \
+            -c \"SELECT pgxc_pool_reload();\" 2>/dev/null || true"
+
+        # Step 4: 创建默认节点组和分片映射
+        log_info "创建默认节点组与分片映射..."
+        DN_LIST=""
+        for idx in $(seq 1 $DN_COUNT); do
+            dn_idx=$(printf "%04d" $idx)
+            DN_LIST="${DN_LIST}${dn_idx},"
+        done
+        DN_LIST="${DN_LIST%,}"  # Remove trailing comma
+
         su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
-            -c \"CREATE DEFAULT NODE GROUP default_group WITH(dn0001);\" 2>/dev/null || true"
+            -c \"CREATE DEFAULT NODE GROUP default_group WITH(${DN_LIST});\" 2>/dev/null || true"
         su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
             -c \"CREATE SHARDING GROUP TO GROUP default_group;\" 2>/dev/null || true"
         su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
             -c \"SELECT pgxc_pool_reload();\" 2>/dev/null || true"
+
         SHARD_COUNT=$(su - "$SSH_USER" -c "${PSQL_ENV}${PSQL_BIN} -t -A -h 127.0.0.1 -p ${CN_PORT} -U opentenbase -d postgres \
             -c \"SELECT count(*) FROM pgxc_shard_map;\"" 2>/dev/null || echo "0")
         if [[ "${SHARD_COUNT}" -gt 0 ]] 2>/dev/null; then
