@@ -214,6 +214,8 @@ jobs:
               -o -name 'changelog' -o -name 'control' \))
             # 1) versioned install paths: .../opentenbase/5.0/...
             sed -i "s|opentenbase/5\.0/|opentenbase/${OTB_VERSION}/|g" $files
+            # 1b) versioned loader conf: rules writes opentenbase-${OTB_VERSION}.conf
+            sed -i "s|opentenbase-5\.0\.conf|opentenbase-${OTB_VERSION}.conf|g" $files
             # 2) OTB_VERSION shell variable in maintainer scripts
             sed -i "s|^OTB_VERSION=\"5\.0\"|OTB_VERSION=\"${OTB_VERSION}\"|" $files
             # 3) changelog version header: opentenbase (5.0-1ubuntu1)
