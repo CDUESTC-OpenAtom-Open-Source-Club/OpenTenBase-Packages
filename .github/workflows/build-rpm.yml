@@ -75,8 +75,19 @@ jobs:
             sed -i 's|repo.openeuler.org|mirrors.aliyun.com/openeuler|g' /etc/yum.repos.d/*.repo 2>/dev/null || true
           fi
           if grep -q 'CentOS Stream release 8' /etc/redhat-release 2>/dev/null; then
-            sed -i 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-Stream-*.repo
-            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Stream-*.repo
+            # mirrorlist.centos.org is dead (stream8 EOL) and repo file naming
+            # differs between image arches; comment mirrors, point baseurl at
+            # vault, and if any file still references the dead mirrorlist,
+            # replace AppStream/BaseOS/Extras with explicit vault repos.
+            sed -i -E 's|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
+            if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+              for pair in "AppStream:appstream" "BaseOS:baseos" "Extras:extras"; do
+                REPO="${pair%%:*}"; LOW="${pair##*:}"
+                printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial\nenabled=1\n' \
+                  "$LOW" "$REPO" "$LOW" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
+              done
+              echo "NOTE: stream8 repos rewritten to vault.centos.org"
+            fi
           fi
           dnf install -y dnf-plugins-core 2>/dev/null || true
           for repo in crb powertools; do

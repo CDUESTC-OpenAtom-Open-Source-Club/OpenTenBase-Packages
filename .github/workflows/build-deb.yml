@@ -72,6 +72,8 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
+          # Old-stable pools churn between index sync and fetch (bullseye
+          # 404'd libssl-dev on 2026-09-23). Refresh and retry once.
           apt-get install -y \
             build-essential debhelper fakeroot quilt \
             bison flex perl \
@@ -80,7 +82,16 @@ jobs:
             libcurl4-openssl-dev liblz4-dev libzstd-dev \
             libssh2-1-dev \
             libatomic1 \
-            pkg-config libtool git ca-certificates
+            pkg-config libtool git ca-certificates \
+          || { apt-get update && apt-get install -y \
+            build-essential debhelper fakeroot quilt \
+            bison flex perl \
+            libreadline-dev zlib1g-dev libssl-dev libpam0g-dev \
+            libxml2-dev libldap2-dev uuid-dev \
+            libcurl4-openssl-dev liblz4-dev libzstd-dev \
+            libssh2-1-dev \
+            libatomic1 \
+            pkg-config libtool git ca-certificates; }
           apt-get install -y libatomic-dev 2>/dev/null || true
           for dir in /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu; do
             if [ -f "$dir/libatomic.so.1" ]; then
