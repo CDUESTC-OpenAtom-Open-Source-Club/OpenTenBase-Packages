@@ -611,13 +611,17 @@ cd "$SRCDIR"
 make DESTDIR=%{buildroot} install
 make DESTDIR=%{buildroot} -C contrib install
 
-# Bundle libpqxx.so into OpenTenBase lib dir (rpath already set to find it here)
-for libpath in /usr/lib64/libpqxx.so /usr/lib/libpqxx.so /usr/local/lib/libpqxx.so; do
-    if [ -f "$libpath" ]; then
-        cp -L "$libpath" %{buildroot}%{otb_prefix}/lib/
-        echo "Bundled $libpath into package"
-        break
-    fi
+# Bundle libpqxx into OpenTenBase lib dir (rpath already set to find it here).
+# The loader resolves by SONAME (libpqxx-7.9.so): shipping only the target of
+# the libpqxx.so symlink under that literal name does not satisfy it when the
+# system package is absent. Copy the versioned files too.
+for libpath in /usr/lib64/libpqxx-*.so* /usr/lib/libpqxx-*.so* /usr/local/lib/libpqxx-*.so* /usr/lib64/libpqxx.so /usr/lib/libpqxx.so /usr/local/lib/libpqxx.so; do
+    for f in $libpath; do
+        if [ -f "$f" ]; then
+            cp -L "$f" %{buildroot}%{otb_prefix}/lib/
+            echo "Bundled $f into package"
+        fi
+    done
 done
 
 # Bundle libssh2.so.1 into OpenTenBase lib dir (for Rocky 9 compatibility)

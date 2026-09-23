@@ -169,14 +169,17 @@ override_dh_auto_install:
 	# Create opentenbase-ctl symlink → official opentenbase_ctl binary
 	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/bin/opentenbase_ctl $(DESTDIR)/usr/bin/opentenbase-ctl
-	# Bundle libpqxx.so into OpenTenBase lib dir (rpath already set to find it here)
-	# This ensures opentenbase_ctl can find libpqxx at runtime without system package
-	for libpath in /usr/lib/libpqxx.so /usr/lib/x86_64-linux-gnu/libpqxx.so /usr/lib/aarch64-linux-gnu/libpqxx.so /usr/local/lib/libpqxx.so; do \
-	    if [ -f "$$libpath" ]; then \
-	        cp -L "$$libpath" $(DESTDIR)$(PREFIX)/lib/; \
-	        echo "Bundled $$libpath into package"; \
-	        break; \
-	    fi; \
+	# Bundle libpqxx into OpenTenBase lib dir (rpath already set to find it
+	# here). The loader resolves by SONAME (libpqxx-7.9.so), so the versioned
+	# file must be shipped — a copy named libpqxx.so does not satisfy it when
+	# the system libpqxx-7.9 package is absent (smoke-test containers).
+	for libpath in /usr/lib/libpqxx-*.so* /usr/lib/x86_64-linux-gnu/libpqxx-*.so* /usr/lib/aarch64-linux-gnu/libpqxx-*.so* /usr/local/lib/libpqxx-*.so* /usr/lib/libpqxx.so /usr/lib/x86_64-linux-gnu/libpqxx.so /usr/lib/aarch64-linux-gnu/libpqxx.so /usr/local/lib/libpqxx.so; do \
+	    for f in $$libpath; do \
+	        if [ -f "$$f" ]; then \
+	            cp -L "$$f" $(DESTDIR)$(PREFIX)/lib/; \
+	            echo "Bundled $$f into package"; \
+	        fi; \
+	    done; \
 	done
 	install -D -m 0755 scripts/switch-version.sh $(DESTDIR)/usr/bin/opentenbase-switch-version
 	# Select version-specific config template if available, otherwise use default

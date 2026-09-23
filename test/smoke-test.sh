@@ -305,10 +305,14 @@ main() {
 
     # Verify opentenbase_ctl binary is functional (can show help)
     log_info "=== Test: opentenbase_ctl Binary ==="
-    if opentenbase_ctl --help 2>&1 | grep -qi "usage\|install\|start\|stop\|status"; then
+    CTL_OUT=$(opentenbase_ctl --help 2>&1 || true)
+    if echo "$CTL_OUT" | grep -qi "usage\|install\|start\|stop\|status"; then
         log_pass "opentenbase_ctl binary is functional"
     else
         log_fail "opentenbase_ctl binary not working"
+        # Print diagnostics so a broken runtime link is visible in CI logs
+        echo "$CTL_OUT" | head -6 | sed 's/^/      /'
+        ldd /usr/lib/opentenbase/5.0/bin/opentenbase_ctl 2>&1 | grep -i "not found" | head -3 | sed 's/^/      ldd: /'
     fi
 
     echo ""

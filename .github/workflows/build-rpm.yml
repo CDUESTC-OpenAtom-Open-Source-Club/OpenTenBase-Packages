@@ -128,6 +128,12 @@ jobs:
             readline-devel zlib-devel openssl-devel pam-devel \
             libxml2-devel openldap-devel libuuid-devel \
             libcurl-devel lz4-devel \
+            pkg-config libtool rpm-build rpmlint git \
+          || dnf install -y --nobest \
+            gcc gcc-c++ make bison flex perl \
+            readline-devel zlib-devel openssl-devel pam-devel \
+            libxml2-devel openldap-devel libuuid-devel \
+            libcurl-devel lz4-devel \
             pkg-config libtool rpm-build rpmlint git
           dnf install -y zstd-devel 2>/dev/null || true
           # Install EPEL for RHEL-family distros (provides cli11-devel, libpqxx-devel)
@@ -411,8 +417,16 @@ jobs:
                 fi
               fi
 
-              # Install core dependencies (required)
+              # Install core dependencies (required).
+              # --nobest fallback: appstream occasionally syncs -devel ahead
+              # of its runtime counterpart (rocky-8 el8_10.1/.8, 2026-09),
+              # leaving no installable "best" candidate for a while.
               dnf install -y gcc gcc-c++ make bison flex perl \
+                readline-devel zlib-devel openssl-devel pam-devel \
+                libxml2-devel openldap-devel libuuid-devel \
+                libcurl-devel lz4-devel \
+                pkg-config libtool rpm-build git libatomic \
+              || dnf install -y --nobest gcc gcc-c++ make bison flex perl \
                 readline-devel zlib-devel openssl-devel pam-devel \
                 libxml2-devel openldap-devel libuuid-devel \
                 libcurl-devel lz4-devel \
