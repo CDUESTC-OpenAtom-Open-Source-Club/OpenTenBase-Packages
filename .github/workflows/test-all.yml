@@ -328,7 +328,7 @@ jobs:
             if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
               for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
                 REPO="${pair%%:*}"; VP="${pair##*:}"
-                printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=1\nenabled=1\n' "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
+                printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=0\nenabled=1\n' "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
               done
             fi
           fi
