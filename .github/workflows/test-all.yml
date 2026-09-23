@@ -109,7 +109,15 @@ jobs:
       - name: Install deps
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
+          # bullseye: pin to snapshot.debian.org (LTS ended 2026-08; the live
+          # security pool 404s mid-migration)
+          if grep -qs "bullseye" /etc/os-release; then
+            printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260828T000000Z/ bullseye main\n' > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            apt-get -o Acquire::Retries=3 update
+          else
+            apt-get update
+          fi
           apt-get install -y sudo procps libatomic1 adduser curl
           apt-get install -y libreadline8 libxml2 libcurl4 libpam0g liblz4-1 libzstd1 2>/dev/null || true
           apt-get install -y libssl3 2>/dev/null || apt-get install -y libssl1.1 2>/dev/null || true
@@ -118,6 +126,7 @@ jobs:
 
       - name: Download packages from release
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           MATRIX_CODENAME: ${{ matrix.codename }}
@@ -309,7 +318,12 @@ jobs:
         run: |
           # stream8 EOL: rewrite dead mirrorlist.centos.org to vault, else
           # every dnf install fails wholesale in this container
-          if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+          if grep -qsE '^ID=.*centos' /etc/os-release && grep -qs 'release 8' /etc/redhat-release 2>/dev/null; then
+            for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
+              REPO="${pair%%:*}"; VP="${pair##*:}"
+              printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=0\nenabled=1\n' "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
+            done
+          elif grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
             sed -i -E 's|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
             if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
               for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
