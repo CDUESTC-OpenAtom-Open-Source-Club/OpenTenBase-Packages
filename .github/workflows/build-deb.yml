@@ -348,6 +348,9 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
+          # Old-stable pools churn: cached package URLs can 404 between index
+          # sync and fetch (bullseye arm64 hit this on 2026-09-23). Refresh
+          # indexes and retry once before giving up.
           apt-get install -y \
             build-essential debhelper fakeroot quilt \
             bison flex perl \
@@ -356,7 +359,16 @@ jobs:
             libcurl4-openssl-dev liblz4-dev libzstd-dev \
             libssh2-1-dev \
             libatomic1 \
-            pkg-config libtool git ca-certificates curl
+            pkg-config libtool git ca-certificates curl \
+          || { apt-get update && apt-get install -y \
+            build-essential debhelper fakeroot quilt \
+            bison flex perl \
+            libreadline-dev zlib1g-dev libssl-dev libpam0g-dev \
+            libxml2-dev libldap2-dev uuid-dev \
+            libcurl4-openssl-dev liblz4-dev libzstd-dev \
+            libssh2-1-dev \
+            libatomic1 \
+            pkg-config libtool git ca-certificates curl; }
           apt-get install -y libatomic-dev 2>/dev/null || true
           # opentenbase_ctl build deps (may not be available on older distros)
           apt-get install -y libcli11-dev 2>/dev/null || echo "WARNING: libcli11-dev not available"
