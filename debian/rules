@@ -169,6 +169,11 @@ override_dh_auto_install:
 	# Create opentenbase-ctl symlink → official opentenbase_ctl binary
 	mkdir -p $(DESTDIR)/usr/bin
 	ln -sf $(PREFIX)/bin/opentenbase_ctl $(DESTDIR)/usr/bin/opentenbase-ctl
+	# Register the bundled lib dir with the dynamic loader: opentenbase_ctl
+	# carries no rpath, so without this the bundled libpqxx/libpq are
+	# invisible unless the matching system packages happen to be installed.
+	install -d $(DESTDIR)/etc/ld.so.conf.d
+	echo /usr/lib/opentenbase/$(OTB_VERSION)/lib > $(DESTDIR)/etc/ld.so.conf.d/opentenbase-$(OTB_VERSION).conf
 	# Bundle libpqxx into OpenTenBase lib dir (rpath already set to find it
 	# here). The loader resolves by SONAME (libpqxx-7.9.so), so the versioned
 	# file must be shipped — a copy named libpqxx.so does not satisfy it when

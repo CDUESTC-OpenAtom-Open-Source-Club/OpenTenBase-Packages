@@ -29,6 +29,9 @@ case "$1" in
         if [ ! -L /etc/opentenbase/current ]; then
             ln -sf /etc/opentenbase/${OTB_VERSION} /etc/opentenbase/current
         fi
+        # Pick up the bundled lib dir registered in
+        # /etc/ld.so.conf.d/opentenbase-${OTB_VERSION}.conf
+        ldconfig
         ;;
     abort-upgrade|abort-remove|abort-deconfigure)
         ;;
