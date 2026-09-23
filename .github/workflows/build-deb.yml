@@ -71,7 +71,17 @@ jobs:
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
+          # bullseye LTS ended 2026-08: security pool packages are being
+          # removed from deb.debian.org mid-flight (libssl-dev/libxml2-dev
+          # 404). bullseye containers get their final state from
+          # archive.debian.org instead.
+          if grep -qs "bullseye" /etc/os-release; then
+            printf 'deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian-security bullseye-security main\n' > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            apt-get -o Acquire::Check-Valid-Until=false update
+          else
+            apt-get update
+          fi
           # Old-stable pools churn between index sync and fetch (bullseye
           # 404'd libssl-dev on 2026-09-23). Refresh and retry once.
           apt-get install -y \
@@ -358,7 +368,17 @@ jobs:
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
+          # bullseye LTS ended 2026-08: security pool packages are being
+          # removed from deb.debian.org mid-flight (libssl-dev/libxml2-dev
+          # 404). bullseye containers get their final state from
+          # archive.debian.org instead.
+          if grep -qs "bullseye" /etc/os-release; then
+            printf 'deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian-security bullseye-security main\n' > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            apt-get -o Acquire::Check-Valid-Until=false update
+          else
+            apt-get update
+          fi
           # Old-stable pools churn: cached package URLs can 404 between index
           # sync and fetch (bullseye arm64 hit this on 2026-09-23). Refresh
           # indexes and retry once before giving up.
