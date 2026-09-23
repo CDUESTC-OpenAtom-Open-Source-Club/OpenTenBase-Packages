@@ -494,6 +494,7 @@ jobs:
               -o -name '*.postinst' -o -name '*.prerm' -o -name '*.postrm' \
               -o -name 'changelog' -o -name 'control' \))
             sed -i "s|opentenbase/5\.0/|opentenbase/${OTB_VERSION}/|g" $files
+            sed -i "s|opentenbase-5\.0\.conf|opentenbase-${OTB_VERSION}.conf|g" $files
             sed -i "s|^OTB_VERSION=\"5\.0\"|OTB_VERSION=\"${OTB_VERSION}\"|" $files
             sed -i "s|^opentenbase (5\.0-|opentenbase (${OTB_VERSION}-|" $files
           fi
