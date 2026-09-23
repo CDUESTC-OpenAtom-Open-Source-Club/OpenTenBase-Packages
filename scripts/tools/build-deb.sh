@@ -193,24 +193,22 @@ apply_patches() {
 
     cd "$SOURCE_DIR"
 
-    # Apply bool/stdbool patch
-    if [ -f debian/patches/01-bool-stdbool.patch ]; then
-        patch -p1 < debian/patches/01-bool-stdbool.patch || true
-    fi
-
-    # Apply nolic sharding patch
-    if [ -f debian/patches/02-nolic-sharding.patch ]; then
-        patch -p1 < debian/patches/02-nolic-sharding.patch || true
-    fi
-
-    # Apply 128-bit atomics fix (use __atomic builtins instead of libatomic)
-    if [ -f debian/patches/03-atomic128-x86.patch ]; then
-        patch -p1 < debian/patches/03-atomic128-x86.patch || true
-    fi
-
-    # Apply GTM thread binding fix for servers with fewer cores
-    if [ -f debian/patches/04-gtm-thread-bind.patch ]; then
-        patch -p1 < debian/patches/04-gtm-thread-bind.patch || true
+    # Patches 01-06 are written against the v5.0 source tree; on 2.x sources
+    # they silently fail-to-apply through `|| true`, which builds unpatched
+    # binaries without telling anyone. Only apply them for 5.0 and fail the
+    # build if a patch does not apply cleanly.
+    if [ "${OTB_VERSION:-5.0}" = "5.0" ]; then
+        for p in 01-bool-stdbool 02-nolic-sharding 03-atomic128-x86 04-gtm-thread-bind 06-ctl-tempfile-portcheck; do
+            if [ -f "debian/patches/${p}.patch" ]; then
+                log_info "  applying ${p}.patch"
+                patch -p1 < "debian/patches/${p}.patch" || {
+                    log_error "${p}.patch failed to apply against the v5.0 source"
+                    exit 1
+                }
+            fi
+        done
+    else
+        log_warn "patches are v5.0-specific, skipped for ${OTB_VERSION}"
     fi
 
     # Remove merge conflict artifact files

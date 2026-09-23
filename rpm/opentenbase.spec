@@ -53,14 +53,23 @@ computing, security, management, and audit functions.
 
 # Apply patches from patches/ directory
 # cd into source dir and use patch command directly for reliability
+# NOTE: patches 01-06 are written against the v5.0 source tree; applying
+# them to 2.x sources fails at %prep (see failed v2.6.0 builds of 2026-07),
+# so only apply them when building 5.0.
 cd OpenTenBase*
 echo "Applying patches from %{_sourcedir}..."
-ls -la %{_sourcedir}/*.patch || echo "No patches found in %{_sourcedir}"
-patch -p1 < %{_sourcedir}/01-bool-stdbool.patch
-patch -p1 < %{_sourcedir}/02-nolic-sharding.patch
-patch -p1 < %{_sourcedir}/03-atomic128-x86.patch
-patch -p1 < %{_sourcedir}/04-gtm-thread-bind.patch
-echo "All patches applied successfully"
+OTB_PATCH_MAJOR=$(echo "%{otb_ver}" | cut -d. -f1)
+if [ "$OTB_PATCH_MAJOR" = "5" ]; then
+    ls -la %{_sourcedir}/*.patch || echo "No patches found in %{_sourcedir}"
+    patch -p1 < %{_sourcedir}/01-bool-stdbool.patch
+    patch -p1 < %{_sourcedir}/02-nolic-sharding.patch
+    patch -p1 < %{_sourcedir}/03-atomic128-x86.patch
+    patch -p1 < %{_sourcedir}/04-gtm-thread-bind.patch
+    patch -p1 < %{_sourcedir}/06-ctl-tempfile-portcheck.patch
+    echo "All patches applied successfully"
+else
+    echo "NOTE: patches are v5.0-specific, skipped for %{otb_ver}"
+fi
 cd ..
 
 %build
@@ -314,6 +323,18 @@ if [ -f /opt/rh/gcc-toolset-11/enable ]; then
     source /opt/rh/gcc-toolset-11/enable
     echo "NOTE: Enabled gcc-toolset-11 (GCC $(gcc --version | head -1)) for C++17 compatibility"
 fi
+# gcc-toolset-11 is REQUIRED on the RHEL-8 family: with system GCC 8 the
+# libpqxx 7.9.2 headers fail to parse ("invalid use of 'this' at top level")
+# and opentenbase_ctl cannot build — this silently broke every el8 aarch64
+# build where the toolset package was missing. Fail loudly instead.
+if [ -f /etc/redhat-release ]; then
+    OTB_EL_MAJOR=$(rpm -q --queryformat '%{VERSION}' -f /etc/redhat-release 2>/dev/null | cut -d. -f1)
+    if [ "$OTB_EL_MAJOR" = "8" ] && [ ! -f /opt/rh/gcc-toolset-11/enable ]; then
+        echo "ERROR: RHEL-8 family build requires gcc-toolset-11 (C++17) but it is not installed." >&2
+        echo "       Install it in the build environment: dnf install -y gcc-toolset-11" >&2
+        exit 1
+    fi
+fi
 
 # Clear all RPM-injected compiler flags from environment
 unset CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
@@ -496,13 +517,26 @@ curl -fsSL https://github.com/jtv/libpqxx/archive/refs/tags/7.9.2.tar.gz -o /tmp
 }
 tar xzf /tmp/libpqxx.tar.gz -C /tmp
 cd /tmp/libpqxx-7.9.2
-cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON
-cmake --build build -j$(nproc)
-cmake --install build
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON -DSKIP_BUILD_TEST=ON || {
+    echo "ERROR: libpqxx 7.9.2 cmake configure failed" >&2
+    exit 1
+}
+cmake --build build -j$(nproc) || {
+    echo "ERROR: libpqxx 7.9.2 build failed" >&2
+    exit 1
+}
+cmake --install build || {
+    echo "ERROR: libpqxx 7.9.2 install failed" >&2
+    exit 1
+}
 cd /tmp && rm -rf libpqxx-*
 rm -f /tmp/libpqxx.tar.gz
 ldconfig
 cd "$OTB_SRCDIR_ABS"
+grep -qs 'define PQXX_VERSION "7\.9' /usr/include/pqxx/version.hxx || {
+    echo "ERROR: /usr/include/pqxx does not carry libpqxx 7.9.x headers after force-build; opentenbase_ctl would link against the broken EPEL version" >&2
+    exit 1
+}
 echo "NOTE: libpqxx 7.9.2 force-built and installed (overrode system version)"
 
 # Pre-build libpq and generate objfiles.txt (race condition fix)
