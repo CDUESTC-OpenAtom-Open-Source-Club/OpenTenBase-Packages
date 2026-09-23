@@ -21,51 +21,73 @@ jobs:
             container: ubuntu:20.04
             codename: focal
             version: "5.0"
+            runner: ubuntu-latest
           - name: ubuntu-22.04-v5.0
             container: ubuntu:22.04
             codename: jammy
             version: "5.0"
+            runner: ubuntu-latest
           - name: ubuntu-24.04-v5.0
             container: ubuntu:24.04
             codename: noble
             version: "5.0"
+            runner: ubuntu-latest
           - name: ubuntu-25.04-v5.0
             container: ubuntu:25.04
             codename: plucky
             version: "5.0"
+            runner: ubuntu-latest
           - name: debian-11-v5.0
             container: debian:bullseye
             codename: bullseye
             version: "5.0"
+            runner: ubuntu-latest
           - name: debian-12-v5.0
             container: debian:bookworm
             codename: bookworm
             version: "5.0"
+            runner: ubuntu-latest
           - name: debian-13-v5.0
             container: debian:trixie
             codename: trixie
             version: "5.0"
+            runner: ubuntu-latest
           # v2.6.0 - representative distros
           - name: ubuntu-22.04-v2.6.0
             container: ubuntu:22.04
             codename: jammy
             version: "2.6.0"
+            runner: ubuntu-latest
           - name: debian-12-v2.6.0
             container: debian:bookworm
             codename: bookworm
             version: "2.6.0"
+            runner: ubuntu-latest
           # v2.5.0 - representative distros
           - name: ubuntu-22.04-v2.5.0
             container: ubuntu:22.04
             codename: jammy
             version: "2.5.0"
+            runner: ubuntu-latest
           - name: debian-12-v2.5.0
             container: debian:bookworm
             codename: bookworm
             version: "2.5.0"
+            runner: ubuntu-latest
+          # v5.0 ARM64 coverage (native arm runners; previously zero ARM testing)
+          - name: ubuntu-22.04-v5.0-arm64
+            container: ubuntu:22.04
+            codename: jammy
+            version: "5.0"
+            runner: ubuntu-24.04-arm
+          - name: debian-12-v5.0-arm64
+            container: debian:bookworm
+            codename: bookworm
+            version: "5.0"
+            runner: ubuntu-24.04-arm
 
     name: DEB ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     container:
       image: ${{ matrix.container }}
@@ -165,51 +187,88 @@ jobs:
             container: rockylinux:9
             pattern: rockylinux-9
             version: "5.0"
+            runner: ubuntu-latest
           - name: rocky-8-v5.0
             container: rockylinux:8
             pattern: rockylinux-8
             version: "5.0"
+            runner: ubuntu-latest
           - name: alma-9-v5.0
             container: almalinux:9
             pattern: almalinux-9
             version: "5.0"
+            runner: ubuntu-latest
           - name: alma-8-v5.0
             container: almalinux:8
             pattern: almalinux-8
             version: "5.0"
+            runner: ubuntu-latest
           - name: centos-stream-9-v5.0
             container: quay.io/centos/centos:stream9
             pattern: centos-stream-9
             version: "5.0"
+            runner: ubuntu-latest
           - name: fedora-40-v5.0
             container: fedora:40
             pattern: fedora-40
             version: "5.0"
+            runner: ubuntu-latest
           - name: openeuler-22.03-v5.0
             container: openeuler/openeuler:22.03
             pattern: openeuler-22.03
             version: "5.0"
+            runner: ubuntu-latest
+          - name: centos-stream-8-v5.0
+            container: quay.io/centos/centos:stream8
+            pattern: centos-stream-8
+            version: "5.0"
+            runner: ubuntu-latest
+          - name: openeuler-24.03-v5.0
+            container: quay.io/openeuler/openeuler:24.03-lts
+            pattern: openeuler-24.03
+            version: "5.0"
+            runner: ubuntu-latest
+          # v5.0 ARM64 coverage (native arm runners; previously zero ARM testing)
+          - name: rocky-9-v5.0-arm64
+            container: rockylinux:9
+            pattern: rockylinux-9
+            version: "5.0"
+            runner: ubuntu-24.04-arm
+          - name: alma-9-v5.0-arm64
+            container: almalinux:9
+            pattern: almalinux-9
+            version: "5.0"
+            runner: ubuntu-24.04-arm
+          - name: openeuler-22.03-v5.0-arm64
+            container: openeuler/openeuler:22.03
+            pattern: openeuler-22.03
+            version: "5.0"
+            runner: ubuntu-24.04-arm
           # v2.6.0 - representative distros
           - name: rocky-9-v2.6.0
             container: rockylinux:9
             pattern: rockylinux-9
             version: "2.6.0"
+            runner: ubuntu-latest
           - name: alma-9-v2.6.0
             container: almalinux:9
             pattern: almalinux-9
             version: "2.6.0"
+            runner: ubuntu-latest
           # v2.5.0 - representative distros
           - name: rocky-9-v2.5.0
             container: rockylinux:9
             pattern: rockylinux-9
             version: "2.5.0"
+            runner: ubuntu-latest
           - name: alma-9-v2.5.0
             container: almalinux:9
             pattern: almalinux-9
             version: "2.5.0"
+            runner: ubuntu-latest
 
     name: RPM ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     container:
       image: ${{ matrix.container }}
