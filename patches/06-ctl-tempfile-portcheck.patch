@@ -1,0 +1,179 @@
+Fix opentenbase_ctl install failures observed on real HCE 2.0/aarch64 (issue #73):
+
+1. Fixed-name temp files (./postgresql.conf.user, ./recovery.conf) written
+   into the working directory get wedged by leftovers from earlier runs
+   (e.g. one created via sudo): every later install by a normal user then
+   dies at "Failed to open ./postgresql.conf.user for writing" before
+   anything else happens, and the failure paths never cleaned the file up.
+   Switch to per-node temp names and always remove them after transfer.
+
+2. check_port_available() ran `ss -tln | grep -q '<port>'` over SSH and
+   treated "output empty" as available / "output non-empty" as occupied.
+   grep -q never prints, so the result was empty in BOTH cases and the
+   decision actually hinged on stderr leaking into the captured output:
+   a stale known_hosts entry (host key changed after VM rebuild) made all
+   100 port checks fail with "Failed to find available port pair" even on
+   a machine with only one listening socket. Inspect the listening table
+   itself, discard stderr, and force exit 0 so only a transport failure
+   is an error.
+--- a/contrib/opentenbase_ctl/src/node/node.cpp
++++ b/contrib/opentenbase_ctl/src/node/node.cpp
+@@ -7,6 +7,7 @@
+ #include <iostream>
+ #include <string>
+ #include <fstream>
++#include <cstdio>
+ #include <sstream>
+ #include <pqxx/pqxx>
+ 
+@@ -358,7 +359,11 @@
+     std::string config_content = config_stream.str();
+ 
+     // 将配置内容写入 postgresql.conf.user 文件
+-    std::string config_file_path = "./postgresql.conf.user";
++    // Use a per-node temp file name: a fixed name in the working directory is
++    // wedged forever by one leftover file from an earlier run (e.g. created via
++    // sudo), and every later install then dies with a confusing
++    // "Failed to open ... for writing" error.
++    std::string config_file_path = "./postgresql.conf.user_" + node->name + "_" + std::to_string(node->port);
+     std::ofstream config_file(config_file_path);
+     if (!config_file.is_open()) {
+         LOG_ERROR_FMT("Failed to open %s for writing", config_file_path.c_str());
+@@ -372,15 +377,17 @@
+         install->server.ssh_port,
+         install->server.ssh_user,
+         install->server.ssh_password,
+-        "./postgresql.conf.user",
++        config_file_path.c_str(),
+         node->data_path + "/postgresql.conf.user");
+     if (ret != 0) {
+         LOG_ERROR_FMT("Failed to transfer package to node %s (%s): %s", 
+                 node->name.c_str(), node->ip.c_str(), result.c_str());
++        remove(config_file_path.c_str());
+         return -1;
+     }
+     LOG_INFO_FMT("Successfully transferred package to node %s (%s)", 
+             node->name.c_str(), node->ip.c_str());
++    remove(config_file_path.c_str());
+ 
+ 
+     // Set pg_hba.conf
+@@ -432,7 +439,8 @@
+     std::string config_content = config_stream.str();
+ 
+     // 将配置内容写入 recovery.conf 文件
+-    std::string config_file_path = "./recovery.conf";
++    // Per-node temp file name, same reasoning as postgresql.conf.user above.
++    std::string config_file_path = "./recovery.conf_" + node->name + "_" + std::to_string(node->port);
+     std::ofstream config_file(config_file_path);
+     if (!config_file.is_open()) {
+         LOG_ERROR_FMT("Failed to open %s for writing", config_file_path.c_str());
+@@ -446,15 +454,17 @@
+         install->server.ssh_port,
+         install->server.ssh_user,
+         install->server.ssh_password,
+-        "./recovery.conf",
++        config_file_path.c_str(),
+         node->data_path + "/recovery.conf");
+     if (ret != 0) {
+         LOG_ERROR_FMT("Failed to transfer package to node %s (%s): %s", 
+                 node->name.c_str(), node->ip.c_str(), result.c_str());
++        remove(config_file_path.c_str());
+         return -1;
+     }
+     LOG_INFO_FMT("Successfully transferred package to node %s (%s)", 
+             node->name.c_str(), node->ip.c_str());
++    remove(config_file_path.c_str());
+ 
+ 
+     // Configure postgresql.conf
+@@ -684,7 +694,11 @@
+     std::string config_content = config_stream.str();
+ 
+     // 将配置内容写入 postgresql.conf.user 文件
+-    std::string config_file_path = "./postgresql.conf.user";
++    // Use a per-node temp file name: a fixed name in the working directory is
++    // wedged forever by one leftover file from an earlier run (e.g. created via
++    // sudo), and every later install then dies with a confusing
++    // "Failed to open ... for writing" error.
++    std::string config_file_path = "./postgresql.conf.user_" + node->name + "_" + std::to_string(node->port);
+     std::ofstream config_file(config_file_path);
+     if (!config_file.is_open()) {
+         LOG_ERROR_FMT("Failed to open %s for writing", config_file_path.c_str());
+@@ -698,15 +712,17 @@
+         install->server.ssh_port,
+         install->server.ssh_user,
+         install->server.ssh_password,
+-        "./postgresql.conf.user",
++        config_file_path.c_str(),
+         node->data_path + "/postgresql.conf.user");
+     if (ret != 0) {
+         LOG_ERROR_FMT("Failed to transfer package to node %s (%s): %s", 
+                 node->name.c_str(), node->ip.c_str(), result.c_str());
++        remove(config_file_path.c_str());
+         return -1;
+     }
+     LOG_INFO_FMT("Successfully transferred package to node %s (%s)", 
+             node->name.c_str(), node->ip.c_str());
++    remove(config_file_path.c_str());
+ 
+ 
+     // Set pg_hba.conf
+@@ -758,7 +774,8 @@
+     std::string config_content = config_stream.str();
+ 
+     // 将配置内容写入 recovery.conf 文件
+-    std::string config_file_path = "./recovery.conf";
++    // Per-node temp file name, same reasoning as postgresql.conf.user above.
++    std::string config_file_path = "./recovery.conf_" + node->name + "_" + std::to_string(node->port);
+     std::ofstream config_file(config_file_path);
+     if (!config_file.is_open()) {
+         LOG_ERROR_FMT("Failed to open %s for writing", config_file_path.c_str());
+@@ -772,15 +789,17 @@
+         install->server.ssh_port,
+         install->server.ssh_user,
+         install->server.ssh_password,
+-        "./recovery.conf",
++        config_file_path.c_str(),
+         node->data_path + "/recovery.conf");
+     if (ret != 0) {
+         LOG_ERROR_FMT("Failed to transfer package to node %s (%s): %s", 
+                 node->name.c_str(), node->ip.c_str(), result.c_str());
++        remove(config_file_path.c_str());
+         return -1;
+     }
+     LOG_INFO_FMT("Successfully transferred package to node %s (%s)", 
+             node->name.c_str(), node->ip.c_str());
++    remove(config_file_path.c_str());
+ 
+ 
+     // Configure postgresql.conf
+
+--- a/contrib/opentenbase_ctl/src/utils/utils.cpp
++++ b/contrib/opentenbase_ctl/src/utils/utils.cpp
+@@ -37,14 +37,22 @@
+ // Check if port is available
+ int 
+ check_port_available(const char *ip, int port, const char *username, const char *password, int ssh_port) {
+-    std::string cmd = "export PATH=/usr/local/bin:/usr/bin:/usr/sbin:$PATH && ss -tln | grep -q ':" + std::to_string(port) + "'";
++    // List the listening sockets instead of relying on grep -q: grep -q never
++    // prints anything, so a remote-side failure (e.g. a stale known_hosts
++    // entry making every self-SSH fail) was indistinguishable from "port
++    // occupied" and burned all 100 retries. Discard stderr and force exit 0
++    // so the SSH transport result stays the only error signal.
++    std::string cmd = "export PATH=/usr/local/bin:/usr/bin:/usr/sbin:$PATH && "
++                      "(ss -tlnH 2>/dev/null || netstat -tln 2>/dev/null) "
++                      "| grep '[:.]" + std::to_string(port) + " ' || true";
+     std::string result;
+     
+     int ret = remote_ssh_exec(ip, ssh_port, username, password, cmd, result);
+     
+     if (ret == 0) {
+-        // Command executed successfully, check return value
+-        if (result.empty()) {
++        // Command executed successfully, inspect the listening table itself:
++        // occupied only if its local address column really contains the port.
++        if (result.find(":" + std::to_string(port) + " ") == std::string::npos) {
+             // No port found, means port is available
+             return 0;
+         } else {
