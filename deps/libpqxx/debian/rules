@@ -5,6 +5,13 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 %:
 	dh $@ --buildsystem=cmake
 
+# The 7.9.2 release tarball ships no pre-generated configure script, and
+# running autoreconf on it needs autoconf >= 2.71, which focal/bullseye do
+# not carry (monthly rebuilds failed there with "Autoconf version 2.71 or
+# higher is required"). This build is cmake-only, so autoreconf is a no-op.
+override_dh_autoreconf:
+	echo "Skipping dh_autoreconf: cmake-only build, no configure to regenerate."
+
 override_dh_auto_configure:
 	dh_auto_configure -- \
 		-DCMAKE_INSTALL_PREFIX=/usr \
