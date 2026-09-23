@@ -115,6 +115,51 @@ case "$OTB_COMMAND" in
 esac
 
 # ====================================================================
+# 发行版预检（issue #75）：预编译包要求 glibc >= 2.28（RHEL 8+/Debian 10+
+# 工具链构建）。此前"宽进严出"：CentOS 7 等老系统能一路装到运行期才报错。
+# 这里在动手前显式拦截并给出明确出路。
+# ====================================================================
+precheck_os_support() {
+    local os_id="" os_ver="" glibc_ver="" glibc_major="" glibc_minor=""
+    if [ -r /etc/os-release ]; then
+        os_id=$(grep -E '^ID=' /etc/os-release | head -1 | cut -d= -f2 | tr -d '"')
+        os_ver=$(grep -E '^VERSION_ID=' /etc/os-release | head -1 | cut -d= -f2 | tr -d '"' | cut -d. -f1)
+    fi
+    glibc_ver=$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')
+    # 检测不到 glibc 版本时不拦（非 glibc 环境本就装不上，交给后续报错）
+    [ -z "$glibc_ver" ] && return 0
+    glibc_major=${glibc_ver%%.*}
+    glibc_minor=${glibc_ver##*.}
+
+    if [ "$glibc_major" -lt 2 ] || { [ "$glibc_major" = "2" ] && [ "$glibc_minor" -lt 28 ]; }; then
+        echo ""
+        echo "===================================================================="
+        echo " [已拦截] 当前系统不在官方预编译包的支持范围内"
+        echo "===================================================================="
+        echo " 检测到: ID=${os_id:-unknown} VERSION=${os_ver:-unknown}, glibc ${glibc_ver}"
+        echo ""
+        echo " 原因: 预编译 RPM/DEB 基于 RHEL 8+ / Debian 10+ 工具链构建，要求"
+        echo "       glibc >= 2.28。CentOS 7 / RHEL 7 等 glibc 2.17 系统装上也"
+        echo "       无法运行（运行期报 GLIBC 版本错误，参见 issue #75）。"
+        echo ""
+        echo " 建议二选一:"
+        echo "   1) 换用受支持的系统: Rocky/AlmaLinux 8/9, CentOS Stream 8/9,"
+        echo "      Fedora 40+, openEuler 22.03+, EulerOS/HCE 2.0,"
+        echo "      Ubuntu 20.04+, Debian 11+"
+        echo "   2) 坚持用当前系统: 走官方源码编译路线（OpenTenBase QuickStart）:"
+        echo "      https://github.com/OpenTenBase/OpenTenBase"
+        echo "===================================================================="
+        exit 1
+    fi
+}
+
+case "$OTB_COMMAND" in
+    install|tune)
+        precheck_os_support
+        ;;
+esac
+
+# ====================================================================
 # 参数与默认值（原 deploy-opentenbase.sh 逻辑）
 # ====================================================================
 INTERACTIVE=true
