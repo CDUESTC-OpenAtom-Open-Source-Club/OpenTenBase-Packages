@@ -127,7 +127,6 @@ jobs:
       - name: Download packages from release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           MATRIX_CODENAME: ${{ matrix.codename }}
           MATRIX_VERSION: ${{ matrix.version }}
@@ -141,7 +140,8 @@ jobs:
           mkdir -p /tmp/debs
           cd /tmp/debs
           # Download DEB packages matching this codename AND version
-          curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
+          curl -sL ${GH_TOKEN:+-H "Authorization: token $GH_TOKEN"} \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.deb"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "$MATRIX_CODENAME" | \
@@ -373,6 +373,7 @@ jobs:
 
       - name: Download packages from release
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           MATRIX_PATTERN: ${{ matrix.pattern }}
           MATRIX_VERSION: ${{ matrix.version }}
@@ -385,7 +386,8 @@ jobs:
           mkdir -p /tmp/rpms
           cd /tmp/rpms
           # Download RPM packages matching this distro AND version (exclude debuginfo/debugsource)
-          curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
+          curl -sL ${GH_TOKEN:+-H "Authorization: token $GH_TOKEN"} \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | \
             grep -o '"browser_download_url": *"[^"]*\.rpm"' | \
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "$MATRIX_PATTERN" | \
