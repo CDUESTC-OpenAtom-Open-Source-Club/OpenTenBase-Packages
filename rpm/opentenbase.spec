@@ -323,17 +323,14 @@ if [ -f /opt/rh/gcc-toolset-11/enable ]; then
     source /opt/rh/gcc-toolset-11/enable
     echo "NOTE: Enabled gcc-toolset-11 (GCC $(gcc --version | head -1)) for C++17 compatibility"
 fi
-# gcc-toolset-11 is REQUIRED on the RHEL-8 family: with system GCC 8 the
-# libpqxx 7.9.2 headers fail to parse ("invalid use of 'this' at top level")
-# and opentenbase_ctl cannot build — this silently broke every el8 aarch64
-# build where the toolset package was missing. Fail loudly instead.
-if [ -f /etc/redhat-release ]; then
-    OTB_EL_MAJOR=$(rpm -q --queryformat '%{VERSION}' -f /etc/redhat-release 2>/dev/null | cut -d. -f1)
-    if [ "$OTB_EL_MAJOR" = "8" ] && [ ! -f /opt/rh/gcc-toolset-11/enable ]; then
-        echo "ERROR: RHEL-8 family build requires gcc-toolset-11 (C++17) but it is not installed." >&2
-        echo "       Install it in the build environment: dnf install -y gcc-toolset-11" >&2
-        exit 1
-    fi
+# gcc-toolset-11 is REQUIRED wherever the system compiler is older than
+# GCC 9: libpqxx 7.9.x headers need C++17 and GCC 8 fails on them with
+# "invalid use of 'this' at top level" (the 2026-07/09 el8 aarch64
+# failures). Detect by compiler, not by distro file heuristics.
+if [ ! -f /opt/rh/gcc-toolset-11/enable ] && [ "$(gcc -dumpmajor 2>/dev/null || echo 0)" -lt 9 ]; then
+    echo "ERROR: system compiler is too old for libpqxx 7.9.x headers (C++17) and gcc-toolset-11 is not installed." >&2
+    echo "       Install it in the build environment: dnf install -y gcc-toolset-11" >&2
+    exit 1
 fi
 
 # Clear all RPM-injected compiler flags from environment

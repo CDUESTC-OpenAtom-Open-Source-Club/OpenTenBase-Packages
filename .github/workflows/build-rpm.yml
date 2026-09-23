@@ -75,16 +75,14 @@ jobs:
             sed -i 's|repo.openeuler.org|mirrors.aliyun.com/openeuler|g' /etc/yum.repos.d/*.repo 2>/dev/null || true
           fi
           if grep -q 'CentOS Stream release 8' /etc/redhat-release 2>/dev/null; then
-            # mirrorlist.centos.org is dead (stream8 EOL) and repo file naming
-            # differs between image arches; comment mirrors, point baseurl at
-            # vault, and if any file still references the dead mirrorlist,
-            # replace AppStream/BaseOS/Extras with explicit vault repos.
+            # mirrorlist.centos.org is dead (stream8 EOL). Comment mirrors and
+            # point baseurl at vault (paths are case-sensitive on vault).
             sed -i -E 's|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
             if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
-              for pair in "AppStream:appstream" "BaseOS:baseos" "Extras:extras"; do
-                REPO="${pair%%:*}"; LOW="${pair##*:}"
+              for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
+                REPO="${pair%%:*}"; VP="${pair##*:}"
                 printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial\nenabled=1\n' \
-                  "$LOW" "$REPO" "$LOW" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
+                  "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
               done
               echo "NOTE: stream8 repos rewritten to vault.centos.org"
             fi
@@ -397,12 +395,39 @@ jobs:
                 sed -i "s|repo.openeuler.org|mirrors.aliyun.com/openeuler|g" /etc/yum.repos.d/*.repo 2>/dev/null || true
               fi
 
+              # stream8 EOL: rewrite dead mirrorlist.centos.org to vault
+              # (vault paths are case-sensitive: AppStream/BaseOS, extras).
+              if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+                sed -i -E 's|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
+                if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+                  for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
+                    REPO="${pair%%:*}"; VP="${pair##*:}"
+                    printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial\nenabled=1\n' \
+                      "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
+                  done
+                  echo "NOTE: stream8 repos rewritten to vault.centos.org"
+                fi
+              fi
+
               # Install core dependencies (required)
               dnf install -y gcc gcc-c++ make bison flex perl \
                 readline-devel zlib-devel openssl-devel pam-devel \
                 libxml2-devel openldap-devel libuuid-devel \
                 libcurl-devel lz4-devel \
                 pkg-config libtool rpm-build git libatomic
+
+              # RHEL-8 family: gcc-toolset-11 is REQUIRED for C++17 (libpqxx
+              # 7.9.x headers). System GCC 8 chokes on them with
+              # "invalid use of 'this' at top level" — the 2026-07/09 el8
+              # aarch64 failures. Fail loudly rather than fall back.
+              if grep -qsE 'release 8' /etc/redhat-release 2>/dev/null; then
+                dnf install -y gcc-toolset-11 || {
+                  echo "ERROR: gcc-toolset-11 required on el8 (C++17 for libpqxx/opentenbase_ctl)" >&2
+                  exit 1
+                }
+                source /opt/rh/gcc-toolset-11/enable
+                echo "NOTE: Enabled gcc-toolset-11 (GCC $(gcc --version | head -1))"
+              fi
 
               # Install optional dependencies (may not be available on all arches)
               dnf install -y zstd-devel 2>/dev/null || true
