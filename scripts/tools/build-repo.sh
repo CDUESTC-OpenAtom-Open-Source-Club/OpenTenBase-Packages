@@ -53,6 +53,7 @@ RPM_DISTROS=(
     "rockylinux-9:el9"
     "fedora-40:fedora"
     "openeuler-22.03:openeuler"
+    "openeuler-24.03:openeuler"
 )
 
 show_help() {
@@ -389,6 +390,36 @@ build_rpm_repo() {
                 --output "${repomd}.asc" \
                 "$repomd" 2>/dev/null || log_warn "Signing failed: $repomd"
         done
+    fi
+
+    # Per-arch coverage summary + hard verification.
+    # 2026-07 的教训：构建成功的 aarch64 v5.0 包因为发布/部署链路问题从未进
+    # 仓库，用户端 dnf 只能看到 2.x，且没有任何报错。这里在部署前显式校验
+    # 每个 arch 目录都有真实包和完整 repodata，缺货直接失败，让断链可见。
+    log_step "Verifying RPM repository coverage ..."
+    local verify_failed=false
+    for arch_dir in "$rpm_dir"/*/*; do
+        [ -d "$arch_dir" ] || continue
+        local rel_path="${arch_dir#"$outdir"/}"
+        local rpm_count
+        rpm_count=$(find "$arch_dir" -maxdepth 1 -name '*.rpm' | wc -l)
+        if [ "$rpm_count" -eq 0 ]; then
+            log_error "  $rel_path: 0 packages (empty arch directory)"
+            verify_failed=true
+        elif [ ! -s "$arch_dir/repodata/repomd.xml" ]; then
+            log_error "  $rel_path: $rpm_count packages but repodata/repomd.xml missing/empty"
+            verify_failed=true
+        elif grep -q '<repomd xmlns="http://linux.duke.edu/metadata/repo">' "$arch_dir/repodata/repomd.xml" && \
+             [ "$(grep -c '<data' "$arch_dir/repodata/repomd.xml")" -eq 0 ]; then
+            log_error "  $rel_path: $rpm_count packages but repodata is the minimal stub (createrepo_c failed)"
+            verify_failed=true
+        else
+            log_info "  $rel_path: $rpm_count packages, repodata OK"
+        fi
+    done
+    if [ "$verify_failed" = "true" ]; then
+        log_error "RPM repository coverage verification FAILED — refusing to publish a broken repository"
+        exit 1
     fi
 
     log_info "RPM repository built at: $rpm_dir"
