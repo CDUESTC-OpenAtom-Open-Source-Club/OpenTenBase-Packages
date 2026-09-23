@@ -177,6 +177,15 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
+          # Per-package signing was dropped in the 2026-06-30 single-entry
+          # refactor (the script no longer exists); packages ship unsigned
+          # and the APT/RPM repository metadata is signed at deploy time.
+          # Keep the step tolerant so a missing script cannot fail the
+          # release again (it broke every release attempt since 2026-07).
+          if [ ! -f scripts/sign-packages.sh ]; then
+            echo "NOTE: scripts/sign-packages.sh not present; publishing unsigned packages"
+            exit 0
+          fi
           chmod +x scripts/sign-packages.sh
           scripts/sign-packages.sh --ci \
             --deb-dir release/debs \
@@ -197,6 +206,10 @@ jobs:
       - name: Verify signatures (if signed)
         if: steps.gpg_check.outputs.has_gpg == 'true'
         run: |
+          if [ ! -f scripts/sign-packages.sh ]; then
+            echo "NOTE: no sign-packages.sh; packages are unsigned, nothing to verify"
+            exit 0
+          fi
           chmod +x scripts/sign-packages.sh
           scripts/sign-packages.sh --verify-deb release/debs --verify-rpm release/rpms || true
 
