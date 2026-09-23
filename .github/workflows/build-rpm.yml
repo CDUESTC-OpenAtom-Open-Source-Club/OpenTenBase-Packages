@@ -397,12 +397,14 @@ jobs:
 
               # stream8 EOL: rewrite dead mirrorlist.centos.org to vault
               # (vault paths are case-sensitive: AppStream/BaseOS, extras).
-              if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
-                sed -i -E 's|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
-                if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+              # NOTE: this whole docker script sits inside single quotes, so
+              # these patterns must not contain single quotes themselves.
+              if grep -qs "mirrorlist.centos.org" /etc/yum.repos.d/*.repo; then
+                sed -i -E "s|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
+                if grep -qs "mirrorlist.centos.org" /etc/yum.repos.d/*.repo; then
                   for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
                     REPO="${pair%%:*}"; VP="${pair##*:}"
-                    printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial\nenabled=1\n' \
+                    printf "[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/\$basearch/os/\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial\nenabled=1\n" \
                       "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
                   done
                   echo "NOTE: stream8 repos rewritten to vault.centos.org"
@@ -420,7 +422,7 @@ jobs:
               # 7.9.x headers). System GCC 8 chokes on them with
               # "invalid use of 'this' at top level" — the 2026-07/09 el8
               # aarch64 failures. Fail loudly rather than fall back.
-              if grep -qsE 'release 8' /etc/redhat-release 2>/dev/null; then
+              if grep -qsE "release 8" /etc/redhat-release 2>/dev/null; then
                 dnf install -y gcc-toolset-11 || {
                   echo "ERROR: gcc-toolset-11 required on el8 (C++17 for libpqxx/opentenbase_ctl)" >&2
                   exit 1

@@ -327,7 +327,8 @@ fi
 # GCC 9: libpqxx 7.9.x headers need C++17 and GCC 8 fails on them with
 # "invalid use of 'this' at top level" (the 2026-07/09 el8 aarch64
 # failures). Detect by compiler, not by distro file heuristics.
-if [ ! -f /opt/rh/gcc-toolset-11/enable ] && [ "$(gcc -dumpmajor 2>/dev/null || echo 0)" -lt 9 ]; then
+OTB_GCC_MAJOR=$(gcc -dumpfullversion -dumpversion 2>/dev/null | cut -d. -f1)
+if [ ! -f /opt/rh/gcc-toolset-11/enable ] && [ "${OTB_GCC_MAJOR:-0}" -lt 9 ]; then
     echo "ERROR: system compiler is too old for libpqxx 7.9.x headers (C++17) and gcc-toolset-11 is not installed." >&2
     echo "       Install it in the build environment: dnf install -y gcc-toolset-11" >&2
     exit 1
