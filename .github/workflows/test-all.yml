@@ -22,69 +22,82 @@ jobs:
             codename: focal
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: ubuntu-22.04-v5.0
             container: ubuntu:22.04
             codename: jammy
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: ubuntu-24.04-v5.0
             container: ubuntu:24.04
             codename: noble
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: ubuntu-25.04-v5.0
             container: ubuntu:25.04
             codename: plucky
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: debian-11-v5.0
             container: debian:bullseye
             codename: bullseye
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: debian-12-v5.0
             container: debian:bookworm
             codename: bookworm
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: debian-13-v5.0
             container: debian:trixie
             codename: trixie
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           # v2.6.0 - representative distros
           - name: ubuntu-22.04-v2.6.0
             container: ubuntu:22.04
             codename: jammy
             version: "2.6.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: debian-12-v2.6.0
             container: debian:bookworm
             codename: bookworm
             version: "2.6.0"
             runner: ubuntu-latest
+            debarch: amd64
           # v2.5.0 - representative distros
           - name: ubuntu-22.04-v2.5.0
             container: ubuntu:22.04
             codename: jammy
             version: "2.5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: debian-12-v2.5.0
             container: debian:bookworm
             codename: bookworm
             version: "2.5.0"
             runner: ubuntu-latest
+            debarch: amd64
           # v5.0 ARM64 coverage (native arm runners; previously zero ARM testing)
           - name: ubuntu-22.04-v5.0-arm64
             container: ubuntu:22.04
             codename: jammy
             version: "5.0"
             runner: ubuntu-24.04-arm
+            debarch: arm64
           - name: debian-12-v5.0-arm64
             container: debian:bookworm
             codename: bookworm
             version: "5.0"
             runner: ubuntu-24.04-arm
+            debarch: arm64
 
     name: DEB ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
@@ -109,6 +122,7 @@ jobs:
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           MATRIX_CODENAME: ${{ matrix.codename }}
           MATRIX_VERSION: ${{ matrix.version }}
+          MATRIX_DEBARCH: ${{ matrix.debarch }}
         run: |
           TAG="$INPUT_TAG"
           if [ -z "$TAG" ]; then
@@ -123,6 +137,7 @@ jobs:
             sed 's/"browser_download_url": *"//' | sed 's/"$//' | \
             grep "$MATRIX_CODENAME" | \
             grep "_${MATRIX_VERSION}-" | \
+            grep "_${MATRIX_DEBARCH}\\.deb" | \
             while read url; do curl -sLO "$url"; done
           ls -la /tmp/debs/
 
@@ -188,84 +203,100 @@ jobs:
             pattern: rockylinux-9
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: rocky-8-v5.0
             container: rockylinux:8
             pattern: rockylinux-8
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: alma-9-v5.0
             container: almalinux:9
             pattern: almalinux-9
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: alma-8-v5.0
             container: almalinux:8
             pattern: almalinux-8
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: centos-stream-9-v5.0
             container: quay.io/centos/centos:stream9
             pattern: centos-stream-9
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: fedora-40-v5.0
             container: fedora:40
             pattern: fedora-40
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: openeuler-22.03-v5.0
             container: openeuler/openeuler:22.03
             pattern: openeuler-22.03
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: centos-stream-8-v5.0
             container: quay.io/centos/centos:stream8
             pattern: centos-stream-8
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: openeuler-24.03-v5.0
             container: quay.io/openeuler/openeuler:24.03-lts
             pattern: openeuler-24.03
             version: "5.0"
             runner: ubuntu-latest
+            debarch: amd64
           # v5.0 ARM64 coverage (native arm runners; previously zero ARM testing)
           - name: rocky-9-v5.0-arm64
             container: rockylinux:9
             pattern: rockylinux-9
             version: "5.0"
             runner: ubuntu-24.04-arm
+            debarch: arm64
           - name: alma-9-v5.0-arm64
             container: almalinux:9
             pattern: almalinux-9
             version: "5.0"
             runner: ubuntu-24.04-arm
+            debarch: arm64
           - name: openeuler-22.03-v5.0-arm64
             container: openeuler/openeuler:22.03
             pattern: openeuler-22.03
             version: "5.0"
             runner: ubuntu-24.04-arm
+            debarch: arm64
           # v2.6.0 - representative distros
           - name: rocky-9-v2.6.0
             container: rockylinux:9
             pattern: rockylinux-9
             version: "2.6.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: alma-9-v2.6.0
             container: almalinux:9
             pattern: almalinux-9
             version: "2.6.0"
             runner: ubuntu-latest
+            debarch: amd64
           # v2.5.0 - representative distros
           - name: rocky-9-v2.5.0
             container: rockylinux:9
             pattern: rockylinux-9
             version: "2.5.0"
             runner: ubuntu-latest
+            debarch: amd64
           - name: alma-9-v2.5.0
             container: almalinux:9
             pattern: almalinux-9
             version: "2.5.0"
             runner: ubuntu-latest
+            debarch: amd64
 
     name: RPM ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
@@ -276,6 +307,17 @@ jobs:
     steps:
       - name: Install deps
         run: |
+          # stream8 EOL: rewrite dead mirrorlist.centos.org to vault, else
+          # every dnf install fails wholesale in this container
+          if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+            sed -i -E 's|^mirrorlist=|#mirrorlist=|g; s|^#?baseurl=http://mirror\.centos\.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo 2>/dev/null || true
+            if grep -qs 'mirrorlist.centos.org' /etc/yum.repos.d/*.repo; then
+              for pair in "AppStream:AppStream" "BaseOS:BaseOS" "Extras:extras"; do
+                REPO="${pair%%:*}"; VP="${pair##*:}"
+                printf '[%s]\nname=CentOS Stream 8 - %s\nbaseurl=http://vault.centos.org/8-stream/%s/$basearch/os/\ngpgcheck=1\nenabled=1\n' "${REPO,,}" "$REPO" "$VP" > "/etc/yum.repos.d/CentOS-Stream-${REPO}.repo"
+              done
+            fi
+          fi
           # Install core packages one by one to avoid one failure blocking all
           PKGS="sudo procps-ng curl python3"
           for pkg in $PKGS; do
