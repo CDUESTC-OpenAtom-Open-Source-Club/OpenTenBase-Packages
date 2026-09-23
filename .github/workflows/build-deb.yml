@@ -71,15 +71,15 @@ jobs:
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          # bullseye: the security suite is being wound down (LTS ended
-          # 2026-08) and its pool files 404 mid-migration, which breaks
-          # libssl-dev/libxml2-dev installs. The bullseye base suite
-          # carries current point-release versions of everything we need,
-          # so restrict bullseye to it.
+          # bullseye: the live mirrors are mid-wind-down (LTS ended
+          # 2026-08) — base-suite -dev packages no longer match the newer
+          # runtime libs in the docker image, and security pool files
+          # 404. Pin bullseye to a snapshot.debian.org state, which is
+          # internally consistent and still serves every file.
           if grep -qs "bullseye" /etc/os-release; then
-            printf 'deb http://deb.debian.org/debian bullseye main\n' > /etc/apt/sources.list
+            printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260828T000000Z/ bullseye main\ndeb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260828T000000Z/ bullseye-security main\n' > /etc/apt/sources.list
             rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            apt-get update
+            apt-get -o Acquire::Retries=3 update
           else
             apt-get update
           fi
@@ -369,15 +369,15 @@ jobs:
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          # bullseye: the security suite is being wound down (LTS ended
-          # 2026-08) and its pool files 404 mid-migration, which breaks
-          # libssl-dev/libxml2-dev installs. The bullseye base suite
-          # carries current point-release versions of everything we need,
-          # so restrict bullseye to it.
+          # bullseye: the live mirrors are mid-wind-down (LTS ended
+          # 2026-08) — base-suite -dev packages no longer match the newer
+          # runtime libs in the docker image, and security pool files
+          # 404. Pin bullseye to a snapshot.debian.org state, which is
+          # internally consistent and still serves every file.
           if grep -qs "bullseye" /etc/os-release; then
-            printf 'deb http://deb.debian.org/debian bullseye main\n' > /etc/apt/sources.list
+            printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260828T000000Z/ bullseye main\ndeb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260828T000000Z/ bullseye-security main\n' > /etc/apt/sources.list
             rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            apt-get update
+            apt-get -o Acquire::Retries=3 update
           else
             apt-get update
           fi
