@@ -198,7 +198,7 @@ apply_patches() {
     # binaries without telling anyone. Only apply them for 5.0 and fail the
     # build if a patch does not apply cleanly.
     if [ "${OTB_VERSION:-5.0}" = "5.0" ]; then
-        for p in 01-bool-stdbool 02-nolic-sharding 03-atomic128-x86 04-gtm-thread-bind 06-ctl-tempfile-portcheck 07-forward-dn-reconnect; do
+        for p in 01-bool-stdbool 02-nolic-sharding 03-atomic128-x86 04-gtm-thread-bind 06-ctl-tempfile-portcheck 07-forward-dn-reconnect 08-ctl-forward-port-persistence; do
             if [ -f "debian/patches/${p}.patch" ]; then
                 log_info "  applying ${p}.patch"
                 patch -p1 < "debian/patches/${p}.patch" || {
