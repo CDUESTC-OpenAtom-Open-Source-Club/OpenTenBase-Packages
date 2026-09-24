@@ -1,0 +1,50 @@
+Fix distributed-write mass termination after transient forward failures
+(observed on HCE 2.0 aarch64, packaging repo issue #76):
+
+SendFnPage only attempted a reconnect when the failed forward connection
+pointed at a CN (send_to_cn && conn->fail). DN-directed connections never
+recover: once conn->fail is set, every subsequent flush proceeds on the
+stale socket, SendData fails, and FlushFnBuffer calls
+TermFidBackendProc("tcp fails to send data"), which SIGTERMs every
+backend holding a local_fid. On a fresh install the first distributed
+INSERT then failed with ERROR 57P01 on every attempt until the whole
+cluster was restarted; the DN log showed "because tcp fails to send
+data, force kill SIGTERM to pid".
+
+Give DN-directed connections the same reconnect treatment the CN path
+already has.
+--- a/src/backend/forward/fnconn.c
++++ b/src/backend/forward/fnconn.c
+@@ -919,6 +919,32 @@
+ 		}
+ 
+ 		conn = &fn_dn_conns[nodeid];
++
++		/*
++		 * Mirror the CN-side handling: when the forward socket to a DN was
++		 * marked failed (receiver restarted, transient network error, ...),
++		 * try to re-establish it before giving up. Without this the stale
++		 * socket makes every subsequent flush fail, and each failure
++		 * terminates all backends holding a local_fid, so one transient TCP
++		 * error kills the whole distributed workload until restart.
++		 */
++		if (conn->fail)
++		{
++			int	fn_send_bulk_bytes = 1024 * FnSendBulkSize;
++
++			if (fnconn_connect_remote(conn, false) == STATUS_OK)
++			{
++				conn->fail = false;
++				add_connection_to_checker(conn);
++				conn->buffer = MemoryContextAlloc(TopMemoryContext, fn_send_bulk_bytes);
++			}
++			else
++			{
++				elog(WARNING, "[SendFnPage] failed to reconnect to forward receiver, name=%s",
++					 NameStr(conn->node.nodename));
++				return false;
++			}
++		}
+ 	}
+ 
+ 	if (send_to_cn && conn->fail)

@@ -66,6 +66,7 @@ if [ "$OTB_PATCH_MAJOR" = "5" ]; then
     patch -p1 < %{_sourcedir}/03-atomic128-x86.patch
     patch -p1 < %{_sourcedir}/04-gtm-thread-bind.patch
     patch -p1 < %{_sourcedir}/06-ctl-tempfile-portcheck.patch
+    patch -p1 < %{_sourcedir}/07-forward-dn-reconnect.patch
     echo "All patches applied successfully"
 else
     echo "NOTE: patches are v5.0-specific, skipped for %{otb_ver}"

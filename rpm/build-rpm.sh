@@ -91,7 +91,7 @@ done
 # Copy patches from patches/ directory
 PATCHES_DIR="$SCRIPT_DIR/../patches"
 if [ -d "$PATCHES_DIR" ]; then
-    for patch in 01-bool-stdbool.patch 02-nolic-sharding.patch 03-atomic128-x86.patch 04-gtm-thread-bind.patch 06-ctl-tempfile-portcheck.patch; do
+    for patch in 01-bool-stdbool.patch 02-nolic-sharding.patch 03-atomic128-x86.patch 04-gtm-thread-bind.patch 06-ctl-tempfile-portcheck.patch 07-forward-dn-reconnect.patch; do
         if [ -f "$PATCHES_DIR/$patch" ]; then
             cp "$PATCHES_DIR/$patch" "$RPMBUILD_DIR/SOURCES/"
             log "Copied patch: $patch"
