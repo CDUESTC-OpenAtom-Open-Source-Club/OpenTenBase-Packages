@@ -1,0 +1,33 @@
+Persist the allocated forward port when opentenbase_ctl creates pgxc nodes
+(issue #76):
+
+The installer allocates node_port/pooler_port/forward_port, and writes
+forward_port into postgresql.conf, but build_create_pgxz_node_cmd() only
+emitted HOST and PORT in CREATE/ALTER NODE. pgxc_node.node_forward_port
+therefore stayed 0. The forward manager then tried to use port 0 and
+failed its first distributed write; FlushFnBuffer called
+TermFidBackendProc(), which SIGTERMed every backend holding a local_fid
+and the client saw ERROR 57P01.
+
+Use the parser's actual option name (FORWARD, not FORWARD_PORT) so the
+catalog receives the allocated forward port. A real HCE 2.0 aarch64
+install with this change reports cn=11005 and dn=11008 in
+pgxc_node.node_forward_port, and a 100-row distributed INSERT/query
+completes successfully.
+diff --git a/contrib/opentenbase_ctl/src/cluster/cluster.cpp b/contrib/opentenbase_ctl/src/cluster/cluster.cpp
+index 16fb511..191b657 100644
+--- a/contrib/opentenbase_ctl/src/cluster/cluster.cpp
++++ b/contrib/opentenbase_ctl/src/cluster/cluster.cpp
+@@ -184,10 +184,10 @@ std::string build_create_pgxz_node_cmd(NodeInfo *node, OpentenbaseConfig* instal
+         {
+             // 本节点默认会生成一个IP为 localhost/端口为5432 的记录，需要修改一下节点路由的IP/Port
+             // ALTER NODE cn001 with(HOST='172.16.16.49',PORT=11000);
+-            create_sql += "ALTER NODE " + install->nodes[i].name + " WITH (HOST='"+ install->nodes[i].ip +"', PORT=" + std::to_string(install->nodes[i].port) +");";
++            create_sql += "ALTER NODE " + install->nodes[i].name + " WITH (HOST='"+ install->nodes[i].ip +"', PORT=" + std::to_string(install->nodes[i].port) + ", FORWARD=" + std::to_string(install->nodes[i].forward_port) + ");";
+         } else {
+             // CREATE NODE cn001 WITH (TYPE='coordinator', HOST='172.16.16.49', PORT=11000);
+-            create_sql += "CREATE NODE " + install->nodes[i].name + " WITH (TYPE='"+ node_type +"', HOST='"+ install->nodes[i].ip +"', PORT=" + std::to_string(install->nodes[i].port) +");";
++            create_sql += "CREATE NODE " + install->nodes[i].name + " WITH (TYPE='"+ node_type +"', HOST='"+ install->nodes[i].ip +"', PORT=" + std::to_string(install->nodes[i].port) + ", FORWARD=" + std::to_string(install->nodes[i].forward_port) + ");";
+         }
+     }
+ 
