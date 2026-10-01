@@ -1,9 +1,10 @@
 name: Build Multi-Distro DEB Packages
 
+# Legacy pipeline superseded by build-deb.yml (which the Auto Release
+# actually calls). Its Dockerfiles still COPY the pre-refactor
+# packaging/scripts/build-deb.sh path, so tag pushes fail on every release.
+# Manual runs remain available via workflow_dispatch.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version:

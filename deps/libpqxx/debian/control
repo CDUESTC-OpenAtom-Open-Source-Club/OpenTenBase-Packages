@@ -2,7 +2,7 @@ Source: libpqxx
 Section: libs
 Priority: optional
 Maintainer: OpenTenBase Team <opentenbase@cduestc.edu.cn>
-Build-Depends: debhelper-compat (= 13), cmake, libpq-dev, g++
+Build-Depends: debhelper-compat (= 12), cmake, libpq-dev, g++
 Standards-Version: 4.6.2
 Homepage: https://github.com/jtv/libpqxx
 

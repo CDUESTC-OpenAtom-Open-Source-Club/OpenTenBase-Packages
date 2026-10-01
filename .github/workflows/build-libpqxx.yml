@@ -51,7 +51,15 @@ jobs:
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
+          # bullseye: pin to snapshot.debian.org (LTS ended 2026-08; the live
+          # security pool 404s mid-migration) — same medicine as build-deb.yml
+          if grep -qs "bullseye" /etc/os-release; then
+            printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260828T000000Z/ bullseye main\ndeb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260828T000000Z/ bullseye-security main\n' > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            apt-get -o Acquire::Retries=3 update
+          else
+            apt-get update
+          fi
           apt-get install -y \
             build-essential debhelper fakeroot cmake \
             libpq-dev g++ git curl ca-certificates
@@ -119,7 +127,15 @@ jobs:
       - name: Install build dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
+          # bullseye: pin to snapshot.debian.org (LTS ended 2026-08; the live
+          # security pool 404s mid-migration) — same medicine as build-deb.yml
+          if grep -qs "bullseye" /etc/os-release; then
+            printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260828T000000Z/ bullseye main\ndeb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260828T000000Z/ bullseye-security main\n' > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            apt-get -o Acquire::Retries=3 update
+          else
+            apt-get update
+          fi
           apt-get install -y \
             build-essential debhelper fakeroot cmake \
             libpq-dev g++ git curl ca-certificates
