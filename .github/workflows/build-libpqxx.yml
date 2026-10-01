@@ -60,9 +60,14 @@ jobs:
           else
             apt-get update
           fi
+          # pkg-config is REQUIRED on focal: its libpq-dev lacks the server
+          # headers FindPostgreSQL wants (PostgreSQL_TYPE_INCLUDE_DIR), and
+          # cmake's pkg-config fallback for libpq only works if pkg-config
+          # is installed. Without it dh_auto_configure fails (exit 2) and
+          # the monthly build has never gone green on focal.
           apt-get install -y \
             build-essential debhelper fakeroot cmake \
-            libpq-dev g++ git curl ca-certificates
+            libpq-dev g++ git curl ca-certificates pkg-config
 
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -136,9 +141,14 @@ jobs:
           else
             apt-get update
           fi
+          # pkg-config is REQUIRED on focal: its libpq-dev lacks the server
+          # headers FindPostgreSQL wants (PostgreSQL_TYPE_INCLUDE_DIR), and
+          # cmake's pkg-config fallback for libpq only works if pkg-config
+          # is installed. Without it dh_auto_configure fails (exit 2) and
+          # the monthly build has never gone green on focal.
           apt-get install -y \
             build-essential debhelper fakeroot cmake \
-            libpq-dev g++ git curl ca-certificates
+            libpq-dev g++ git curl ca-certificates pkg-config
 
       - name: Checkout repo
         uses: actions/checkout@v4
